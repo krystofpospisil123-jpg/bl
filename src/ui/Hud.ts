@@ -4,11 +4,20 @@ import { VIEWPOINTS } from '../game/viewpoints.ts';
 
 const HELP: Record<Mode, [string, string][]> = {
   loading: [['', 'Načítám město a fyziku…']],
+  foot: [
+    ['W A S D', 'chůze (směr podle kamery)'],
+    ['Shift', 'sprint'],
+    ['Mezerník', 'skok'],
+    ['F', 'nastoupit do auta (stůj u něj)'],
+    ['Myš', 'rozhlížení (klik zamkne myš)'],
+    ['P', 'volná kamera'],
+  ],
   car: [
     ['W / S', 'plyn / brzda, couvání'],
     ['A / D', 'zatáčení'],
     ['Mezerník', 'ruční brzda'],
     ['R', 'postavit auto na kola'],
+    ['F', 'vystoupit'],
     ['Myš', 'rozhlížení (klik zamkne myš)'],
     ['P', 'volná kamera'],
   ],
@@ -18,7 +27,7 @@ const HELP: Record<Mode, [string, string][]> = {
     ['Shift', 'rychleji'],
     ['Kolečko', 'základní rychlost'],
     ['Myš', 'rozhlížení (klik zamkne myš)'],
-    ['P', 'položit auto sem a jet'],
+    ['P', 'vrátit se sem (pěšky i s autem)'],
     ...VIEWPOINTS.map((v, i): [string, string] => [String(i + 1), v.name]),
   ],
 };
@@ -27,6 +36,7 @@ export class Hud {
   private stats: HTMLElement;
   private help: HTMLElement;
   private speedo: HTMLElement;
+  private prompt: HTMLElement;
   private frames = 0;
   private acc = 0;
   private fps = 0;
@@ -35,7 +45,7 @@ export class Hud {
   constructor(private game: Game) {
     const el = document.getElementById('hud')!;
     el.innerHTML = `
-      <h1>Blansko: Open World <small>fáze 3 · auto</small></h1>
+      <h1>Blansko: Open World <small>fáze 4 · pěšky i autem</small></h1>
       <div id="stats"></div>
       <details id="help" open><summary>Ovládání</summary><div class="keys"></div>
         <div class="keys extra"><span>O</span><span>stíny zap/vyp</span><span>M</span><span>2D mapa dat</span><span>H</span><span>skrýt nápovědu</span></div>
@@ -44,7 +54,9 @@ export class Hud {
     this.help = el.querySelector('.keys')!;
     this.speedo = document.createElement('div');
     this.speedo.id = 'speedo';
-    document.body.append(this.speedo);
+    this.prompt = document.createElement('div');
+    this.prompt.id = 'prompt';
+    document.body.append(this.speedo, this.prompt);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyM') location.hash = 'mapa';
       if (e.code === 'KeyH') {
@@ -60,6 +72,9 @@ export class Hud {
       this.shownMode = g.mode;
       this.help.innerHTML = HELP[g.mode].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
     }
+    const msg = g.notice || (g.canEnterCar ? 'F – nastoupit do auta' : '');
+    if (this.prompt.textContent !== msg) this.prompt.textContent = msg;
+    this.prompt.hidden = !msg;
     const driving = g.mode === 'car' && g.car;
     this.speedo.hidden = !driving;
     if (driving) {
@@ -73,7 +88,7 @@ export class Hud {
     this.fps = this.frames / this.acc;
     this.frames = 0;
     this.acc = 0;
-    const p = g.mode === 'car' && g.car ? g.car.position : g.camera.position;
+    const p = g.focus;
     const s = g.chunks.stats();
     const info = g.renderer.info.render;
     this.stats.innerHTML =

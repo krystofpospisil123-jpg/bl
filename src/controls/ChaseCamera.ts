@@ -11,9 +11,19 @@ export interface ChaseTarget {
   speed: number;
 }
 
+export interface ChaseStyle {
+  distance: number;
+  height: number;
+  pivot: number; // height of the orbit pivot above the target origin
+  /** Swing behind the target's heading automatically (vehicles); false = free mouse orbit. */
+  follow: boolean;
+}
+
+export const CAR_STYLE: ChaseStyle = { distance: 6.8, height: 2.3, pivot: 1.3, follow: true };
+export const FOOT_STYLE: ChaseStyle = { distance: 4.0, height: 1.9, pivot: 1.55, follow: false };
+
 export class ChaseCamera {
-  distance = 6.8;
-  height = 2.3;
+  style: ChaseStyle = CAR_STYLE;
   private orbitYaw = 0;
   private orbitPitch = 0.12;
   private smoothYaw = 0;
@@ -32,28 +42,53 @@ export class ChaseCamera {
     this.initialised = false;
   }
 
+  /** Horizontal direction the camera looks along (yaw, 0 = +Z). */
+  get viewYaw(): number {
+    return this.smoothYaw + this.orbitYaw;
+  }
+
+  /** Points the camera along `yaw` (behind a target facing that way). */
+  setYaw(yaw: number) {
+    this.smoothYaw = yaw;
+    this.orbitYaw = 0;
+    this.initialised = false;
+  }
+
+  /** Switches style while keeping the current view direction. */
+  setStyle(style: ChaseStyle) {
+    if (style === this.style) return;
+    if (!style.follow) {
+      this.smoothYaw = this.viewYaw;
+      this.orbitYaw = 0;
+    }
+    this.style = style;
+  }
+
   update(t: ChaseTarget, dt: number) {
     const { dx, dy } = this.mouse.take();
     this.orbitYaw -= dx * 0.004;
     this.orbitPitch = THREE.MathUtils.clamp(this.orbitPitch + dy * 0.003, -0.25, 1.1);
+    const st = this.style;
     // Recentre behind the target once the mouse has been idle for a while.
-    if (performance.now() - this.mouse.lastMove > 1500) {
+    if (st.follow && performance.now() - this.mouse.lastMove > 1500) {
       this.orbitYaw *= Math.exp(-dt * 2.5);
       this.orbitPitch += (0.12 - this.orbitPitch) * (1 - Math.exp(-dt * 2));
     }
     // Follow the heading with some lag; when reversing quickly, still stay behind the car.
-    if (!this.initialised) this.smoothYaw = t.yaw;
-    let d = t.yaw - this.smoothYaw;
-    d = Math.atan2(Math.sin(d), Math.cos(d));
-    this.smoothYaw += d * (1 - Math.exp(-dt * 5));
+    if (!this.initialised && st.follow) this.smoothYaw = t.yaw;
+    if (st.follow) {
+      let d = t.yaw - this.smoothYaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.smoothYaw += d * (1 - Math.exp(-dt * 5));
+    }
 
     const yaw = this.smoothYaw + this.orbitYaw;
     const pitch = this.orbitPitch;
-    const speedK = THREE.MathUtils.clamp(Math.abs(t.speed) / 30, 0, 1);
-    const dist = this.distance + speedK * 1.5;
-    const pivot = t.position.clone().add(new THREE.Vector3(0, 1.3, 0));
+    const speedK = st.follow ? THREE.MathUtils.clamp(Math.abs(t.speed) / 30, 0, 1) : 0;
+    const dist = st.distance + speedK * 1.5;
+    const pivot = t.position.clone().add(new THREE.Vector3(0, st.pivot, 0));
     const back = new THREE.Vector3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
-    const want = pivot.clone().addScaledVector(back, dist).add(new THREE.Vector3(0, this.height - 1.3, 0));
+    const want = pivot.clone().addScaledVector(back, dist).add(new THREE.Vector3(0, st.height - st.pivot, 0));
 
     // Pull the camera in front of walls between the pivot and the desired position.
     const toWant = want.clone().sub(pivot);
@@ -73,7 +108,9 @@ export class ChaseCamera {
       this.pos.lerp(want, 1 - Math.exp(-dt * k));
     }
     this.camera.position.copy(this.pos);
-    const look = t.position.clone().add(new THREE.Vector3(Math.sin(t.yaw) * speedK * 3, 1.1, Math.cos(t.yaw) * speedK * 3));
+    const look = st.follow
+      ? t.position.clone().add(new THREE.Vector3(Math.sin(t.yaw) * speedK * 3, 1.1, Math.cos(t.yaw) * speedK * 3))
+      : pivot.clone().add(new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(2));
     this.camera.lookAt(look);
     // Slight FOV kick with speed.
     const fov = 60 + speedK * 12;

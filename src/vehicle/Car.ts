@@ -34,7 +34,7 @@ export class Car {
 
   control(input: CarInput, dt: number) {
     this.physics.update(input, dt);
-    this.model.setBraking(input.brake > 0 && this.speed > 0.5 || input.handbrake);
+    this.model.setBraking((input.brake > 0 || input.handbrake) && this.speed > 0.5);
   }
 
   /** Copies the physics state to the model (call after the physics step). */

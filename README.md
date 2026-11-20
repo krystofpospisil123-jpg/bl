@@ -17,19 +17,19 @@ npm run dev       # http://localhost:5173  (2D mapa dat: http://localhost:5173/#
 
 ### Ovládání
 
-Hra startuje v autě na náměstí Republiky.
+Hra startuje pěšky vedle auta na náměstí Republiky.
 
-| Klávesa | V autě | Volná kamera |
-| --- | --- | --- |
-| W / S | plyn / brzda, při stání couvání | pohyb vpřed / vzad |
-| A / D | zatáčení | pohyb do stran |
-| Mezerník | ruční brzda | nahoru (Q dolů) |
-| R | postavit auto na kola | |
-| P | přepnout na volnou kameru | položit auto pod kameru a jet |
-| myš | rozhlížení (klik zamkne myš, Esc uvolní) | rozhlížení |
-| Shift / kolečko | | rychleji / základní rychlost |
-| 1–4 | | náměstí, zámek, nádraží, pohled nad městem |
-| O / M / H | stíny, 2D mapa, nápověda | stejné |
+| Klávesa | Pěšky | V autě | Volná kamera |
+| --- | --- | --- | --- |
+| W A S D | chůze podle směru kamery | plyn, brzda/couvání, zatáčení | pohyb |
+| Shift | sprint | | rychleji |
+| Mezerník | skok | ruční brzda | nahoru (Q dolů) |
+| F | nastoupit (u auta) | vystoupit (do 15 km/h) | |
+| R | | postavit auto na kola | |
+| P | volná kamera | volná kamera | vrátit se pod kameru (i s autem) |
+| myš | rozhlížení (klik zamkne myš, Esc uvolní) | rozhlížení | rozhlížení |
+| 1–4 | | | náměstí, zámek, nádraží, výhled |
+| O / M / H | stíny, 2D mapa, nápověda | | |
 
 `public/data/` je v repozitáři, takže `npm run data` stačí pustit jen při aktualizaci dat.
 
@@ -69,6 +69,7 @@ src/
   controls/         vstup, létající kamera, kamera za autem
   physics/          svět Rapier: kolize terénu, budov a mostů streamované kolem hráče
   vehicle/          fyzika auta (raycast vehicle), procedurální model auta
+  character/        postava: kinematický character controller, model s animací chůze
   game/Game.ts      herní smyčka
   preview/          2D inspektor dat (#mapa)
   ui/               HUD, atribuce
@@ -108,7 +109,7 @@ případný externí asset se uvede sem i s licencí.
 1. ✅ Setup a data
 2. ✅ Svět: 3D terén, budovy, silnice, voda, stromy, streaming dlaždic, létající kamera
 3. ✅ Auto: Rapier raycast vehicle, kamera za autem, kolize s budovami
-4. Postava, nástup a výstup z auta
+4. ✅ Postava: chůze, sprint, skok, nástup a výstup z auta
 5. Provoz a chodci
 6. Den a noc, minimapa, mise, policie
 
@@ -135,3 +136,13 @@ případný externí asset se uvede sem i s licencí.
 - **Fyzika** běží s pevným krokem 1/60 s.
 - **Ladění:** `npx tsx scripts/dev/car-sim.ts` simuluje jízdu po rovině (zrychlení, zatáčky,
   brzdění, náraz do zdi) bez prohlížeče.
+
+## Postava
+
+- **Fyzika:** kinematický character controller z Rapieru s kapslí 1,7 m. Vyjde na obrubník do
+  45 cm a svah do 50°, drží se země a na strmějších svazích klouže. Auto odstrčí jen lehce.
+- **Pohyb:** běh 4,6 m/s, sprint 7,2 m/s, skok. Postava se natáčí do směru pohybu, kamera se
+  ovládá myší.
+- **Auto:** nastupuje se do 3,6 m od auta. Vystupuje se levými dveřmi, když je tam zeď, tak vpravo,
+  jinak na střechu.
+- **Test:** `npx tsx scripts/dev/char-sim.ts` (chůze, obrubník, skok, odstrčení auta).
