@@ -19,11 +19,14 @@ export interface Manifest {
   chunksPerSide: number;
   /** Heightmap spacing in metres; each chunk heightmap has (chunkSize/heightStep + 1)^2 samples. */
   heightStep: number;
-  /** height = heightBase + uint16 * heightScale (metres above sea level). */
+  /**
+   * Heightmaps are lossless RGB PNGs holding uint16 values (R = high byte, G = low byte):
+   * height = heightBase + uint16 * heightScale (metres above sea level).
+   */
   heightBase: number;
   heightScale: number;
   elevation: { min: number; max: number };
-  /** Coarse heightmap of the whole area (Uint16, same encoding), for distant terrain. */
+  /** Coarse heightmap of the whole area (same PNG encoding), for distant terrain. */
   overview: { file: string; size: number; step: number };
   chunks: ChunkInfo[];
   pois: Poi[];

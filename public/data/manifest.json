@@ -1,7 +1,7 @@
 {
  "version": 1,
  "name": "Blansko: Open World",
- "generated": "2026-11-20T11:18:39.636Z",
+ "generated": "2026-11-20T11:26:13.379Z",
  "origin": {
   "lat": 49.3628,
   "lon": 16.6448
@@ -17,7 +17,7 @@
   "max": 521.6
  },
  "overview": {
-  "file": "overview.bin",
+  "file": "overview.png",
   "size": 151,
   "step": 20
  },
@@ -26,7 +26,7 @@
    "cx": 0,
    "cz": 0,
    "file": "chunks/c_0_0.json",
-   "heightFile": "chunks/c_0_0.bin",
+   "heightFile": "chunks/c_0_0.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -37,7 +37,7 @@
    "cx": 1,
    "cz": 0,
    "file": "chunks/c_1_0.json",
-   "heightFile": "chunks/c_1_0.bin",
+   "heightFile": "chunks/c_1_0.png",
    "counts": {
     "buildings": 0,
     "roads": 6,
@@ -48,7 +48,7 @@
    "cx": 2,
    "cz": 0,
    "file": "chunks/c_2_0.json",
-   "heightFile": "chunks/c_2_0.bin",
+   "heightFile": "chunks/c_2_0.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -59,7 +59,7 @@
    "cx": 3,
    "cz": 0,
    "file": "chunks/c_3_0.json",
-   "heightFile": "chunks/c_3_0.bin",
+   "heightFile": "chunks/c_3_0.png",
    "counts": {
     "buildings": 2,
     "roads": 4,
@@ -70,7 +70,7 @@
    "cx": 4,
    "cz": 0,
    "file": "chunks/c_4_0.json",
-   "heightFile": "chunks/c_4_0.bin",
+   "heightFile": "chunks/c_4_0.png",
    "counts": {
     "buildings": 2,
     "roads": 9,
@@ -81,7 +81,7 @@
    "cx": 5,
    "cz": 0,
    "file": "chunks/c_5_0.json",
-   "heightFile": "chunks/c_5_0.bin",
+   "heightFile": "chunks/c_5_0.png",
    "counts": {
     "buildings": 15,
     "roads": 13,
@@ -92,7 +92,7 @@
    "cx": 6,
    "cz": 0,
    "file": "chunks/c_6_0.json",
-   "heightFile": "chunks/c_6_0.bin",
+   "heightFile": "chunks/c_6_0.png",
    "counts": {
     "buildings": 80,
     "roads": 22,
@@ -103,7 +103,7 @@
    "cx": 7,
    "cz": 0,
    "file": "chunks/c_7_0.json",
-   "heightFile": "chunks/c_7_0.bin",
+   "heightFile": "chunks/c_7_0.png",
    "counts": {
     "buildings": 146,
     "roads": 38,
@@ -114,7 +114,7 @@
    "cx": 8,
    "cz": 0,
    "file": "chunks/c_8_0.json",
-   "heightFile": "chunks/c_8_0.bin",
+   "heightFile": "chunks/c_8_0.png",
    "counts": {
     "buildings": 31,
     "roads": 13,
@@ -125,7 +125,7 @@
    "cx": 9,
    "cz": 0,
    "file": "chunks/c_9_0.json",
-   "heightFile": "chunks/c_9_0.bin",
+   "heightFile": "chunks/c_9_0.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -136,7 +136,7 @@
    "cx": 10,
    "cz": 0,
    "file": "chunks/c_10_0.json",
-   "heightFile": "chunks/c_10_0.bin",
+   "heightFile": "chunks/c_10_0.png",
    "counts": {
     "buildings": 0,
     "roads": 4,
@@ -147,7 +147,7 @@
    "cx": 11,
    "cz": 0,
    "file": "chunks/c_11_0.json",
-   "heightFile": "chunks/c_11_0.bin",
+   "heightFile": "chunks/c_11_0.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -158,7 +158,7 @@
    "cx": 0,
    "cz": 1,
    "file": "chunks/c_0_1.json",
-   "heightFile": "chunks/c_0_1.bin",
+   "heightFile": "chunks/c_0_1.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -169,7 +169,7 @@
    "cx": 1,
    "cz": 1,
    "file": "chunks/c_1_1.json",
-   "heightFile": "chunks/c_1_1.bin",
+   "heightFile": "chunks/c_1_1.png",
    "counts": {
     "buildings": 0,
     "roads": 4,
@@ -180,7 +180,7 @@
    "cx": 2,
    "cz": 1,
    "file": "chunks/c_2_1.json",
-   "heightFile": "chunks/c_2_1.bin",
+   "heightFile": "chunks/c_2_1.png",
    "counts": {
     "buildings": 14,
     "roads": 3,
@@ -191,7 +191,7 @@
    "cx": 3,
    "cz": 1,
    "file": "chunks/c_3_1.json",
-   "heightFile": "chunks/c_3_1.bin",
+   "heightFile": "chunks/c_3_1.png",
    "counts": {
     "buildings": 1,
     "roads": 1,
@@ -202,7 +202,7 @@
    "cx": 4,
    "cz": 1,
    "file": "chunks/c_4_1.json",
-   "heightFile": "chunks/c_4_1.bin",
+   "heightFile": "chunks/c_4_1.png",
    "counts": {
     "buildings": 4,
     "roads": 12,
@@ -213,7 +213,7 @@
    "cx": 5,
    "cz": 1,
    "file": "chunks/c_5_1.json",
-   "heightFile": "chunks/c_5_1.bin",
+   "heightFile": "chunks/c_5_1.png",
    "counts": {
     "buildings": 11,
     "roads": 17,
@@ -224,7 +224,7 @@
    "cx": 6,
    "cz": 1,
    "file": "chunks/c_6_1.json",
-   "heightFile": "chunks/c_6_1.bin",
+   "heightFile": "chunks/c_6_1.png",
    "counts": {
     "buildings": 95,
     "roads": 22,
@@ -235,7 +235,7 @@
    "cx": 7,
    "cz": 1,
    "file": "chunks/c_7_1.json",
-   "heightFile": "chunks/c_7_1.bin",
+   "heightFile": "chunks/c_7_1.png",
    "counts": {
     "buildings": 64,
     "roads": 52,
@@ -246,7 +246,7 @@
    "cx": 8,
    "cz": 1,
    "file": "chunks/c_8_1.json",
-   "heightFile": "chunks/c_8_1.bin",
+   "heightFile": "chunks/c_8_1.png",
    "counts": {
     "buildings": 34,
     "roads": 26,
@@ -257,7 +257,7 @@
    "cx": 9,
    "cz": 1,
    "file": "chunks/c_9_1.json",
-   "heightFile": "chunks/c_9_1.bin",
+   "heightFile": "chunks/c_9_1.png",
    "counts": {
     "buildings": 0,
     "roads": 2,
@@ -268,7 +268,7 @@
    "cx": 10,
    "cz": 1,
    "file": "chunks/c_10_1.json",
-   "heightFile": "chunks/c_10_1.bin",
+   "heightFile": "chunks/c_10_1.png",
    "counts": {
     "buildings": 0,
     "roads": 5,
@@ -279,7 +279,7 @@
    "cx": 11,
    "cz": 1,
    "file": "chunks/c_11_1.json",
-   "heightFile": "chunks/c_11_1.bin",
+   "heightFile": "chunks/c_11_1.png",
    "counts": {
     "buildings": 0,
     "roads": 4,
@@ -290,7 +290,7 @@
    "cx": 0,
    "cz": 2,
    "file": "chunks/c_0_2.json",
-   "heightFile": "chunks/c_0_2.bin",
+   "heightFile": "chunks/c_0_2.png",
    "counts": {
     "buildings": 0,
     "roads": 1,
@@ -301,7 +301,7 @@
    "cx": 1,
    "cz": 2,
    "file": "chunks/c_1_2.json",
-   "heightFile": "chunks/c_1_2.bin",
+   "heightFile": "chunks/c_1_2.png",
    "counts": {
     "buildings": 8,
     "roads": 1,
@@ -312,7 +312,7 @@
    "cx": 2,
    "cz": 2,
    "file": "chunks/c_2_2.json",
-   "heightFile": "chunks/c_2_2.bin",
+   "heightFile": "chunks/c_2_2.png",
    "counts": {
     "buildings": 11,
     "roads": 8,
@@ -323,7 +323,7 @@
    "cx": 3,
    "cz": 2,
    "file": "chunks/c_3_2.json",
-   "heightFile": "chunks/c_3_2.bin",
+   "heightFile": "chunks/c_3_2.png",
    "counts": {
     "buildings": 2,
     "roads": 2,
@@ -334,7 +334,7 @@
    "cx": 4,
    "cz": 2,
    "file": "chunks/c_4_2.json",
-   "heightFile": "chunks/c_4_2.bin",
+   "heightFile": "chunks/c_4_2.png",
    "counts": {
     "buildings": 13,
     "roads": 35,
@@ -345,7 +345,7 @@
    "cx": 5,
    "cz": 2,
    "file": "chunks/c_5_2.json",
-   "heightFile": "chunks/c_5_2.bin",
+   "heightFile": "chunks/c_5_2.png",
    "counts": {
     "buildings": 19,
     "roads": 26,
@@ -356,7 +356,7 @@
    "cx": 6,
    "cz": 2,
    "file": "chunks/c_6_2.json",
-   "heightFile": "chunks/c_6_2.bin",
+   "heightFile": "chunks/c_6_2.png",
    "counts": {
     "buildings": 61,
     "roads": 36,
@@ -367,7 +367,7 @@
    "cx": 7,
    "cz": 2,
    "file": "chunks/c_7_2.json",
-   "heightFile": "chunks/c_7_2.bin",
+   "heightFile": "chunks/c_7_2.png",
    "counts": {
     "buildings": 177,
     "roads": 22,
@@ -378,7 +378,7 @@
    "cx": 8,
    "cz": 2,
    "file": "chunks/c_8_2.json",
-   "heightFile": "chunks/c_8_2.bin",
+   "heightFile": "chunks/c_8_2.png",
    "counts": {
     "buildings": 99,
     "roads": 22,
@@ -389,7 +389,7 @@
    "cx": 9,
    "cz": 2,
    "file": "chunks/c_9_2.json",
-   "heightFile": "chunks/c_9_2.bin",
+   "heightFile": "chunks/c_9_2.png",
    "counts": {
     "buildings": 20,
     "roads": 11,
@@ -400,7 +400,7 @@
    "cx": 10,
    "cz": 2,
    "file": "chunks/c_10_2.json",
-   "heightFile": "chunks/c_10_2.bin",
+   "heightFile": "chunks/c_10_2.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -411,7 +411,7 @@
    "cx": 11,
    "cz": 2,
    "file": "chunks/c_11_2.json",
-   "heightFile": "chunks/c_11_2.bin",
+   "heightFile": "chunks/c_11_2.png",
    "counts": {
     "buildings": 0,
     "roads": 2,
@@ -422,7 +422,7 @@
    "cx": 0,
    "cz": 3,
    "file": "chunks/c_0_3.json",
-   "heightFile": "chunks/c_0_3.bin",
+   "heightFile": "chunks/c_0_3.png",
    "counts": {
     "buildings": 0,
     "roads": 1,
@@ -433,7 +433,7 @@
    "cx": 1,
    "cz": 3,
    "file": "chunks/c_1_3.json",
-   "heightFile": "chunks/c_1_3.bin",
+   "heightFile": "chunks/c_1_3.png",
    "counts": {
     "buildings": 0,
     "roads": 5,
@@ -444,7 +444,7 @@
    "cx": 2,
    "cz": 3,
    "file": "chunks/c_2_3.json",
-   "heightFile": "chunks/c_2_3.bin",
+   "heightFile": "chunks/c_2_3.png",
    "counts": {
     "buildings": 26,
     "roads": 7,
@@ -455,7 +455,7 @@
    "cx": 3,
    "cz": 3,
    "file": "chunks/c_3_3.json",
-   "heightFile": "chunks/c_3_3.bin",
+   "heightFile": "chunks/c_3_3.png",
    "counts": {
     "buildings": 2,
     "roads": 1,
@@ -466,7 +466,7 @@
    "cx": 4,
    "cz": 3,
    "file": "chunks/c_4_3.json",
-   "heightFile": "chunks/c_4_3.bin",
+   "heightFile": "chunks/c_4_3.png",
    "counts": {
     "buildings": 3,
     "roads": 17,
@@ -477,7 +477,7 @@
    "cx": 5,
    "cz": 3,
    "file": "chunks/c_5_3.json",
-   "heightFile": "chunks/c_5_3.bin",
+   "heightFile": "chunks/c_5_3.png",
    "counts": {
     "buildings": 164,
     "roads": 44,
@@ -488,7 +488,7 @@
    "cx": 6,
    "cz": 3,
    "file": "chunks/c_6_3.json",
-   "heightFile": "chunks/c_6_3.bin",
+   "heightFile": "chunks/c_6_3.png",
    "counts": {
     "buildings": 147,
     "roads": 18,
@@ -499,7 +499,7 @@
    "cx": 7,
    "cz": 3,
    "file": "chunks/c_7_3.json",
-   "heightFile": "chunks/c_7_3.bin",
+   "heightFile": "chunks/c_7_3.png",
    "counts": {
     "buildings": 55,
     "roads": 109,
@@ -510,7 +510,7 @@
    "cx": 8,
    "cz": 3,
    "file": "chunks/c_8_3.json",
-   "heightFile": "chunks/c_8_3.bin",
+   "heightFile": "chunks/c_8_3.png",
    "counts": {
     "buildings": 11,
     "roads": 46,
@@ -521,7 +521,7 @@
    "cx": 9,
    "cz": 3,
    "file": "chunks/c_9_3.json",
-   "heightFile": "chunks/c_9_3.bin",
+   "heightFile": "chunks/c_9_3.png",
    "counts": {
     "buildings": 102,
     "roads": 44,
@@ -532,7 +532,7 @@
    "cx": 10,
    "cz": 3,
    "file": "chunks/c_10_3.json",
-   "heightFile": "chunks/c_10_3.bin",
+   "heightFile": "chunks/c_10_3.png",
    "counts": {
     "buildings": 2,
     "roads": 25,
@@ -543,7 +543,7 @@
    "cx": 11,
    "cz": 3,
    "file": "chunks/c_11_3.json",
-   "heightFile": "chunks/c_11_3.bin",
+   "heightFile": "chunks/c_11_3.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -554,7 +554,7 @@
    "cx": 0,
    "cz": 4,
    "file": "chunks/c_0_4.json",
-   "heightFile": "chunks/c_0_4.bin",
+   "heightFile": "chunks/c_0_4.png",
    "counts": {
     "buildings": 0,
     "roads": 1,
@@ -565,7 +565,7 @@
    "cx": 1,
    "cz": 4,
    "file": "chunks/c_1_4.json",
-   "heightFile": "chunks/c_1_4.bin",
+   "heightFile": "chunks/c_1_4.png",
    "counts": {
     "buildings": 12,
     "roads": 3,
@@ -576,7 +576,7 @@
    "cx": 2,
    "cz": 4,
    "file": "chunks/c_2_4.json",
-   "heightFile": "chunks/c_2_4.bin",
+   "heightFile": "chunks/c_2_4.png",
    "counts": {
     "buildings": 29,
     "roads": 5,
@@ -587,7 +587,7 @@
    "cx": 3,
    "cz": 4,
    "file": "chunks/c_3_4.json",
-   "heightFile": "chunks/c_3_4.bin",
+   "heightFile": "chunks/c_3_4.png",
    "counts": {
     "buildings": 16,
     "roads": 18,
@@ -598,7 +598,7 @@
    "cx": 4,
    "cz": 4,
    "file": "chunks/c_4_4.json",
-   "heightFile": "chunks/c_4_4.bin",
+   "heightFile": "chunks/c_4_4.png",
    "counts": {
     "buildings": 12,
     "roads": 15,
@@ -609,7 +609,7 @@
    "cx": 5,
    "cz": 4,
    "file": "chunks/c_5_4.json",
-   "heightFile": "chunks/c_5_4.bin",
+   "heightFile": "chunks/c_5_4.png",
    "counts": {
     "buildings": 83,
     "roads": 33,
@@ -620,7 +620,7 @@
    "cx": 6,
    "cz": 4,
    "file": "chunks/c_6_4.json",
-   "heightFile": "chunks/c_6_4.bin",
+   "heightFile": "chunks/c_6_4.png",
    "counts": {
     "buildings": 107,
     "roads": 40,
@@ -631,7 +631,7 @@
    "cx": 7,
    "cz": 4,
    "file": "chunks/c_7_4.json",
-   "heightFile": "chunks/c_7_4.bin",
+   "heightFile": "chunks/c_7_4.png",
    "counts": {
     "buildings": 29,
     "roads": 89,
@@ -642,7 +642,7 @@
    "cx": 8,
    "cz": 4,
    "file": "chunks/c_8_4.json",
-   "heightFile": "chunks/c_8_4.bin",
+   "heightFile": "chunks/c_8_4.png",
    "counts": {
     "buildings": 44,
     "roads": 72,
@@ -653,7 +653,7 @@
    "cx": 9,
    "cz": 4,
    "file": "chunks/c_9_4.json",
-   "heightFile": "chunks/c_9_4.bin",
+   "heightFile": "chunks/c_9_4.png",
    "counts": {
     "buildings": 41,
     "roads": 28,
@@ -664,7 +664,7 @@
    "cx": 10,
    "cz": 4,
    "file": "chunks/c_10_4.json",
-   "heightFile": "chunks/c_10_4.bin",
+   "heightFile": "chunks/c_10_4.png",
    "counts": {
     "buildings": 3,
     "roads": 9,
@@ -675,7 +675,7 @@
    "cx": 11,
    "cz": 4,
    "file": "chunks/c_11_4.json",
-   "heightFile": "chunks/c_11_4.bin",
+   "heightFile": "chunks/c_11_4.png",
    "counts": {
     "buildings": 0,
     "roads": 2,
@@ -686,7 +686,7 @@
    "cx": 0,
    "cz": 5,
    "file": "chunks/c_0_5.json",
-   "heightFile": "chunks/c_0_5.bin",
+   "heightFile": "chunks/c_0_5.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -697,7 +697,7 @@
    "cx": 1,
    "cz": 5,
    "file": "chunks/c_1_5.json",
-   "heightFile": "chunks/c_1_5.bin",
+   "heightFile": "chunks/c_1_5.png",
    "counts": {
     "buildings": 0,
     "roads": 2,
@@ -708,7 +708,7 @@
    "cx": 2,
    "cz": 5,
    "file": "chunks/c_2_5.json",
-   "heightFile": "chunks/c_2_5.bin",
+   "heightFile": "chunks/c_2_5.png",
    "counts": {
     "buildings": 18,
     "roads": 4,
@@ -719,7 +719,7 @@
    "cx": 3,
    "cz": 5,
    "file": "chunks/c_3_5.json",
-   "heightFile": "chunks/c_3_5.bin",
+   "heightFile": "chunks/c_3_5.png",
    "counts": {
     "buildings": 99,
     "roads": 19,
@@ -730,7 +730,7 @@
    "cx": 4,
    "cz": 5,
    "file": "chunks/c_4_5.json",
-   "heightFile": "chunks/c_4_5.bin",
+   "heightFile": "chunks/c_4_5.png",
    "counts": {
     "buildings": 9,
     "roads": 47,
@@ -741,7 +741,7 @@
    "cx": 5,
    "cz": 5,
    "file": "chunks/c_5_5.json",
-   "heightFile": "chunks/c_5_5.bin",
+   "heightFile": "chunks/c_5_5.png",
    "counts": {
     "buildings": 49,
     "roads": 69,
@@ -752,7 +752,7 @@
    "cx": 6,
    "cz": 5,
    "file": "chunks/c_6_5.json",
-   "heightFile": "chunks/c_6_5.bin",
+   "heightFile": "chunks/c_6_5.png",
    "counts": {
     "buildings": 80,
     "roads": 48,
@@ -763,7 +763,7 @@
    "cx": 7,
    "cz": 5,
    "file": "chunks/c_7_5.json",
-   "heightFile": "chunks/c_7_5.bin",
+   "heightFile": "chunks/c_7_5.png",
    "counts": {
     "buildings": 99,
     "roads": 38,
@@ -774,7 +774,7 @@
    "cx": 8,
    "cz": 5,
    "file": "chunks/c_8_5.json",
-   "heightFile": "chunks/c_8_5.bin",
+   "heightFile": "chunks/c_8_5.png",
    "counts": {
     "buildings": 43,
     "roads": 49,
@@ -785,7 +785,7 @@
    "cx": 9,
    "cz": 5,
    "file": "chunks/c_9_5.json",
-   "heightFile": "chunks/c_9_5.bin",
+   "heightFile": "chunks/c_9_5.png",
    "counts": {
     "buildings": 50,
     "roads": 10,
@@ -796,7 +796,7 @@
    "cx": 10,
    "cz": 5,
    "file": "chunks/c_10_5.json",
-   "heightFile": "chunks/c_10_5.bin",
+   "heightFile": "chunks/c_10_5.png",
    "counts": {
     "buildings": 0,
     "roads": 4,
@@ -807,7 +807,7 @@
    "cx": 11,
    "cz": 5,
    "file": "chunks/c_11_5.json",
-   "heightFile": "chunks/c_11_5.bin",
+   "heightFile": "chunks/c_11_5.png",
    "counts": {
     "buildings": 0,
     "roads": 6,
@@ -818,7 +818,7 @@
    "cx": 0,
    "cz": 6,
    "file": "chunks/c_0_6.json",
-   "heightFile": "chunks/c_0_6.bin",
+   "heightFile": "chunks/c_0_6.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -829,7 +829,7 @@
    "cx": 1,
    "cz": 6,
    "file": "chunks/c_1_6.json",
-   "heightFile": "chunks/c_1_6.bin",
+   "heightFile": "chunks/c_1_6.png",
    "counts": {
     "buildings": 0,
     "roads": 4,
@@ -840,7 +840,7 @@
    "cx": 2,
    "cz": 6,
    "file": "chunks/c_2_6.json",
-   "heightFile": "chunks/c_2_6.bin",
+   "heightFile": "chunks/c_2_6.png",
    "counts": {
     "buildings": 19,
     "roads": 14,
@@ -851,7 +851,7 @@
    "cx": 3,
    "cz": 6,
    "file": "chunks/c_3_6.json",
-   "heightFile": "chunks/c_3_6.bin",
+   "heightFile": "chunks/c_3_6.png",
    "counts": {
     "buildings": 90,
     "roads": 13,
@@ -862,7 +862,7 @@
    "cx": 4,
    "cz": 6,
    "file": "chunks/c_4_6.json",
-   "heightFile": "chunks/c_4_6.bin",
+   "heightFile": "chunks/c_4_6.png",
    "counts": {
     "buildings": 134,
     "roads": 41,
@@ -873,7 +873,7 @@
    "cx": 5,
    "cz": 6,
    "file": "chunks/c_5_6.json",
-   "heightFile": "chunks/c_5_6.bin",
+   "heightFile": "chunks/c_5_6.png",
    "counts": {
     "buildings": 70,
     "roads": 97,
@@ -884,7 +884,7 @@
    "cx": 6,
    "cz": 6,
    "file": "chunks/c_6_6.json",
-   "heightFile": "chunks/c_6_6.bin",
+   "heightFile": "chunks/c_6_6.png",
    "counts": {
     "buildings": 63,
     "roads": 60,
@@ -895,7 +895,7 @@
    "cx": 7,
    "cz": 6,
    "file": "chunks/c_7_6.json",
-   "heightFile": "chunks/c_7_6.bin",
+   "heightFile": "chunks/c_7_6.png",
    "counts": {
     "buildings": 96,
     "roads": 18,
@@ -906,7 +906,7 @@
    "cx": 8,
    "cz": 6,
    "file": "chunks/c_8_6.json",
-   "heightFile": "chunks/c_8_6.bin",
+   "heightFile": "chunks/c_8_6.png",
    "counts": {
     "buildings": 48,
     "roads": 37,
@@ -917,7 +917,7 @@
    "cx": 9,
    "cz": 6,
    "file": "chunks/c_9_6.json",
-   "heightFile": "chunks/c_9_6.bin",
+   "heightFile": "chunks/c_9_6.png",
    "counts": {
     "buildings": 44,
     "roads": 19,
@@ -928,7 +928,7 @@
    "cx": 10,
    "cz": 6,
    "file": "chunks/c_10_6.json",
-   "heightFile": "chunks/c_10_6.bin",
+   "heightFile": "chunks/c_10_6.png",
    "counts": {
     "buildings": 13,
     "roads": 7,
@@ -939,7 +939,7 @@
    "cx": 11,
    "cz": 6,
    "file": "chunks/c_11_6.json",
-   "heightFile": "chunks/c_11_6.bin",
+   "heightFile": "chunks/c_11_6.png",
    "counts": {
     "buildings": 0,
     "roads": 14,
@@ -950,7 +950,7 @@
    "cx": 0,
    "cz": 7,
    "file": "chunks/c_0_7.json",
-   "heightFile": "chunks/c_0_7.bin",
+   "heightFile": "chunks/c_0_7.png",
    "counts": {
     "buildings": 0,
     "roads": 2,
@@ -961,7 +961,7 @@
    "cx": 1,
    "cz": 7,
    "file": "chunks/c_1_7.json",
-   "heightFile": "chunks/c_1_7.bin",
+   "heightFile": "chunks/c_1_7.png",
    "counts": {
     "buildings": 0,
     "roads": 3,
@@ -972,7 +972,7 @@
    "cx": 2,
    "cz": 7,
    "file": "chunks/c_2_7.json",
-   "heightFile": "chunks/c_2_7.bin",
+   "heightFile": "chunks/c_2_7.png",
    "counts": {
     "buildings": 4,
     "roads": 3,
@@ -983,7 +983,7 @@
    "cx": 3,
    "cz": 7,
    "file": "chunks/c_3_7.json",
-   "heightFile": "chunks/c_3_7.bin",
+   "heightFile": "chunks/c_3_7.png",
    "counts": {
     "buildings": 47,
     "roads": 19,
@@ -994,7 +994,7 @@
    "cx": 4,
    "cz": 7,
    "file": "chunks/c_4_7.json",
-   "heightFile": "chunks/c_4_7.bin",
+   "heightFile": "chunks/c_4_7.png",
    "counts": {
     "buildings": 59,
     "roads": 44,
@@ -1005,7 +1005,7 @@
    "cx": 5,
    "cz": 7,
    "file": "chunks/c_5_7.json",
-   "heightFile": "chunks/c_5_7.bin",
+   "heightFile": "chunks/c_5_7.png",
    "counts": {
     "buildings": 53,
     "roads": 64,
@@ -1016,7 +1016,7 @@
    "cx": 6,
    "cz": 7,
    "file": "chunks/c_6_7.json",
-   "heightFile": "chunks/c_6_7.bin",
+   "heightFile": "chunks/c_6_7.png",
    "counts": {
     "buildings": 70,
     "roads": 46,
@@ -1027,7 +1027,7 @@
    "cx": 7,
    "cz": 7,
    "file": "chunks/c_7_7.json",
-   "heightFile": "chunks/c_7_7.bin",
+   "heightFile": "chunks/c_7_7.png",
    "counts": {
     "buildings": 123,
     "roads": 22,
@@ -1038,7 +1038,7 @@
    "cx": 8,
    "cz": 7,
    "file": "chunks/c_8_7.json",
-   "heightFile": "chunks/c_8_7.bin",
+   "heightFile": "chunks/c_8_7.png",
    "counts": {
     "buildings": 85,
     "roads": 29,
@@ -1049,7 +1049,7 @@
    "cx": 9,
    "cz": 7,
    "file": "chunks/c_9_7.json",
-   "heightFile": "chunks/c_9_7.bin",
+   "heightFile": "chunks/c_9_7.png",
    "counts": {
     "buildings": 80,
     "roads": 19,
@@ -1060,7 +1060,7 @@
    "cx": 10,
    "cz": 7,
    "file": "chunks/c_10_7.json",
-   "heightFile": "chunks/c_10_7.bin",
+   "heightFile": "chunks/c_10_7.png",
    "counts": {
     "buildings": 125,
     "roads": 27,
@@ -1071,7 +1071,7 @@
    "cx": 11,
    "cz": 7,
    "file": "chunks/c_11_7.json",
-   "heightFile": "chunks/c_11_7.bin",
+   "heightFile": "chunks/c_11_7.png",
    "counts": {
     "buildings": 64,
     "roads": 19,
@@ -1082,7 +1082,7 @@
    "cx": 0,
    "cz": 8,
    "file": "chunks/c_0_8.json",
-   "heightFile": "chunks/c_0_8.bin",
+   "heightFile": "chunks/c_0_8.png",
    "counts": {
     "buildings": 23,
     "roads": 6,
@@ -1093,7 +1093,7 @@
    "cx": 1,
    "cz": 8,
    "file": "chunks/c_1_8.json",
-   "heightFile": "chunks/c_1_8.bin",
+   "heightFile": "chunks/c_1_8.png",
    "counts": {
     "buildings": 0,
     "roads": 4,
@@ -1104,7 +1104,7 @@
    "cx": 2,
    "cz": 8,
    "file": "chunks/c_2_8.json",
-   "heightFile": "chunks/c_2_8.bin",
+   "heightFile": "chunks/c_2_8.png",
    "counts": {
     "buildings": 3,
     "roads": 4,
@@ -1115,7 +1115,7 @@
    "cx": 3,
    "cz": 8,
    "file": "chunks/c_3_8.json",
-   "heightFile": "chunks/c_3_8.bin",
+   "heightFile": "chunks/c_3_8.png",
    "counts": {
     "buildings": 53,
     "roads": 16,
@@ -1126,7 +1126,7 @@
    "cx": 4,
    "cz": 8,
    "file": "chunks/c_4_8.json",
-   "heightFile": "chunks/c_4_8.bin",
+   "heightFile": "chunks/c_4_8.png",
    "counts": {
     "buildings": 83,
     "roads": 11,
@@ -1137,7 +1137,7 @@
    "cx": 5,
    "cz": 8,
    "file": "chunks/c_5_8.json",
-   "heightFile": "chunks/c_5_8.bin",
+   "heightFile": "chunks/c_5_8.png",
    "counts": {
     "buildings": 15,
     "roads": 40,
@@ -1148,7 +1148,7 @@
    "cx": 6,
    "cz": 8,
    "file": "chunks/c_6_8.json",
-   "heightFile": "chunks/c_6_8.bin",
+   "heightFile": "chunks/c_6_8.png",
    "counts": {
     "buildings": 89,
     "roads": 45,
@@ -1159,7 +1159,7 @@
    "cx": 7,
    "cz": 8,
    "file": "chunks/c_7_8.json",
-   "heightFile": "chunks/c_7_8.bin",
+   "heightFile": "chunks/c_7_8.png",
    "counts": {
     "buildings": 111,
     "roads": 22,
@@ -1170,7 +1170,7 @@
    "cx": 8,
    "cz": 8,
    "file": "chunks/c_8_8.json",
-   "heightFile": "chunks/c_8_8.bin",
+   "heightFile": "chunks/c_8_8.png",
    "counts": {
     "buildings": 98,
     "roads": 25,
@@ -1181,7 +1181,7 @@
    "cx": 9,
    "cz": 8,
    "file": "chunks/c_9_8.json",
-   "heightFile": "chunks/c_9_8.bin",
+   "heightFile": "chunks/c_9_8.png",
    "counts": {
     "buildings": 190,
     "roads": 34,
@@ -1192,7 +1192,7 @@
    "cx": 10,
    "cz": 8,
    "file": "chunks/c_10_8.json",
-   "heightFile": "chunks/c_10_8.bin",
+   "heightFile": "chunks/c_10_8.png",
    "counts": {
     "buildings": 74,
     "roads": 14,
@@ -1203,7 +1203,7 @@
    "cx": 11,
    "cz": 8,
    "file": "chunks/c_11_8.json",
-   "heightFile": "chunks/c_11_8.bin",
+   "heightFile": "chunks/c_11_8.png",
    "counts": {
     "buildings": 9,
     "roads": 7,
@@ -1214,7 +1214,7 @@
    "cx": 0,
    "cz": 9,
    "file": "chunks/c_0_9.json",
-   "heightFile": "chunks/c_0_9.bin",
+   "heightFile": "chunks/c_0_9.png",
    "counts": {
     "buildings": 19,
     "roads": 6,
@@ -1225,7 +1225,7 @@
    "cx": 1,
    "cz": 9,
    "file": "chunks/c_1_9.json",
-   "heightFile": "chunks/c_1_9.bin",
+   "heightFile": "chunks/c_1_9.png",
    "counts": {
     "buildings": 0,
     "roads": 2,
@@ -1236,7 +1236,7 @@
    "cx": 2,
    "cz": 9,
    "file": "chunks/c_2_9.json",
-   "heightFile": "chunks/c_2_9.bin",
+   "heightFile": "chunks/c_2_9.png",
    "counts": {
     "buildings": 0,
     "roads": 1,
@@ -1247,7 +1247,7 @@
    "cx": 3,
    "cz": 9,
    "file": "chunks/c_3_9.json",
-   "heightFile": "chunks/c_3_9.bin",
+   "heightFile": "chunks/c_3_9.png",
    "counts": {
     "buildings": 31,
     "roads": 6,
@@ -1258,7 +1258,7 @@
    "cx": 4,
    "cz": 9,
    "file": "chunks/c_4_9.json",
-   "heightFile": "chunks/c_4_9.bin",
+   "heightFile": "chunks/c_4_9.png",
    "counts": {
     "buildings": 37,
     "roads": 44,
@@ -1269,7 +1269,7 @@
    "cx": 5,
    "cz": 9,
    "file": "chunks/c_5_9.json",
-   "heightFile": "chunks/c_5_9.bin",
+   "heightFile": "chunks/c_5_9.png",
    "counts": {
     "buildings": 15,
     "roads": 16,
@@ -1280,7 +1280,7 @@
    "cx": 6,
    "cz": 9,
    "file": "chunks/c_6_9.json",
-   "heightFile": "chunks/c_6_9.bin",
+   "heightFile": "chunks/c_6_9.png",
    "counts": {
     "buildings": 87,
     "roads": 49,
@@ -1291,7 +1291,7 @@
    "cx": 7,
    "cz": 9,
    "file": "chunks/c_7_9.json",
-   "heightFile": "chunks/c_7_9.bin",
+   "heightFile": "chunks/c_7_9.png",
    "counts": {
     "buildings": 123,
     "roads": 44,
@@ -1302,7 +1302,7 @@
    "cx": 8,
    "cz": 9,
    "file": "chunks/c_8_9.json",
-   "heightFile": "chunks/c_8_9.bin",
+   "heightFile": "chunks/c_8_9.png",
    "counts": {
     "buildings": 62,
     "roads": 35,
@@ -1313,7 +1313,7 @@
    "cx": 9,
    "cz": 9,
    "file": "chunks/c_9_9.json",
-   "heightFile": "chunks/c_9_9.bin",
+   "heightFile": "chunks/c_9_9.png",
    "counts": {
     "buildings": 32,
     "roads": 20,
@@ -1324,7 +1324,7 @@
    "cx": 10,
    "cz": 9,
    "file": "chunks/c_10_9.json",
-   "heightFile": "chunks/c_10_9.bin",
+   "heightFile": "chunks/c_10_9.png",
    "counts": {
     "buildings": 18,
     "roads": 6,
@@ -1335,7 +1335,7 @@
    "cx": 11,
    "cz": 9,
    "file": "chunks/c_11_9.json",
-   "heightFile": "chunks/c_11_9.bin",
+   "heightFile": "chunks/c_11_9.png",
    "counts": {
     "buildings": 5,
     "roads": 6,
@@ -1346,7 +1346,7 @@
    "cx": 0,
    "cz": 10,
    "file": "chunks/c_0_10.json",
-   "heightFile": "chunks/c_0_10.bin",
+   "heightFile": "chunks/c_0_10.png",
    "counts": {
     "buildings": 8,
     "roads": 7,
@@ -1357,7 +1357,7 @@
    "cx": 1,
    "cz": 10,
    "file": "chunks/c_1_10.json",
-   "heightFile": "chunks/c_1_10.bin",
+   "heightFile": "chunks/c_1_10.png",
    "counts": {
     "buildings": 0,
     "roads": 2,
@@ -1368,7 +1368,7 @@
    "cx": 2,
    "cz": 10,
    "file": "chunks/c_2_10.json",
-   "heightFile": "chunks/c_2_10.bin",
+   "heightFile": "chunks/c_2_10.png",
    "counts": {
     "buildings": 1,
     "roads": 4,
@@ -1379,7 +1379,7 @@
    "cx": 3,
    "cz": 10,
    "file": "chunks/c_3_10.json",
-   "heightFile": "chunks/c_3_10.bin",
+   "heightFile": "chunks/c_3_10.png",
    "counts": {
     "buildings": 11,
     "roads": 3,
@@ -1390,7 +1390,7 @@
    "cx": 4,
    "cz": 10,
    "file": "chunks/c_4_10.json",
-   "heightFile": "chunks/c_4_10.bin",
+   "heightFile": "chunks/c_4_10.png",
    "counts": {
     "buildings": 14,
     "roads": 2,
@@ -1401,7 +1401,7 @@
    "cx": 5,
    "cz": 10,
    "file": "chunks/c_5_10.json",
-   "heightFile": "chunks/c_5_10.bin",
+   "heightFile": "chunks/c_5_10.png",
    "counts": {
     "buildings": 15,
     "roads": 17,
@@ -1412,7 +1412,7 @@
    "cx": 6,
    "cz": 10,
    "file": "chunks/c_6_10.json",
-   "heightFile": "chunks/c_6_10.bin",
+   "heightFile": "chunks/c_6_10.png",
    "counts": {
     "buildings": 19,
     "roads": 68,
@@ -1423,7 +1423,7 @@
    "cx": 7,
    "cz": 10,
    "file": "chunks/c_7_10.json",
-   "heightFile": "chunks/c_7_10.bin",
+   "heightFile": "chunks/c_7_10.png",
    "counts": {
     "buildings": 43,
     "roads": 63,
@@ -1434,7 +1434,7 @@
    "cx": 8,
    "cz": 10,
    "file": "chunks/c_8_10.json",
-   "heightFile": "chunks/c_8_10.bin",
+   "heightFile": "chunks/c_8_10.png",
    "counts": {
     "buildings": 101,
     "roads": 25,
@@ -1445,7 +1445,7 @@
    "cx": 9,
    "cz": 10,
    "file": "chunks/c_9_10.json",
-   "heightFile": "chunks/c_9_10.bin",
+   "heightFile": "chunks/c_9_10.png",
    "counts": {
     "buildings": 14,
     "roads": 32,
@@ -1456,7 +1456,7 @@
    "cx": 10,
    "cz": 10,
    "file": "chunks/c_10_10.json",
-   "heightFile": "chunks/c_10_10.bin",
+   "heightFile": "chunks/c_10_10.png",
    "counts": {
     "buildings": 1,
     "roads": 7,
@@ -1467,7 +1467,7 @@
    "cx": 11,
    "cz": 10,
    "file": "chunks/c_11_10.json",
-   "heightFile": "chunks/c_11_10.bin",
+   "heightFile": "chunks/c_11_10.png",
    "counts": {
     "buildings": 4,
     "roads": 6,
@@ -1478,7 +1478,7 @@
    "cx": 0,
    "cz": 11,
    "file": "chunks/c_0_11.json",
-   "heightFile": "chunks/c_0_11.bin",
+   "heightFile": "chunks/c_0_11.png",
    "counts": {
     "buildings": 0,
     "roads": 2,
@@ -1489,7 +1489,7 @@
    "cx": 1,
    "cz": 11,
    "file": "chunks/c_1_11.json",
-   "heightFile": "chunks/c_1_11.bin",
+   "heightFile": "chunks/c_1_11.png",
    "counts": {
     "buildings": 0,
     "roads": 1,
@@ -1500,7 +1500,7 @@
    "cx": 2,
    "cz": 11,
    "file": "chunks/c_2_11.json",
-   "heightFile": "chunks/c_2_11.bin",
+   "heightFile": "chunks/c_2_11.png",
    "counts": {
     "buildings": 10,
     "roads": 3,
@@ -1511,7 +1511,7 @@
    "cx": 3,
    "cz": 11,
    "file": "chunks/c_3_11.json",
-   "heightFile": "chunks/c_3_11.bin",
+   "heightFile": "chunks/c_3_11.png",
    "counts": {
     "buildings": 6,
     "roads": 3,
@@ -1522,7 +1522,7 @@
    "cx": 4,
    "cz": 11,
    "file": "chunks/c_4_11.json",
-   "heightFile": "chunks/c_4_11.bin",
+   "heightFile": "chunks/c_4_11.png",
    "counts": {
     "buildings": 3,
     "roads": 1,
@@ -1533,7 +1533,7 @@
    "cx": 5,
    "cz": 11,
    "file": "chunks/c_5_11.json",
-   "heightFile": "chunks/c_5_11.bin",
+   "heightFile": "chunks/c_5_11.png",
    "counts": {
     "buildings": 4,
     "roads": 6,
@@ -1544,7 +1544,7 @@
    "cx": 6,
    "cz": 11,
    "file": "chunks/c_6_11.json",
-   "heightFile": "chunks/c_6_11.bin",
+   "heightFile": "chunks/c_6_11.png",
    "counts": {
     "buildings": 4,
     "roads": 8,
@@ -1555,7 +1555,7 @@
    "cx": 7,
    "cz": 11,
    "file": "chunks/c_7_11.json",
-   "heightFile": "chunks/c_7_11.bin",
+   "heightFile": "chunks/c_7_11.png",
    "counts": {
     "buildings": 7,
     "roads": 15,
@@ -1566,7 +1566,7 @@
    "cx": 8,
    "cz": 11,
    "file": "chunks/c_8_11.json",
-   "heightFile": "chunks/c_8_11.bin",
+   "heightFile": "chunks/c_8_11.png",
    "counts": {
     "buildings": 101,
     "roads": 35,
@@ -1577,7 +1577,7 @@
    "cx": 9,
    "cz": 11,
    "file": "chunks/c_9_11.json",
-   "heightFile": "chunks/c_9_11.bin",
+   "heightFile": "chunks/c_9_11.png",
    "counts": {
     "buildings": 10,
     "roads": 19,
@@ -1588,7 +1588,7 @@
    "cx": 10,
    "cz": 11,
    "file": "chunks/c_10_11.json",
-   "heightFile": "chunks/c_10_11.bin",
+   "heightFile": "chunks/c_10_11.png",
    "counts": {
     "buildings": 2,
     "roads": 5,
@@ -1599,7 +1599,7 @@
    "cx": 11,
    "cz": 11,
    "file": "chunks/c_11_11.json",
-   "heightFile": "chunks/c_11_11.bin",
+   "heightFile": "chunks/c_11_11.png",
    "counts": {
     "buildings": 0,
     "roads": 5,

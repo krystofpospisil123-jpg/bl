@@ -55,9 +55,10 @@ src/
 - **Souřadnice:** metry, X = východ, Y = nahoru, Z = jih. Počátek je na 49.3628 N, 16.6448 E
   (mezi náměstím, zámkem a nádražím). Hratelná oblast je 3 × 3 km (−1500 až 1500 m).
 - **Dlaždice:** 12 × 12 dlaždic po 250 m. Každá má `chunks/c_X_Z.json` (budovy, silnice, koleje,
-  vodní toky a plochy, landuse, stromy, POI) a `chunks/c_X_Z.bin` s výškami: Uint16, 126 × 126
-  vzorků po 2 m se sdílenými okraji, výška = `heightBase + v * 0.01`.
-- **`overview.bin`:** hrubá výšková mapa celé oblasti (20 m), pro vzdálený terén a LOD.
+  vodní toky a plochy, landuse, stromy, POI) a `chunks/c_X_Z.png` s výškami: 126 × 126
+  vzorků po 2 m se sdílenými okraji, bezeztrátové PNG s 16bitovou hodnotou v kanálech R (vyšší bajt)
+  a G (nižší bajt), výška = `heightBase + v * 0.01`.
+- **`overview.png`:** hrubá výšková mapa celé oblasti (20 m), pro vzdálený terén a LOD.
 - **Výšky budov:** `height` nebo `building:levels` z OSM (`tagged: true`). Jinak odhad podle typu
   a půdorysné plochy. Základ budovy leží na nejnižším bodě terénu pod půdorysem.
 - **Stromy:** jednotlivé stromy z OSM a procedurálně rozmístěné stromy v lesích, parcích a sadech

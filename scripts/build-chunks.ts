@@ -1,8 +1,9 @@
 // Converts the raw OSM + DEM downloads into the game's chunked world format.
 // Input:  data/raw/osm.json, data/raw/dem_local.{json,bin}
-// Output: public/data/manifest.json, public/data/overview.bin, public/data/chunks/*
+// Output: public/data/manifest.json, public/data/overview.png, public/data/chunks/*
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { encodeUint16Png } from './lib/png.ts';
 import { RAW_DIR, OUT_DIR, ORIGIN, HALF_EXTENT, CHUNK_SIZE, HEIGHT_STEP, lonLatToLocal } from './lib/config.ts';
 import {
   type Ring, type Vec2, type Rect,
@@ -463,7 +464,7 @@ async function main() {
     heightBase,
     heightScale,
     elevation: { min: r1(eMin), max: r1(eMax) },
-    overview: { file: 'overview.bin', size: 0, step: 0 },
+    overview: { file: 'overview.png', size: 0, step: 0 },
     chunks: [],
     pois: allPois.filter((p) => p.name),
     attribution: [
@@ -483,10 +484,11 @@ async function main() {
       const { rect: _rect, ...data } = c;
       const json = JSON.stringify(data);
       await fs.writeFile(path.join(OUT_DIR, base + '.json'), json);
-      await fs.writeFile(path.join(OUT_DIR, base + '.bin'), Buffer.from(heights.buffer));
-      bytes += json.length + heights.byteLength;
+      const png = encodeUint16Png(heights, n, n);
+      await fs.writeFile(path.join(OUT_DIR, base + '.png'), png);
+      bytes += json.length + png.length;
       manifest.chunks.push({
-        cx: c.cx, cz: c.cz, file: base + '.json', heightFile: base + '.bin',
+        cx: c.cx, cz: c.cz, file: base + '.json', heightFile: base + '.png',
         counts: { buildings: c.buildings.length, roads: c.roads.length, trees: c.trees.length / 4 },
       });
     }
@@ -497,8 +499,9 @@ async function main() {
   const ovSize = Math.floor((demSize - 1) / stride) + 1;
   const ov = new Uint16Array(ovSize * ovSize);
   for (let j = 0; j < ovSize; j++) for (let i = 0; i < ovSize; i++) ov[j * ovSize + i] = enc(dem[j * stride * demSize + i * stride]);
-  await fs.writeFile(path.join(OUT_DIR, 'overview.bin'), Buffer.from(ov.buffer));
-  manifest.overview = { file: 'overview.bin', size: ovSize, step: HEIGHT_STEP * stride };
+  await fs.rm(path.join(OUT_DIR, 'overview.bin'), { force: true });
+  await fs.writeFile(path.join(OUT_DIR, 'overview.png'), encodeUint16Png(ov, ovSize, ovSize));
+  manifest.overview = { file: 'overview.png', size: ovSize, step: HEIGHT_STEP * stride };
 
   await fs.writeFile(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 1));
   console.log('Features:', stats);
