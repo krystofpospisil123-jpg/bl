@@ -1,5 +1,5 @@
 // Loads the manifest and individual chunks produced by scripts/build-chunks.ts.
-import type { ChunkData, ChunkInfo, Manifest } from './format.ts';
+import type { ChunkData, ChunkInfo, Manifest, RoadGraphs } from './format.ts';
 
 export interface LoadedChunk {
   info: ChunkInfo;
@@ -40,6 +40,12 @@ export class WorldData {
   async loadOverview(): Promise<{ heights: Float32Array; size: number; step: number }> {
     const { file, size, step } = this.manifest.overview;
     return { heights: await this.fetchHeights(this.baseUrl + file), size, step };
+  }
+
+  async loadGraphs(): Promise<RoadGraphs> {
+    const res = await fetch(this.baseUrl + (this.manifest.graphFile ?? 'roads.json'));
+    if (!res.ok) throw new Error(`roads.json not found (${res.status}). Run "npm run data:build".`);
+    return res.json();
   }
 
   chunkInfo(cx: number, cz: number): ChunkInfo | undefined {

@@ -29,6 +29,8 @@ export interface Manifest {
   /** Coarse heightmap of the whole area (same PNG encoding), for distant terrain. */
   overview: { file: string; size: number; step: number };
   chunks: ChunkInfo[];
+  /** Road graphs for traffic and pedestrians (see RoadGraphs). */
+  graphFile: string;
   pois: Poi[];
   attribution: string[];
 }
@@ -57,6 +59,14 @@ export interface Building {
   tagged: boolean;
   roof?: string;
   name?: string;
+  /** Purpose from OSM (e.g. "shop:supermarket", "amenity:place_of_worship", "historic:castle"). */
+  use?: string;
+  /** Sign text: the building's own name or the name of a shop/amenity inside it. */
+  label?: string;
+  /** Facade / roof colours from OSM (`building:colour`, `roof:colour`) as CSS colours. */
+  colour?: string;
+  roofColour?: string;
+  levels?: number;
   rings: number[][];
 }
 
@@ -84,6 +94,8 @@ export interface Area {
 export interface Poi {
   id: number;
   kind: string;
+  /** Sub-type, e.g. the shop=* value. */
+  sub?: string;
   name?: string;
   x: number;
   z: number;
@@ -106,4 +118,31 @@ export interface ChunkData {
   /** Flat [x, z, height, type, ...]; type 0 = deciduous, 1 = conifer. */
   trees: number[];
   pois: Poi[];
+}
+
+/** Edge between two junctions. `pts` is flat [x, y, z, ...] including both end nodes. */
+export interface GraphEdge {
+  a: number;
+  b: number;
+  kind: string;
+  /** Length in metres. */
+  len: number;
+  pts: number[];
+  /** Drive graph: traffic may only go a -> b (or b -> a when `reverse`). */
+  oneway?: boolean;
+  reverse?: boolean;
+  lanes: number;
+  /** Speed limit in m/s (drive graph), 0 for the walk graph. */
+  speed: number;
+}
+
+/** Junction positions as flat [x, y, z, ...] plus edges. */
+export interface RoadGraph {
+  nodes: number[];
+  edges: GraphEdge[];
+}
+
+export interface RoadGraphs {
+  drive: RoadGraph;
+  walk: RoadGraph;
 }

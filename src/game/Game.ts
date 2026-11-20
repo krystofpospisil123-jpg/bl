@@ -13,6 +13,9 @@ import { PhysicsWorld } from '../physics/PhysicsWorld.ts';
 import { Car } from '../vehicle/Car.ts';
 import { Player } from '../character/Player.ts';
 import { Hud } from '../ui/Hud.ts';
+import { Graph } from '../traffic/Graph.ts';
+import { Traffic } from '../traffic/Traffic.ts';
+import { Pedestrians } from '../traffic/Pedestrians.ts';
 import { VIEWPOINTS } from './viewpoints.ts';
 
 /** Car spawn on náměstí Republiky (on the street, heading along it). */
@@ -38,6 +41,8 @@ export class Game {
   physics?: PhysicsWorld;
   car?: Car;
   player?: Player;
+  traffic?: Traffic;
+  pedestrians?: Pedestrians;
   mode: Mode = 'loading';
   /** Mode to return to when leaving the free camera. */
   private playMode: 'foot' | 'car' = 'foot';
@@ -72,8 +77,11 @@ export class Game {
       this.camera.position.set(SPAWN.x - 12 * Math.sin(SPAWN.yaw), g + 5, SPAWN.z - 12 * Math.cos(SPAWN.yaw));
       this.camera.lookAt(SPAWN.x, g + 1, SPAWN.z);
     });
-    PhysicsWorld.create(world.manifest).then((p) => {
+    Promise.all([PhysicsWorld.create(world.manifest), world.loadGraphs()]).then(([p, graphs]) => {
       this.physics = p;
+      this.traffic = new Traffic(new Graph(graphs.drive, true), p, this.heights);
+      this.pedestrians = new Pedestrians(new Graph(graphs.walk, false), this.heights);
+      this.scene.add(this.traffic.group, this.pedestrians.group);
       this.chase = new ChaseCamera(this.camera, this.mouse, (x, z) => this.heights.sample(x, z), (o, d, max) =>
         p.castRay(o, d, max, this.mode === 'car' ? this.car?.body : this.player?.body),
       );
@@ -206,6 +214,10 @@ export class Game {
       else if (this.canEnterCar) this.enterCar();
     }
     if (k.justPressed('KeyR') && this.car && this.mode === 'car') this.car.reset(undefined, this.car.yaw);
+    if (k.justPressed('KeyT') && this.traffic && this.pedestrians) {
+      this.traffic.enabled = this.pedestrians.enabled = !this.traffic.enabled;
+      this.say(this.traffic.enabled ? 'Provoz zapnut' : 'Provoz vypnut');
+    }
   }
 
   private frame() {
@@ -265,6 +277,16 @@ export class Game {
       if (len > 1) { mx /= len; mz /= len; }
     }
     const moveInput = { x: mx, z: mz, sprint: walking && k.down('ShiftLeft', 'ShiftRight'), jump: walking && k.down('Space') };
+
+    // Traffic and pedestrians move first so their kinematic bodies are placed for this step.
+    if (groundReady && this.traffic && this.pedestrians) {
+      const focus = this.focus;
+      const obstacles = [{ x: car.position.x, z: car.position.z, radius: 2.2 }, ...this.pedestrians.obstacles()];
+      if (player.isActive) obstacles.push({ x: player.position.x, z: player.position.z, radius: 0.6 });
+      const pc = driving ? { position: car.position, yaw: car.yaw, speed: car.speed } : undefined;
+      this.traffic.update(dt, focus, obstacles, pc);
+      this.pedestrians.update(dt, focus, pc);
+    }
 
     // Only simulate while the ground around the player exists.
     if (groundReady) {

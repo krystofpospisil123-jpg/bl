@@ -88,3 +88,43 @@ export class CarModel {
 }
 
 const brakeOn = new THREE.MeshLambertMaterial({ color: 0xff2a2a, emissive: 0xcc0000 });
+
+/**
+ * Bakes the car model into two geometries for instanced traffic:
+ * `paint` (white, tinted per instance) and `detail` (glass, trim, lights, wheels; vertex colours).
+ */
+export function bakeCarGeometries(): { paint: THREE.BufferGeometry; detail: THREE.BufferGeometry } {
+  const model = new CarModel(0xffffff);
+  model.wheels.forEach((w, i) => w.position.set((i % 2 ? -0.8 : 0.8) * 1.06, CAR_SPEC.wheelY - CAR_SPEC.suspensionRest * 0.75, i < 2 ? CAR_SPEC.wheelZFront : CAR_SPEC.wheelZRear));
+  model.root.updateMatrixWorld(true);
+  const paint: THREE.BufferGeometry[] = [];
+  const detail: THREE.BufferGeometry[] = [];
+  model.root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    const mat = o.material as THREE.MeshLambertMaterial;
+    const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
+    g.deleteAttribute('uv');
+    const c = mat.color.clone().add(mat.emissive ?? new THREE.Color(0));
+    const n = g.attributes.position.count;
+    const col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) col.set([c.r, c.g, c.b], i * 3);
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    (mat.color.getHex() === 0xffffff ? paint : detail).push(g);
+  });
+  const merge = (list: THREE.BufferGeometry[]) => {
+    const pos: number[] = [], nor: number[] = [], col: number[] = [];
+    for (const g of list) {
+      if (!g.attributes.normal) g.computeVertexNormals();
+      pos.push(...(g.attributes.position.array as Float32Array));
+      nor.push(...(g.attributes.normal.array as Float32Array));
+      col.push(...(g.attributes.color.array as Float32Array));
+    }
+    const out = new THREE.BufferGeometry();
+    out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    out.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    out.computeBoundingSphere();
+    return out;
+  };
+  return { paint: merge(paint), detail: merge(detail) };
+}

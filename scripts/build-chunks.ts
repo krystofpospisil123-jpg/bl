@@ -4,6 +4,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { encodeUint16Png } from './lib/png.ts';
+import { buildRoadGraphs, type GraphWay } from './lib/roadGraph.ts';
 import { RAW_DIR, OUT_DIR, ORIGIN, HALF_EXTENT, CHUNK_SIZE, HEIGHT_STEP, lonLatToLocal } from './lib/config.ts';
 import {
   type Ring, type Vec2, type Rect,
@@ -21,6 +22,7 @@ interface OsmGeomPoint { lat: number; lon: number }
 interface OsmElement {
   type: 'node' | 'way' | 'relation';
   id: number;
+  nodes?: number[];
   lat?: number;
   lon?: number;
   tags?: Record<string, string>;
@@ -86,6 +88,18 @@ function areaKind(t: Record<string, string>): string | null {
     case 'religious': return 'cemetery';
   }
   return null;
+}
+
+/** Purpose of a building, used to pick facades, signs and landmarks. */
+function buildingUse(t: Record<string, string>): string | undefined {
+  if (t.historic) return `historic:${t.historic}`;
+  if (t.shop) return `shop:${t.shop}`;
+  if (t.amenity) return `amenity:${t.amenity}`;
+  if (t.building === 'supermarket') return 'shop:supermarket';
+  if (['church', 'chapel', 'cathedral'].includes(t.building)) return 'amenity:place_of_worship';
+  if (t.building === 'train_station') return 'railway:station';
+  if (t.man_made === 'water_tower' || /vodárensk/i.test(t.name ?? '')) return 'man_made:water_tower';
+  return undefined;
 }
 
 /** Building height in metres: OSM tags first, otherwise an estimate from type and size. */
@@ -246,6 +260,15 @@ function polygonsOf(el: OsmElement): Ring[][] {
   return [];
 }
 
+function pointInFlat(x: number, z: number, r: number[]): boolean {
+  let inside = false;
+  for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
+    const xi = r[i], zi = r[i + 1], xj = r[j], zj = r[j + 1];
+    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
 // ---------------------------------------------------------------------------
 // Trees
 
@@ -307,6 +330,7 @@ async function main() {
   const treeAreas: { kind: string; rings: Ring[] }[] = [];
   const treeRows: Vec2[][] = [];
   const allPois: Poi[] = [];
+  const graphWays: GraphWay[] = [];
   const stats = { buildings: 0, estimated: 0, roads: 0, rails: 0, waterways: 0, water: 0, areas: 0, trees: 0 };
 
   for (const el of osm.elements) {
@@ -325,7 +349,7 @@ async function main() {
       }
       const kind = t.amenity ?? (t.shop ? 'shop' : t.railway === 'station' ? 'station' : t.place ? 'place' : null);
       if (kind) {
-        const poi: Poi = { id: el.id, kind, x: r1(x), z: r1(-y), ...(t.name ? { name: t.name } : {}) };
+        const poi: Poi = { id: el.id, kind, x: r1(x), z: r1(-y), ...(t.name ? { name: t.name } : {}), ...(t.shop ? { sub: t.shop } : {}) };
         c.pois.push(poi);
         allPois.push(poi);
       }
@@ -355,7 +379,11 @@ async function main() {
           id: el.id, kind: t.building, h, minH: r1(minH), ground: r1(gMin), top: r1(gMean + h), tagged,
           rings: rings.map(flatRing),
           ...(t['roof:shape'] ? { roof: t['roof:shape'] } : {}),
-          ...(t.name ? { name: t.name } : {}),
+          ...(t.name ? { name: t.name, label: t.name } : {}),
+          ...(buildingUse(t) ? { use: buildingUse(t) } : {}),
+          ...(t['building:colour'] ? { colour: t['building:colour'] } : {}),
+          ...(t['roof:colour'] ? { roofColour: t['roof:colour'] } : {}),
+          ...(parseFloat(t['building:levels']) > 0 ? { levels: parseFloat(t['building:levels']) } : {}),
         };
         c.buildings.push(b);
         obstacles.addPolygon(rings);
@@ -374,6 +402,9 @@ async function main() {
       const layer = parseInt(t.layer ?? '', 10);
       const tunnel = t.tunnel === 'yes' || t.tunnel === 'culvert';
       const bridge = !!t.bridge && t.bridge !== 'no';
+      if (el.nodes && el.nodes.length === line.length && !tunnel) {
+        graphWays.push({ id: el.id, tags: t, nodes: el.nodes, pts: line, elev: bridge ? bridgeElevations(line).map((e) => e + 0.1) : undefined });
+      }
       addPolyline(line, w / 2 + 1, (pts, elev) => ({
         id: el.id, kind: t.highway, w, pts, ...(elev ? { elev } : {}),
         ...(t.name ? { name: t.name } : {}),
@@ -478,6 +509,26 @@ async function main() {
     }
   }
 
+  // --- Give buildings the name and purpose of shops/amenities located inside them.
+  let linked = 0;
+  for (const poi of allPois) {
+    if (!poi.name || poi.kind === 'place') continue;
+    const c = chunkAt(poi.x, -poi.z);
+    if (!c) continue;
+    for (const row of chunks.slice(Math.max(0, c.cz - 1), c.cz + 2)) {
+      for (const cc of row.slice(Math.max(0, c.cx - 1), c.cx + 2)) {
+        for (const b of cc.buildings) {
+          if (b.label && b.use) continue;
+          if (!pointInFlat(poi.x, poi.z, b.rings[0])) continue;
+          b.label ??= poi.name;
+          b.use ??= poi.kind === 'shop' ? `shop:${poi.sub ?? 'yes'}` : `amenity:${poi.kind}`;
+          linked++;
+        }
+      }
+    }
+  }
+  console.log(`Linked ${linked} shops/amenities to their buildings`);
+
   // --- Heights: Uint16 per chunk, shared edge samples.
   let eMin = Infinity, eMax = -Infinity;
   for (const v of dem) if (v > 0) { eMin = Math.min(eMin, v); eMax = Math.max(eMax, v); }
@@ -502,6 +553,7 @@ async function main() {
     elevation: { min: r1(eMin), max: r1(eMax) },
     overview: { file: 'overview.png', size: 0, step: 0 },
     chunks: [],
+    graphFile: 'roads.json',
     pois: allPois.filter((p) => p.name),
     attribution: [
       '© přispěvatelé OpenStreetMap (ODbL), openstreetmap.org/copyright',
@@ -538,6 +590,12 @@ async function main() {
   await fs.rm(path.join(OUT_DIR, 'overview.bin'), { force: true });
   await fs.writeFile(path.join(OUT_DIR, 'overview.png'), encodeUint16Png(ov, ovSize, ovSize));
   manifest.overview = { file: 'overview.png', size: ovSize, step: HEIGHT_STEP * stride };
+
+  // --- Road graphs for traffic and pedestrians.
+  const graphs = buildRoadGraphs(graphWays, elevation, HALF_EXTENT - 5);
+  await fs.writeFile(path.join(OUT_DIR, 'roads.json'), JSON.stringify(graphs));
+  console.log(`Road graphs: drive ${graphs.drive.nodes.length / 3} nodes / ${graphs.drive.edges.length} edges, ` +
+    `walk ${graphs.walk.nodes.length / 3} nodes / ${graphs.walk.edges.length} edges`);
 
   await fs.writeFile(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 1));
   console.log('Features:', stats);

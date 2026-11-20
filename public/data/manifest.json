@@ -1,7 +1,7 @@
 {
  "version": 1,
  "name": "Blansko: Open World",
- "generated": "2026-11-20T11:30:03.504Z",
+ "generated": "2026-11-20T13:13:16.717Z",
  "origin": {
   "lat": 49.3628,
   "lon": 16.6448
@@ -1607,6 +1607,7 @@
    }
   }
  ],
+ "graphFile": "roads.json",
  "pois": [
   {
    "id": 1204217176,
@@ -1641,7 +1642,8 @@
    "kind": "shop",
    "x": -63.1,
    "z": 515,
-   "name": "Salenatéka pivotéka & vinotéka"
+   "name": "Salenatéka pivotéka & vinotéka",
+   "sub": "alcohol"
   },
   {
    "id": 505826252,
@@ -1676,7 +1678,8 @@
    "kind": "shop",
    "x": -416,
    "z": 310.3,
-   "name": "VinárnaStarák"
+   "name": "VinárnaStarák",
+   "sub": "wine"
   },
   {
    "id": 401391569,
@@ -1690,7 +1693,8 @@
    "kind": "shop",
    "x": -32.9,
    "z": -180,
-   "name": "Prodejna vín a sýrů „z jihu!“"
+   "name": "Prodejna vín a sýrů „z jihu!“",
+   "sub": "wine"
   },
   {
    "id": 403898177,
@@ -1725,7 +1729,8 @@
    "kind": "shop",
    "x": -130,
    "z": 459.4,
-   "name": "Kola Novák"
+   "name": "Kola Novák",
+   "sub": "bicycle;ski;outdoor"
   },
   {
    "id": 4227134491,
@@ -1739,7 +1744,8 @@
    "kind": "shop",
    "x": 86.5,
    "z": 325.7,
-   "name": "Zákuskárna"
+   "name": "Zákuskárna",
+   "sub": "pastry"
   },
   {
    "id": 4855438606,
@@ -1767,7 +1773,8 @@
    "kind": "shop",
    "x": 85.8,
    "z": 233,
-   "name": "Optik Otava"
+   "name": "Optik Otava",
+   "sub": "optician"
   },
   {
    "id": 5609686276,
@@ -1781,7 +1788,8 @@
    "kind": "shop",
    "x": -114.7,
    "z": 108,
-   "name": "Albert"
+   "name": "Albert",
+   "sub": "supermarket"
   },
   {
    "id": 5609698062,
@@ -1795,7 +1803,8 @@
    "kind": "shop",
    "x": -177.4,
    "z": 133.3,
-   "name": "Gelateria Bianco"
+   "name": "Gelateria Bianco",
+   "sub": "pastry"
   },
   {
    "id": 7094978404,
@@ -1816,7 +1825,8 @@
    "kind": "shop",
    "x": 41.5,
    "z": 295.5,
-   "name": "Lucie Regent"
+   "name": "Lucie Regent",
+   "sub": "hairdresser"
   },
   {
    "id": 7145110691,
@@ -1830,14 +1840,16 @@
    "kind": "shop",
    "x": -79.5,
    "z": 140.6,
-   "name": "Rossmann"
+   "name": "Rossmann",
+   "sub": "chemist"
   },
   {
    "id": 7145110693,
    "kind": "shop",
    "x": -107,
    "z": 35.8,
-   "name": "Kitos"
+   "name": "Kitos",
+   "sub": "houseware"
   },
   {
    "id": 9297656420,
@@ -1851,56 +1863,64 @@
    "kind": "shop",
    "x": -59.3,
    "z": -193.5,
-   "name": "Matějovo pekařství"
+   "name": "Matějovo pekařství",
+   "sub": "bakery"
   },
   {
    "id": 11933719831,
    "kind": "shop",
    "x": -156.8,
    "z": 155.3,
-   "name": "Makovec"
+   "name": "Makovec",
+   "sub": "butcher"
   },
   {
    "id": 11933719832,
    "kind": "shop",
    "x": -153.5,
    "z": 167.6,
-   "name": "Helenka"
+   "name": "Helenka",
+   "sub": "garden_centre"
   },
   {
    "id": 11933719833,
    "kind": "shop",
    "x": -136.4,
    "z": 162.9,
-   "name": "Knihcentrum.cz"
+   "name": "Knihcentrum.cz",
+   "sub": "books"
   },
   {
    "id": 11933719834,
    "kind": "shop",
    "x": -120.1,
    "z": 189.9,
-   "name": "Multi market"
+   "name": "Multi market",
+   "sub": "convenience"
   },
   {
    "id": 11933719835,
    "kind": "shop",
    "x": -76.4,
    "z": 172.2,
-   "name": "Zvěrokruh"
+   "name": "Zvěrokruh",
+   "sub": "pet"
   },
   {
    "id": 11933719836,
    "kind": "shop",
    "x": -63.1,
    "z": 167.6,
-   "name": "Doctor Optic"
+   "name": "Doctor Optic",
+   "sub": "optician"
   },
   {
    "id": 11933719837,
    "kind": "shop",
    "x": -74.8,
    "z": 139.3,
-   "name": "Lahůdky Nečas"
+   "name": "Lahůdky Nečas",
+   "sub": "deli"
   },
   {
    "id": 11933719838,
@@ -1914,42 +1934,48 @@
    "kind": "shop",
    "x": -28.9,
    "z": 258.4,
-   "name": "CZC"
+   "name": "CZC",
+   "sub": "computer"
   },
   {
    "id": 11933719841,
    "kind": "shop",
    "x": -38.8,
    "z": 257.9,
-   "name": "Sabe"
+   "name": "Sabe",
+   "sub": "stationery"
   },
   {
    "id": 11933719842,
    "kind": "shop",
    "x": -93,
    "z": 253,
-   "name": "Svítidla"
+   "name": "Svítidla",
+   "sub": "lighting"
   },
   {
    "id": 11933719843,
    "kind": "shop",
    "x": -151,
    "z": 242.2,
-   "name": "Ráječko"
+   "name": "Ráječko",
+   "sub": "bakery"
   },
   {
    "id": 11933719844,
    "kind": "shop",
    "x": -232.6,
    "z": 293,
-   "name": "Kola Novák"
+   "name": "Kola Novák",
+   "sub": "bicycle"
   },
   {
    "id": 11938091314,
    "kind": "shop",
    "x": -36.9,
    "z": -195.2,
-   "name": "Papírnictví"
+   "name": "Papírnictví",
+   "sub": "stationery"
   },
   {
    "id": 11938091315,
@@ -1963,21 +1989,24 @@
    "kind": "shop",
    "x": -222.7,
    "z": 111,
-   "name": "Hodinářství"
+   "name": "Hodinářství",
+   "sub": "watches"
   },
   {
    "id": 11938091325,
    "kind": "shop",
    "x": -185.3,
    "z": 150.1,
-   "name": "CM Optik"
+   "name": "CM Optik",
+   "sub": "optician"
   },
   {
    "id": 11938091326,
    "kind": "shop",
    "x": -178.6,
    "z": 140,
-   "name": "Tescoma"
+   "name": "Tescoma",
+   "sub": "houseware"
   },
   {
    "id": 13576311291,
@@ -1991,21 +2020,24 @@
    "kind": "cafe",
    "x": -175.9,
    "z": 383.5,
-   "name": "Stop Cafe"
+   "name": "Stop Cafe",
+   "sub": "convenience"
   },
   {
    "id": 13617179030,
    "kind": "shop",
    "x": 2.5,
    "z": -75.8,
-   "name": "Květiny Ing. Roman Koupý"
+   "name": "Květiny Ing. Roman Koupý",
+   "sub": "florist"
   },
   {
    "id": 14325203876,
    "kind": "shop",
    "x": -268.5,
    "z": 220.5,
-   "name": "BIO obchod"
+   "name": "BIO obchod",
+   "sub": "convenience"
   },
   {
    "id": 9822395948,
@@ -2033,14 +2065,16 @@
    "kind": "shop",
    "x": -122.1,
    "z": -762.4,
-   "name": "KiK"
+   "name": "KiK",
+   "sub": "clothes"
   },
   {
    "id": 404721147,
    "kind": "shop",
    "x": -134.2,
    "z": -853.1,
-   "name": "Kaufland"
+   "name": "Kaufland",
+   "sub": "supermarket"
   },
   {
    "id": 404721151,
@@ -2054,7 +2088,8 @@
    "kind": "shop",
    "x": -115.2,
    "z": -722.7,
-   "name": "dm"
+   "name": "dm",
+   "sub": "chemist"
   },
   {
    "id": 3920290077,
@@ -2068,7 +2103,8 @@
    "kind": "shop",
    "x": -116.4,
    "z": -781.8,
-   "name": "Expert"
+   "name": "Expert",
+   "sub": "electronics"
   },
   {
    "id": 7289524346,
@@ -2082,28 +2118,32 @@
    "kind": "shop",
    "x": -176.4,
    "z": -835.9,
-   "name": "Matějovo pekařství"
+   "name": "Matějovo pekařství",
+   "sub": "bakery"
   },
   {
    "id": 11013367733,
    "kind": "shop",
    "x": -296.1,
    "z": -601.4,
-   "name": "Action"
+   "name": "Action",
+   "sub": "variety_store"
   },
   {
    "id": 11013367734,
    "kind": "shop",
    "x": -305.5,
    "z": -601.2,
-   "name": "Wiky Hračky - Papírnictví"
+   "name": "Wiky Hračky - Papírnictví",
+   "sub": "toys"
   },
   {
    "id": 11013367735,
    "kind": "shop",
    "x": -318.9,
    "z": -601.5,
-   "name": "Datart"
+   "name": "Datart",
+   "sub": "electronics"
   },
   {
    "id": 11013367736,
@@ -2117,14 +2157,16 @@
    "kind": "shop",
    "x": -334.1,
    "z": -635.7,
-   "name": "Super zoo"
+   "name": "Super zoo",
+   "sub": "pet"
   },
   {
    "id": 11013367738,
    "kind": "shop",
    "x": -334.5,
    "z": -659.3,
-   "name": "Makovec"
+   "name": "Makovec",
+   "sub": "butcher"
   },
   {
    "id": 11013367739,
@@ -2138,77 +2180,88 @@
    "kind": "shop",
    "x": -334.5,
    "z": -675.3,
-   "name": "Teta"
+   "name": "Teta",
+   "sub": "chemist"
   },
   {
    "id": 11013367741,
    "kind": "shop",
    "x": -335,
    "z": -690.5,
-   "name": "Sportisimo"
+   "name": "Sportisimo",
+   "sub": "sports"
   },
   {
    "id": 11013367742,
    "kind": "shop",
    "x": -334.3,
    "z": -706.8,
-   "name": "TEDi"
+   "name": "TEDi",
+   "sub": "variety_store"
   },
   {
    "id": 11013367743,
    "kind": "shop",
    "x": -334.8,
    "z": -724.2,
-   "name": "Takko Fashion"
+   "name": "Takko Fashion",
+   "sub": "clothes"
   },
   {
    "id": 11013367744,
    "kind": "shop",
    "x": -335.1,
    "z": -744.8,
-   "name": "Deichmann"
+   "name": "Deichmann",
+   "sub": "shoes"
   },
   {
    "id": 11013367745,
    "kind": "shop",
    "x": -334.3,
    "z": -648.6,
-   "name": "Banquet"
+   "name": "Banquet",
+   "sub": "houseware"
   },
   {
    "id": 11013465540,
    "kind": "shop",
    "x": -339.7,
    "z": -785.6,
-   "name": "Lidl"
+   "name": "Lidl",
+   "sub": "supermarket"
   },
   {
    "id": 11938091313,
    "kind": "shop",
    "x": -23.3,
    "z": -330.3,
-   "name": "Hruška"
+   "name": "Hruška",
+   "sub": "wine"
   },
   {
    "id": 11940402814,
    "kind": "shop",
    "x": -7.5,
    "z": -312.9,
-   "name": "Myrtha"
+   "name": "Myrtha",
+   "sub": "florist"
   },
   {
    "id": 11940402817,
    "kind": "shop",
    "x": -19.2,
    "z": -356.8,
-   "name": "Tasko"
+   "name": "Tasko",
+   "sub": "shoes"
   },
   {
    "id": 11940402818,
    "kind": "shop",
    "x": -19.5,
    "z": -349.9,
-   "name": "Škoďák"
+   "name": "Škoďák",
+   "sub": "interior_decoration"
   },
   {
    "id": 11036057807,
@@ -2222,7 +2275,8 @@
    "kind": "shop",
    "x": -192,
    "z": -978.6,
-   "name": "DEK"
+   "name": "DEK",
+   "sub": "trade"
   },
   {
    "id": 404317240,
@@ -2278,14 +2332,16 @@
    "kind": "shop",
    "x": 191.7,
    "z": 1020.8,
-   "name": "Tabák Nečas"
+   "name": "Tabák Nečas",
+   "sub": "kiosk"
   },
   {
    "id": 9675029273,
    "kind": "shop",
    "x": 390.4,
    "z": 491.3,
-   "name": "Kadeřnictví Suchá"
+   "name": "Kadeřnictví Suchá",
+   "sub": "hairdresser"
   },
   {
    "id": 9822395953,
@@ -2299,14 +2355,16 @@
    "kind": "shop",
    "x": 409.9,
    "z": 528.7,
-   "name": "Uzenářství Zdeněk Pavlů"
+   "name": "Uzenářství Zdeněk Pavlů",
+   "sub": "butcher"
   },
   {
    "id": 10730386441,
    "kind": "shop",
    "x": 405.6,
    "z": 519.6,
-   "name": "Smíšené zboží"
+   "name": "Smíšené zboží",
+   "sub": "convenience"
   },
   {
    "id": 11036035791,
@@ -2320,14 +2378,16 @@
    "kind": "shop",
    "x": 129.3,
    "z": 543.1,
-   "name": "Autoservis"
+   "name": "Autoservis",
+   "sub": "car_repair"
   },
   {
    "id": 11940402809,
    "kind": "shop",
    "x": 122.8,
    "z": 525.6,
-   "name": "u Lumíra"
+   "name": "u Lumíra",
+   "sub": "paint"
   },
   {
    "id": 4831501919,
@@ -2355,7 +2415,8 @@
    "kind": "shop",
    "x": 347.4,
    "z": 436.4,
-   "name": "Coop"
+   "name": "Coop",
+   "sub": "convenience"
   },
   {
    "id": 996707530,
@@ -2390,14 +2451,16 @@
    "kind": "shop",
    "x": 324.6,
    "z": 334.2,
-   "name": "Chráněná dílna TiRO Blansko s.r.o."
+   "name": "Chráněná dílna TiRO Blansko s.r.o.",
+   "sub": "stationery"
   },
   {
    "id": 4122505839,
    "kind": "shop",
    "x": 702,
    "z": 400.4,
-   "name": "Hruška"
+   "name": "Hruška",
+   "sub": "convenience"
   },
   {
    "id": 14335587789,
@@ -2411,7 +2474,8 @@
    "kind": "shop",
    "x": 484,
    "z": -411,
-   "name": "Hruška"
+   "name": "Hruška",
+   "sub": "supermarket"
   },
   {
    "id": 4842185521,
@@ -2446,7 +2510,8 @@
    "kind": "shop",
    "x": 640.7,
    "z": -593.2,
-   "name": "Sever Cars"
+   "name": "Sever Cars",
+   "sub": "car_repair"
   },
   {
    "id": 4842185522,
