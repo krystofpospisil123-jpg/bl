@@ -4,7 +4,9 @@ import * as THREE from 'three';
 import type { WorldData } from '../world/WorldData.ts';
 import { HeightField } from '../world/HeightField.ts';
 import { ChunkManager } from '../world/ChunkManager.ts';
-import { Materials } from '../render/materials.ts';
+import { Materials, timeUniform } from '../render/materials.ts';
+import { Pipeline, QUALITY_LABEL } from '../render/Pipeline.ts';
+import { settings, saveSettings } from '../config.ts';
 import { Environment, buildOverviewMesh } from '../render/Environment.ts';
 import { FlyCamera } from '../controls/FlyCamera.ts';
 import { ChaseCamera, CAR_STYLE, FOOT_STYLE } from '../controls/ChaseCamera.ts';
@@ -49,19 +51,20 @@ export class Game {
   /** Short message shown by the HUD (e.g. "slow down to get out"). */
   notice = '';
   private noticeUntil = 0;
+  readonly pipeline: Pipeline;
   private hud: Hud;
   private timer = new THREE.Timer();
+  private autoQualityArmed = false;
 
   constructor(private canvas: HTMLCanvasElement, world: WorldData) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-    this.renderer.shadowMap.enabled = true;
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
     this.heights = new HeightField(world.manifest);
     const mats = new Materials();
-    this.env = new Environment(this.scene);
+    this.env = new Environment(this.scene, this.renderer);
+    this.pipeline = new Pipeline(this.renderer, this.scene, this.camera, this.env);
+    this.pipeline.onQualityChange = (q, auto) => this.say(auto ? `Kvalita grafiky snížena na: ${QUALITY_LABEL[q]}` : `Kvalita grafiky: ${QUALITY_LABEL[q]}`);
     this.chunks = new ChunkManager(world, this.heights, mats);
     this.scene.add(this.chunks.root);
     this.mouse = new MouseLook(canvas);
@@ -193,7 +196,7 @@ export class Game {
 
   private resize() {
     const w = this.canvas.clientWidth, h = this.canvas.clientHeight;
-    this.renderer.setSize(w, h, false);
+    this.pipeline.resize();
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
   }
@@ -214,6 +217,16 @@ export class Game {
       else if (this.canEnterCar) this.enterCar();
     }
     if (k.justPressed('KeyR') && this.car && this.mode === 'car') this.car.reset(undefined, this.car.yaw);
+    if (k.justPressed('KeyG')) {
+      this.pipeline.cycle();
+      this.pipeline.resetAuto(false);
+    }
+    if (k.justPressed('KeyN')) {
+      settings.realNames = !settings.realNames;
+      saveSettings();
+      this.chunks.rebuildSigns();
+      this.say(settings.realNames ? 'Skutečné názvy obchodů' : 'Obecné názvy obchodů');
+    }
     if (k.justPressed('KeyT') && this.traffic && this.pedestrians) {
       this.traffic.enabled = this.pedestrians.enabled = !this.traffic.enabled;
       this.say(this.traffic.enabled ? 'Provoz zapnut' : 'Provoz vypnut');
@@ -248,8 +261,14 @@ export class Game {
     }
 
     const cam = this.camera.position;
-    this.env.update(this.camera, cam.y - this.heights.sample(cam.x, cam.z));
-    this.renderer.render(this.scene, this.camera);
+    timeUniform.value += dt;
+    this.env.update(this.camera, cam.y - this.heights.sample(cam.x, cam.z), timeUniform.value);
+    // Start watching the frame rate once the world around the player has loaded.
+    if (!this.autoQualityArmed && this.mode !== 'loading' && this.chunks.stats().queued === 0) {
+      this.autoQualityArmed = true;
+      this.pipeline.resetAuto(true);
+    }
+    this.pipeline.render(dt);
     this.hud.update(dt);
     this.input.endFrame();
   }

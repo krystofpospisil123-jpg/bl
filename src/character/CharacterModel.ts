@@ -14,7 +14,7 @@ export const DEFAULT_OUTFIT: Outfit = { skin: 0xe0b394, hair: 0x3a2a1e, top: 0x2
 function part(w: number, h: number, d: number, color: number, y: number): THREE.Mesh {
   // Box hanging down from its pivot (top), so rotations swing from the joint.
   const g = new THREE.BoxGeometry(w, h, d).translate(0, -h / 2 + y, 0);
-  const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color }));
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.85 }));
   m.castShadow = true;
   return m;
 }

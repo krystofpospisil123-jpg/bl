@@ -9,6 +9,8 @@ import { buildBuildingsGeometry } from './builders/buildings.ts';
 import { ChunkTrees } from './builders/trees.ts';
 import { buildWaterGeometry, buildBridgeGeometry } from './builders/water.ts';
 import type { PhysicsChunkSource } from '../physics/PhysicsWorld.ts';
+import { buildSigns } from './builders/signs.ts';
+import { buildLamps, type LampSpot } from './builders/props.ts';
 
 /** LOD settings: terrain sample stride, ground texture size, tree detail. */
 const LODS = [
@@ -31,6 +33,8 @@ interface ChunkState {
   trees?: ChunkTrees;
   /** Triangle positions used for collision (buildings, bridges). */
   collisionMeshes: Float32Array[];
+  signs?: { group: THREE.Group; dispose: () => void };
+  lamps: LampSpot[];
   disposables: { dispose(): void }[];
 }
 
@@ -47,7 +51,7 @@ export class ChunkManager {
   budgetMs = 6;
   readonly root = new THREE.Group();
   private states = new Map<string, ChunkState>();
-  private terrainMaterials = new Map<string, THREE.MeshLambertMaterial>();
+  private terrainMaterials = new Map<string, THREE.MeshStandardMaterial>();
 
   constructor(private world: WorldData, private heights: HeightField, private mats: Materials) {}
 
@@ -68,7 +72,7 @@ export class ChunkManager {
           continue;
         }
         if (!st) {
-          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], disposables: [] };
+          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], lamps: [], disposables: [] };
           this.states.set(key, st);
         }
         // LOD with hysteresis around the current level.
@@ -101,6 +105,24 @@ export class ChunkManager {
       heights: st.data.heights, n: st.data.n, minX: st.rect.minX, minZ: st.rect.minZ,
       size: this.world.manifest.chunkSize, meshes: st.collisionMeshes,
     };
+  }
+
+  /** Rebuilds all name signs (after switching real/generic names). */
+  rebuildSigns() {
+    for (const st of this.states.values()) {
+      if (!st.group || !st.data || !st.signs) continue;
+      st.group.remove(st.signs.group);
+      st.signs.dispose();
+      st.signs = buildSigns(st.data.data);
+      st.group.add(st.signs.group);
+    }
+  }
+
+  /** Street lamp light positions in all built chunks (for night lighting). */
+  lampSpots(): LampSpot[] {
+    const out: LampSpot[] = [];
+    for (const st of this.states.values()) out.push(...st.lamps);
+    return out;
   }
 
   stats(): ChunkStats {
@@ -166,6 +188,14 @@ export class ChunkManager {
         st.disposables.push(brGeo);
         st.collisionMeshes.push(brGeo.attributes.position.array as Float32Array);
       }
+      st.signs = buildSigns(data.data);
+      st.group.add(st.signs.group);
+      const lamps = buildLamps(data.data, st.rect, this.heights, this.mats.props);
+      if (lamps.mesh) {
+        st.group.add(lamps.mesh);
+        st.disposables.push(lamps.mesh);
+      }
+      st.lamps = lamps.lamps;
       st.trees = new ChunkTrees(data.data.trees, this.heights, this.mats.trees, lod.trees);
       st.group.add(st.trees.group);
       this.root.add(st.group);
@@ -177,7 +207,7 @@ export class ChunkManager {
     const prevLod = st.lod >= 0 ? LODS[st.lod] : undefined;
     if (!prevLod || prevLod.stride !== lod.stride || prevLod.tex !== lod.tex) {
       const geo = buildTerrainGeometry(data, minX, minZ, m.heightStep, lod.stride);
-      let mat = st.terrain?.material as THREE.MeshLambertMaterial | undefined;
+      let mat = st.terrain?.material as THREE.MeshStandardMaterial | undefined;
       if (!prevLod || prevLod.tex !== lod.tex) {
         const tex = paintGround(data.data, minX, minZ, m.chunkSize, lod.tex);
         if (mat) {
@@ -185,7 +215,7 @@ export class ChunkManager {
           mat.map = tex;
           mat.needsUpdate = true;
         } else {
-          mat = new THREE.MeshLambertMaterial({ map: tex });
+          mat = this.mats.makeGround(tex);
           this.terrainMaterials.set(`${st.cx},${st.cz}`, mat);
         }
       }
@@ -214,6 +244,7 @@ export class ChunkManager {
       this.terrainMaterials.delete(key);
     }
     st.trees?.dispose();
+    st.signs?.dispose();
     for (const d of st.disposables) d.dispose();
   }
 }

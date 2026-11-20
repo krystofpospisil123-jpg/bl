@@ -59,7 +59,7 @@ export class Pedestrians {
 
   constructor(graph: Graph, private heights: HeightField) {
     this.graph = graph;
-    const mat = new THREE.MeshLambertMaterial();
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.85 });
     // Limb geometries hang from their joint at the origin.
     const leg = merge([boxAt(0.15, 0.86, 0.17, 0, 0), boxAt(0.15, 0.07, 0.25, 0, -0.86, 0.04)]);
     const arm = merge([boxAt(0.11, 0.62, 0.12, 0, 0)]);

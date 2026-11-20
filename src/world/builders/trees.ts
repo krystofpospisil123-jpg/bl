@@ -16,15 +16,23 @@ function colored(g: THREE.BufferGeometry, hex: number): THREE.BufferGeometry {
 
 function makeGeometries() {
   const trunk = (r: number, h: number, seg: number) => colored(new THREE.CylinderGeometry(r * 0.7, r, h, seg).translate(0, h / 2, 0), 0x5b4632);
+  // Crown made of several leaf clumps, lighter on top for a sunlit look.
+  const clump = (r: number, x: number, y: number, z: number, hex: number) =>
+    colored(new THREE.IcosahedronGeometry(r, 1).scale(1, 0.85, 1).translate(x, y, z), hex);
   const deciduous0 = mergeGeometries([
-    trunk(0.035, 0.45, 5),
-    colored(new THREE.IcosahedronGeometry(0.3, 1).scale(1, 0.85, 1).translate(0, 0.66, 0), 0x4e7a32),
+    trunk(0.035, 0.5, 6),
+    clump(0.24, 0, 0.6, 0, 0x45702c),
+    clump(0.19, 0.13, 0.7, 0.06, 0x4f7c33),
+    clump(0.18, -0.12, 0.68, -0.07, 0x4a7630),
+    clump(0.16, 0.02, 0.84, -0.02, 0x5b8a3a),
+    clump(0.15, -0.05, 0.62, 0.15, 0x41682a),
   ])!;
   const deciduous1 = colored(new THREE.OctahedronGeometry(0.32).scale(1, 0.9, 1).translate(0, 0.62, 0), 0x4a7230);
   const conifer0 = mergeGeometries([
     trunk(0.03, 0.25, 5),
-    colored(new THREE.ConeGeometry(0.2, 0.5, 7).translate(0, 0.45, 0), 0x2f5229),
-    colored(new THREE.ConeGeometry(0.15, 0.42, 7).translate(0, 0.75, 0), 0x335a2c),
+    colored(new THREE.ConeGeometry(0.21, 0.42, 8).translate(0, 0.38, 0), 0x2b4c26),
+    colored(new THREE.ConeGeometry(0.17, 0.38, 8).translate(0, 0.6, 0), 0x2f5229),
+    colored(new THREE.ConeGeometry(0.12, 0.34, 8).translate(0, 0.82, 0), 0x36602e),
   ])!;
   const conifer1 = colored(new THREE.ConeGeometry(0.19, 0.85, 4).translate(0, 0.52, 0), 0x2f5229);
   for (const g of [deciduous0, deciduous1, conifer0, conifer1]) g.computeVertexNormals();

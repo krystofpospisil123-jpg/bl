@@ -30,6 +30,8 @@ Hra startuje pěšky vedle auta na náměstí Republiky.
 | myš | rozhlížení (klik zamkne myš, Esc uvolní) | rozhlížení | rozhlížení |
 | 1–4 | | | náměstí, zámek, nádraží, výhled |
 | T | provoz a chodci zap/vyp | | |
+| G | kvalita grafiky (nízká / střední / vysoká) | | |
+| N | skutečné / obecné názvy obchodů | | |
 | O / M / H | stíny, 2D mapa, nápověda | | |
 
 `public/data/` je v repozitáři, takže `npm run data` stačí pustit jen při aktualizaci dat.
@@ -66,7 +68,9 @@ src/
   world/HeightField.ts  dotazy na výšku terénu napříč dlaždicemi
   world/ChunkManager.ts streaming dlaždic a LOD podle vzdálenosti
   world/builders/   terén, textura povrchu, budovy, stromy, voda a mosty
-  render/           materiály, procedurální textury, nebe, slunce, vzdálený terén
+  render/           PBR materiály, atlas fasád, obloha, post-processing a kvalita, vzdálený terén
+  world/landmarks.ts  korekce známých budov (zámek, kostely, vodárna) a styly podle účelu
+  config.ts         nastavení hráče (kvalita, názvy obchodů), uložené v prohlížeči
   controls/         vstup, létající kamera, kamera za autem
   physics/          svět Rapier: kolize terénu, budov a mostů streamované kolem hráče
   vehicle/          fyzika auta (raycast vehicle), procedurální model auta
@@ -113,6 +117,7 @@ případný externí asset se uvede sem i s licencí.
 3. ✅ Auto: Rapier raycast vehicle, kamera za autem, kolize s budovami
 4. ✅ Postava: chůze, sprint, skok, nástup a výstup z auta
 5. ✅ Provoz a chodci: AI auta na grafu silnic z OSM, chodci na chodnících
+   ✅ Grafika a známá místa: PBR, obloha s mraky, atlas fasád, střechy z OSM, cedule obchodů
 6. Den a noc, minimapa, mise, policie
 
 ## Jak funguje 3D svět
@@ -160,3 +165,31 @@ případný externí asset se uvede sem i s licencí.
   hráč může narazit. Na obrazovce jsou to 2 instancované meshe.
 - **Chodci:** až 60 chodců chodí po chodnících vedle ulic a po pěšinách. Před rychlým autem uskočí,
   a když je auto srazí, upadnou a po chvíli vstanou. Vykreslují se 6 instancovanými meshi.
+
+## Grafika a známá místa
+
+- **Osvětlení:** fyzikální materiály (PBR), atmosférická obloha s mraky (Preetham, doplněk three.js)
+  a z ní spočítaná environment mapa, takže okna, auta a voda odrážejí nebe.
+- **Post-processing:**
+  - vysoká kvalita: ambient occlusion (GTAO), bloom, SMAA, stínová mapa 4096
+  - střední: bloom, SMAA, stíny 2048
+  - nízká: bez efektů a stínů
+  - Volba se mění klávesou G a pamatuje se v prohlížeči. Když hra po načtení běží pod 32 fps,
+    kvalita se sama sníží o stupeň.
+- **Fasády:** procedurální atlas s 8 styly (omítka, panelák, staré město, průmysl, sklo,
+  supermarket, kostel/zámek, garáž) a zvláštním přízemím (výlohy u obchodů a restaurací). Styl se
+  volí podle typu budovy, počtu podlaží, polohy (staré město kolem náměstí) a účelu z OSM.
+- **Střechy:** podle `roof:shape` z OSM. Sedlové, valbové a jehlanové se dělají přesně, složité
+  půdorysy dostanou přibližnou mansardu. Barvy se berou z `building:colour` a `roof:colour`.
+- **Známá místa** (`src/world/landmarks.ts`):
+  - zámek: výška, okrová fasáda, valbová střecha
+  - kostel sv. Martina a dřevěný kostel sv. Paraskivy: věž
+  - stará vodárenská věž
+  - radnice, soud, nádraží a supermarkety: styl podle účelu
+  - Výšky a věže jsou přibližné, protože OSM je nemá.
+- **Cedule:** obchody, restaurace, banky, lékárny, pumpy a památky mají cedulku s názvem z OSM na
+  stěně směrem k ulici. Je to jen neutrální text, bez log a firemních barev. Klávesa N přepne na
+  obecné názvy („Supermarket“, „Lékárna“…). Pro případné vydání hry doporučuji obecné názvy,
+  protože názvy obchodů jsou ochranné známky.
+- **Detaily:** jemná textura terénu zblízka, koruny stromů z více shluků s pohybem ve větru,
+  animovaná vodní hladina a pouliční lampy podél ulic (instancované).

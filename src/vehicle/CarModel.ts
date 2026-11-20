@@ -4,12 +4,12 @@ import { CAR_SPEC } from './CarPhysics.ts';
 
 export const CAR_COLORS = [0xb8352f, 0x2f5fa8, 0xd8d8d2, 0x2b2d30, 0x6f7a3a, 0xc9a23a, 0x8a8f96, 0x3e8a86];
 
-const glass = new THREE.MeshLambertMaterial({ color: 0x1d2630 });
-const trim = new THREE.MeshLambertMaterial({ color: 0x1b1b1c });
-const tyre = new THREE.MeshLambertMaterial({ color: 0x161616 });
-const rim = new THREE.MeshLambertMaterial({ color: 0xa7abb0 });
-const headlight = new THREE.MeshLambertMaterial({ color: 0xfff6d8, emissive: 0x7a7560 });
-const taillight = new THREE.MeshLambertMaterial({ color: 0xb01010, emissive: 0x400000 });
+const glass = new THREE.MeshStandardMaterial({ color: 0x1d2630, roughness: 0.05, metalness: 0.2 });
+const trim = new THREE.MeshStandardMaterial({ color: 0x1b1b1c });
+const tyre = new THREE.MeshStandardMaterial({ color: 0x161616, roughness: 0.9 });
+const rim = new THREE.MeshStandardMaterial({ color: 0xa7abb0, roughness: 0.3, metalness: 0.8 });
+const headlight = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0x7a7560 });
+const taillight = new THREE.MeshStandardMaterial({ color: 0xb01010, emissive: 0x400000 });
 
 function box(w: number, h: number, l: number, mat: THREE.Material, x: number, y: number, z: number): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), mat);
@@ -40,7 +40,7 @@ export class CarModel {
   private brakeLights: THREE.Mesh[] = [];
 
   constructor(color = CAR_COLORS[0]) {
-    const paint = new THREE.MeshLambertMaterial({ color });
+    const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.32, metalness: 0.35 });
     const s = CAR_SPEC;
     const W = s.halfExtents.x * 2, L = s.halfExtents.z * 2;
     // Lower body
@@ -83,11 +83,11 @@ export class CarModel {
   }
 
   setBraking(on: boolean) {
-    for (const l of this.brakeLights) (l.material as THREE.MeshLambertMaterial) = on ? brakeOn : taillight;
+    for (const l of this.brakeLights) (l.material as THREE.MeshStandardMaterial) = on ? brakeOn : taillight;
   }
 }
 
-const brakeOn = new THREE.MeshLambertMaterial({ color: 0xff2a2a, emissive: 0xcc0000 });
+const brakeOn = new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xcc0000 });
 
 /**
  * Bakes the car model into two geometries for instanced traffic:
@@ -101,7 +101,7 @@ export function bakeCarGeometries(): { paint: THREE.BufferGeometry; detail: THRE
   const detail: THREE.BufferGeometry[] = [];
   model.root.traverse((o) => {
     if (!(o instanceof THREE.Mesh)) return;
-    const mat = o.material as THREE.MeshLambertMaterial;
+    const mat = o.material as THREE.MeshStandardMaterial;
     const g = (o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone()).applyMatrix4(o.matrixWorld);
     g.deleteAttribute('uv');
     const c = mat.color.clone().add(mat.emissive ?? new THREE.Color(0));

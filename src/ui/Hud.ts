@@ -1,6 +1,7 @@
 // On-screen info: speedometer, controls help per mode, performance stats.
 import type { Game, Mode } from '../game/Game.ts';
 import { VIEWPOINTS } from '../game/viewpoints.ts';
+import { QUALITY_LABEL } from '../render/Pipeline.ts';
 
 const HELP: Record<Mode, [string, string][]> = {
   loading: [['', 'Načítám město a fyziku…']],
@@ -45,10 +46,10 @@ export class Hud {
   constructor(private game: Game) {
     const el = document.getElementById('hud')!;
     el.innerHTML = `
-      <h1>Blansko: Open World <small>fáze 5 · provoz</small></h1>
+      <h1>Blansko: Open World <small>grafika a známá místa</small></h1>
       <div id="stats"></div>
       <details id="help" open><summary>Ovládání</summary><div class="keys"></div>
-        <div class="keys extra"><span>T</span><span>provoz a chodci zap/vyp</span><span>O</span><span>stíny zap/vyp</span><span>M</span><span>2D mapa dat</span><span>H</span><span>skrýt nápovědu</span></div>
+        <div class="keys extra"><span>G</span><span>kvalita grafiky</span><span>N</span><span>skutečné / obecné názvy obchodů</span><span>T</span><span>provoz a chodci zap/vyp</span><span>O</span><span>stíny zap/vyp</span><span>M</span><span>2D mapa dat</span><span>H</span><span>skrýt nápovědu</span></div>
       </details>`;
     this.stats = el.querySelector('#stats')!;
     this.help = el.querySelector('.keys')!;
@@ -92,7 +93,7 @@ export class Hud {
     const s = g.chunks.stats();
     const info = g.renderer.info.render;
     this.stats.innerHTML =
-      `<b>${this.fps.toFixed(0)} fps</b> · ${info.calls} draw calls · ${(info.triangles / 1e6).toFixed(2)} M trojúhelníků<br>` +
+      `<b>${this.fps.toFixed(0)} fps</b> · kvalita ${QUALITY_LABEL[g.pipeline.quality]} · ${info.calls} draw calls · ${(info.triangles / 1e6).toFixed(2)} M trojúhelníků<br>` +
       `x ${p.x.toFixed(0)} z ${p.z.toFixed(0)} · ${p.y.toFixed(0)} m n. m.<br>` +
       `dlaždice ${s.loaded} (LOD ${s.lodCounts.join('/')})${s.queued ? ` · ve frontě ${s.queued}` : ''}` +
       (g.traffic ? ` · aut ${g.traffic.cars.length}, chodců ${g.pedestrians?.peds.length ?? 0}` : '');

@@ -56,7 +56,7 @@ export class Traffic {
   constructor(graph: Graph, private phys: PhysicsWorld, private heights: HeightField) {
     this.graph = graph;
     const { paint, detail } = bakeCarGeometries();
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 });
     this.paintMesh = new THREE.InstancedMesh(paint, mat, MAX_CARS);
     this.detailMesh = new THREE.InstancedMesh(detail, mat, MAX_CARS);
     for (const m of [this.paintMesh, this.detailMesh]) {
