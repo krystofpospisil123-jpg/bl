@@ -15,19 +15,21 @@ npm run data      # stáhne OSM + DMR 5G a vygeneruje dlaždice do public/data (
 npm run dev       # http://localhost:5173  (2D mapa dat: http://localhost:5173/#mapa)
 ```
 
-### Ovládání (fáze 2: prohlídka města)
+### Ovládání
 
-| Klávesa | Akce |
-| --- | --- |
-| klik do okna | zamknout myš (Esc uvolní), jinak se rozhlížíš tažením myší |
-| W A S D / šipky | pohyb |
-| Mezerník / Q | nahoru / dolů |
-| Shift | rychleji (4×) |
-| kolečko myši | základní rychlost |
-| 1–4 | náměstí, zámek, nádraží, pohled nad městem |
-| O | stíny zap/vyp |
-| M | 2D mapa dat |
-| H | skrýt nápovědu |
+Hra startuje v autě na náměstí Republiky.
+
+| Klávesa | V autě | Volná kamera |
+| --- | --- | --- |
+| W / S | plyn / brzda, při stání couvání | pohyb vpřed / vzad |
+| A / D | zatáčení | pohyb do stran |
+| Mezerník | ruční brzda | nahoru (Q dolů) |
+| R | postavit auto na kola | |
+| P | přepnout na volnou kameru | položit auto pod kameru a jet |
+| myš | rozhlížení (klik zamkne myš, Esc uvolní) | rozhlížení |
+| Shift / kolečko | | rychleji / základní rychlost |
+| 1–4 | | náměstí, zámek, nádraží, pohled nad městem |
+| O / M / H | stíny, 2D mapa, nápověda | stejné |
 
 `public/data/` je v repozitáři, takže `npm run data` stačí pustit jen při aktualizaci dat.
 
@@ -64,7 +66,9 @@ src/
   world/ChunkManager.ts streaming dlaždic a LOD podle vzdálenosti
   world/builders/   terén, textura povrchu, budovy, stromy, voda a mosty
   render/           materiály, procedurální textury, nebe, slunce, vzdálený terén
-  controls/         létající kamera
+  controls/         vstup, létající kamera, kamera za autem
+  physics/          svět Rapier: kolize terénu, budov a mostů streamované kolem hráče
+  vehicle/          fyzika auta (raycast vehicle), procedurální model auta
   game/Game.ts      herní smyčka
   preview/          2D inspektor dat (#mapa)
   ui/               HUD, atribuce
@@ -103,7 +107,7 @@ případný externí asset se uvede sem i s licencí.
 
 1. ✅ Setup a data
 2. ✅ Svět: 3D terén, budovy, silnice, voda, stromy, streaming dlaždic, létající kamera
-3. Auto (Rapier raycast vehicle)
+3. ✅ Auto: Rapier raycast vehicle, kamera za autem, kolize s budovami
 4. Postava, nástup a výstup z auta
 5. Provoz a chodci
 6. Den a noc, minimapa, mise, policie
@@ -119,3 +123,15 @@ případný externí asset se uvede sem i s licencí.
   mají sedlovou střechu, okna dělá procedurální textura fasády.
 - **Stromy:** instancované low-poly modely, 2 úrovně detailu.
 - **Výkon:** asi 300 draw calls a 0,4–0,9 M trojúhelníků. Stavění dlaždic má rozpočet 6 ms na snímek.
+
+## Fyzika a auto
+
+- **Kolize:** v okruhu 260 m kolem hráče jsou výškové mapy dlaždic (heightfield, 2 m) a
+  trojúhelníkové sítě budov a mostů. Po mostech se dá jezdit. Okraj oblasti hlídají neviditelné zdi.
+  Stromy zatím kolizi nemají.
+- **Auto:** `DynamicRayCastVehicleController` z Rapieru, pohon zadních kol, 1250 kg, těžiště nízko.
+  Arkádové úpravy: řízení se s rychlostí zmenšuje, přítlak roste s rychlostí, brzdy jsou
+  posunuté dopředu kvůli stabilitě. Max. asi 150 km/h, 0–100 km/h asi za 7 s.
+- **Fyzika** běží s pevným krokem 1/60 s.
+- **Ladění:** `npx tsx scripts/dev/car-sim.ts` simuluje jízdu po rovině (zrychlení, zatáčky,
+  brzdění, náraz do zdi) bez prohlížeče.

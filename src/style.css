@@ -16,3 +16,6 @@ body:not(.map-mode) #view { cursor: crosshair; }
 #hud #stats { font-variant-numeric: tabular-nums; }
 #hud a { color: #9cc8ff; }
 #hud .back { display: inline-block; margin-top: 8px; }
+#speedo { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); background: rgba(20, 24, 30, 0.8); border-radius: 10px; padding: 6px 14px; text-align: right; font-variant-numeric: tabular-nums; }
+#speedo b { font-size: 34px; line-height: 1; display: block; }
+#speedo span { font-size: 12px; opacity: 0.75; }

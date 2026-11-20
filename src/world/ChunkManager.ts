@@ -8,6 +8,7 @@ import { paintGround } from './builders/groundTexture.ts';
 import { buildBuildingsGeometry } from './builders/buildings.ts';
 import { ChunkTrees } from './builders/trees.ts';
 import { buildWaterGeometry, buildBridgeGeometry } from './builders/water.ts';
+import type { PhysicsChunkSource } from '../physics/PhysicsWorld.ts';
 
 /** LOD settings: terrain sample stride, ground texture size, tree detail. */
 const LODS = [
@@ -28,6 +29,8 @@ interface ChunkState {
   group?: THREE.Group;
   terrain?: THREE.Mesh;
   trees?: ChunkTrees;
+  /** Triangle positions used for collision (buildings, bridges). */
+  collisionMeshes: Float32Array[];
   disposables: { dispose(): void }[];
 }
 
@@ -65,7 +68,7 @@ export class ChunkManager {
           continue;
         }
         if (!st) {
-          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, disposables: [] };
+          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], disposables: [] };
           this.states.set(key, st);
         }
         // LOD with hysteresis around the current level.
@@ -88,6 +91,16 @@ export class ChunkManager {
       this.build(st);
       if (performance.now() - t0 > this.budgetMs) break;
     }
+  }
+
+  /** Collision data for a chunk once it has been built (null until then). */
+  physicsSource(cx: number, cz: number): PhysicsChunkSource | null {
+    const st = this.states.get(`${cx},${cz}`);
+    if (!st || !st.data || st.lod < 0) return null;
+    return {
+      heights: st.data.heights, n: st.data.n, minX: st.rect.minX, minZ: st.rect.minZ,
+      size: this.world.manifest.chunkSize, meshes: st.collisionMeshes,
+    };
   }
 
   stats(): ChunkStats {
@@ -135,6 +148,7 @@ export class ChunkManager {
         mesh.castShadow = mesh.receiveShadow = true;
         st.group.add(mesh);
         st.disposables.push(bGeo);
+        st.collisionMeshes.push(bGeo.attributes.position.array as Float32Array);
       }
       const wGeo = buildWaterGeometry(data.data, st.rect, this.heights);
       if (wGeo) {
@@ -150,6 +164,7 @@ export class ChunkManager {
         mesh.castShadow = mesh.receiveShadow = true;
         st.group.add(mesh);
         st.disposables.push(brGeo);
+        st.collisionMeshes.push(brGeo.attributes.position.array as Float32Array);
       }
       st.trees = new ChunkTrees(data.data.trees, this.heights, this.mats.trees, lod.trees);
       st.group.add(st.trees.group);

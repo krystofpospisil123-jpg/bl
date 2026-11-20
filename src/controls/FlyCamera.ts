@@ -1,47 +1,23 @@
-// Free-flying camera for exploring the city (phase 2).
-// WASD = move, Space/E = up, Q/C = down, Shift = fast, mouse = look (click to lock),
-// mouse wheel = base speed.
+// Free-flying camera for exploring the city.
+// WASD = move, Space/E = up, Q/C = down, Shift = fast, mouse = look, wheel = base speed.
 import * as THREE from 'three';
+import type { Input, MouseLook } from './Input.ts';
 
 export class FlyCamera {
   yaw = 0;
   pitch = -0.3;
   speed = 30; // m/s
-  private keys = new Set<string>();
-  private dragging = false;
-  private locked = false;
-  onLockChange?: (locked: boolean) => void;
+  enabled = true;
 
-  constructor(readonly camera: THREE.PerspectiveCamera, dom: HTMLElement, private ground: (x: number, z: number) => number) {
-    window.addEventListener('keydown', (e) => {
-      if (e.target instanceof HTMLInputElement) return;
-      this.keys.add(e.code);
-      if (e.code === 'Space') e.preventDefault();
-    });
-    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
-    window.addEventListener('blur', () => this.keys.clear());
-
-    dom.addEventListener('click', () => {
-      if (this.locked) return;
-      try {
-        const r = dom.requestPointerLock() as unknown as Promise<void> | undefined;
-        r?.catch?.(() => {});
-      } catch {
-        /* pointer lock is optional; drag-to-look still works */
-      }
-    });
-    document.addEventListener('pointerlockchange', () => {
-      this.locked = document.pointerLockElement === dom;
-      this.onLockChange?.(this.locked);
-    });
-    dom.addEventListener('pointerdown', () => (this.dragging = true));
-    window.addEventListener('pointerup', () => (this.dragging = false));
-    window.addEventListener('pointermove', (e) => {
-      if (!this.locked && !this.dragging) return;
-      this.yaw -= e.movementX * 0.0022;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * 0.0022, -1.55, 1.55);
-    });
+  constructor(
+    readonly camera: THREE.PerspectiveCamera,
+    private input: Input,
+    private mouse: MouseLook,
+    dom: HTMLElement,
+    private ground: (x: number, z: number) => number,
+  ) {
     dom.addEventListener('wheel', (e) => {
+      if (!this.enabled) return;
       e.preventDefault();
       this.speed = THREE.MathUtils.clamp(this.speed * Math.exp(-e.deltaY * 0.001), 3, 400);
     }, { passive: false });
@@ -53,21 +29,35 @@ export class FlyCamera {
     this.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
   }
 
+  /** Takes over from wherever the camera currently is. */
+  syncFromCamera() {
+    const dir = new THREE.Vector3();
+    this.camera.getWorldDirection(dir);
+    this.lookAt(this.camera.position.clone().add(dir));
+  }
+
   update(dt: number) {
-    const k = this.keys;
-    const fast = k.has('ShiftLeft') || k.has('ShiftRight') ? 4 : 1;
+    const { dx, dy } = this.mouse.take();
+    this.yaw -= dx * 0.0022;
+    this.pitch = THREE.MathUtils.clamp(this.pitch - dy * 0.0022, -1.55, 1.55);
+    const k = this.input;
+    const fast = k.down('ShiftLeft', 'ShiftRight') ? 4 : 1;
     const v = this.speed * fast * dt;
     const forward = new THREE.Vector3(-Math.sin(this.yaw) * Math.cos(this.pitch), Math.sin(this.pitch), -Math.cos(this.yaw) * Math.cos(this.pitch));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const p = this.camera.position;
-    if (k.has('KeyW') || k.has('ArrowUp')) p.addScaledVector(forward, v);
-    if (k.has('KeyS') || k.has('ArrowDown')) p.addScaledVector(forward, -v);
-    if (k.has('KeyD') || k.has('ArrowRight')) p.addScaledVector(right, v);
-    if (k.has('KeyA') || k.has('ArrowLeft')) p.addScaledVector(right, -v);
-    if (k.has('Space') || k.has('KeyE')) p.y += v;
-    if (k.has('KeyQ') || k.has('KeyC')) p.y -= v;
+    if (k.down('KeyW', 'ArrowUp')) p.addScaledVector(forward, v);
+    if (k.down('KeyS', 'ArrowDown')) p.addScaledVector(forward, -v);
+    if (k.down('KeyD', 'ArrowRight')) p.addScaledVector(right, v);
+    if (k.down('KeyA', 'ArrowLeft')) p.addScaledVector(right, -v);
+    if (k.down('Space', 'KeyE')) p.y += v;
+    if (k.down('KeyQ', 'KeyC')) p.y -= v;
     const minY = this.ground(p.x, p.z) + 1.7;
     if (p.y < minY) p.y = minY;
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
+    if (Math.abs(this.camera.fov - 60) > 0.01) {
+      this.camera.fov = 60;
+      this.camera.updateProjectionMatrix();
+    }
   }
 }
