@@ -152,24 +152,58 @@ function chunkAt(x: number, y: number): ChunkAcc | null {
 /** Map ring -> flat game-space array [x, z, ...]. */
 const flatRing = (ring: Ring): number[] => ring.flatMap(([x, y]) => [r1(x), r1(-y)]);
 
-/** Splits a polyline per chunk (each segment goes to the chunk containing its midpoint). */
-function addPolyline(pts: Vec2[], make: (pts: number[]) => Polyline, pick: (c: ChunkAcc) => Polyline[]) {
-  let cur: { chunk: ChunkAcc; pts: Vec2[] } | null = null;
-  const flush = () => {
-    if (cur && cur.pts.length >= 2) pick(cur.chunk).push(make(cur.pts.flatMap(([x, y]) => [r1(x), r1(-y)])));
-    cur = null;
+/**
+ * Splits a polyline into per-chunk runs. Each segment goes to every chunk its
+ * bounding box (grown by `margin`) overlaps, so wide features are never cut off at
+ * chunk edges. `elev` (optional, one value per point) is carried along.
+ */
+function addPolyline(
+  pts: Vec2[],
+  margin: number,
+  make: (pts: number[], elev?: number[]) => Polyline,
+  pick: (c: ChunkAcc) => Polyline[],
+  elev?: number[],
+) {
+  const runs = new Map<ChunkAcc, { idx: number[]; last: number }>();
+  const flush = (c: ChunkAcc) => {
+    const r = runs.get(c);
+    runs.delete(c);
+    if (!r || r.idx.length < 2) return;
+    const flat = r.idx.flatMap((i) => [r1(pts[i][0]), r1(-pts[i][1])]);
+    pick(c).push(make(flat, elev ? r.idx.map((i) => r1(elev[i])) : undefined));
   };
   for (let i = 0; i + 1 < pts.length; i++) {
     const a = pts[i], b = pts[i + 1];
-    const c = chunkAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2);
-    if (!c) { flush(); continue; }
-    if (!cur || cur.chunk !== c) {
-      flush();
-      cur = { chunk: c, pts: [a] };
+    const cx0 = Math.max(0, Math.floor((Math.min(a[0], b[0]) - margin + HALF_EXTENT) / CHUNK_SIZE));
+    const cx1 = Math.min(CHUNKS - 1, Math.floor((Math.max(a[0], b[0]) + margin + HALF_EXTENT) / CHUNK_SIZE));
+    const cz0 = Math.max(0, Math.floor((HALF_EXTENT - Math.max(a[1], b[1]) - margin) / CHUNK_SIZE));
+    const cz1 = Math.min(CHUNKS - 1, Math.floor((HALF_EXTENT - Math.min(a[1], b[1]) + margin) / CHUNK_SIZE));
+    for (let cz = cz0; cz <= cz1; cz++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        const c = chunks[cz][cx];
+        const r = runs.get(c);
+        if (r && r.last === i) {
+          r.idx.push(i + 1);
+          r.last = i + 1;
+        } else {
+          if (r) flush(c);
+          runs.set(c, { idx: [i, i + 1], last: i + 1 });
+        }
+      }
     }
-    cur.pts.push(b);
+    // Close runs of chunks that this segment did not touch.
+    for (const [c, r] of runs) if (r.last !== i + 1) flush(c);
   }
-  flush();
+  for (const c of [...runs.keys()]) flush(c);
+}
+
+/** Deck elevation for bridges: linear between the terrain at both ends, never below terrain + 1 m. */
+function bridgeElevations(line: Vec2[]): number[] {
+  const d = [0];
+  for (let i = 1; i < line.length; i++) d.push(d[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
+  const total = d[d.length - 1] || 1;
+  const h0 = elevation(...line[0]), h1 = elevation(...line[line.length - 1]);
+  return line.map((p, i) => Math.max(h0 + ((h1 - h0) * d[i]) / total, elevation(p[0], p[1]) + 1));
 }
 
 /** Clips a polygon (outer + holes) into every chunk it overlaps. */
@@ -339,14 +373,15 @@ async function main() {
       const w = Number.isFinite(lanes) && lanes > 0 && base >= 5 ? Math.max(base, lanes * 3.25) : base;
       const layer = parseInt(t.layer ?? '', 10);
       const tunnel = t.tunnel === 'yes' || t.tunnel === 'culvert';
-      addPolyline(line, (pts) => ({
-        id: el.id, kind: t.highway, w, pts,
+      const bridge = !!t.bridge && t.bridge !== 'no';
+      addPolyline(line, w / 2 + 1, (pts, elev) => ({
+        id: el.id, kind: t.highway, w, pts, ...(elev ? { elev } : {}),
         ...(t.name ? { name: t.name } : {}),
-        ...(t.bridge && t.bridge !== 'no' ? { bridge: true } : {}),
+        ...(bridge ? { bridge: true } : {}),
         ...(tunnel ? { tunnel: true } : {}),
         ...(Number.isFinite(layer) && layer !== 0 ? { layer } : {}),
         ...(t.oneway === 'yes' || t.oneway === '1' || t.junction === 'roundabout' ? { oneway: true } : {}),
-      }), (c) => c.roads);
+      }), (c) => c.roads, bridge ? bridgeElevations(line) : undefined);
       if (!tunnel) for (let i = 0; i + 1 < line.length; i++) obstacles.addSegment(line[i], line[i + 1], w / 2 + 1.5);
       stats.roads++;
       continue;
@@ -355,11 +390,12 @@ async function main() {
     // --- Railways
     if (t.railway && el.type === 'way' && line.length >= 2) {
       const tunnel = t.tunnel === 'yes';
-      addPolyline(line, (pts) => ({
-        id: el.id, kind: t.railway, w: 4, pts,
-        ...(t.bridge && t.bridge !== 'no' ? { bridge: true } : {}),
+      const bridge = !!t.bridge && t.bridge !== 'no';
+      addPolyline(line, 3, (pts, elev) => ({
+        id: el.id, kind: t.railway, w: 4, pts, ...(elev ? { elev } : {}),
+        ...(bridge ? { bridge: true } : {}),
         ...(tunnel ? { tunnel: true } : {}),
-      }), (c) => c.rails);
+      }), (c) => c.rails, bridge ? bridgeElevations(line) : undefined);
       if (!tunnel) for (let i = 0; i + 1 < line.length; i++) obstacles.addSegment(line[i], line[i + 1], 4);
       stats.rails++;
       continue;
@@ -379,7 +415,7 @@ async function main() {
     if (t.waterway && WATERWAY_WIDTH[t.waterway] && line.length >= 2) {
       const width = parseFloat(t.width ?? '') || WATERWAY_WIDTH[t.waterway];
       const tunnel = t.tunnel === 'yes' || t.tunnel === 'culvert';
-      addPolyline(line, (pts) => ({
+      addPolyline(line, width / 2 + 1, (pts) => ({
         id: el.id, kind: t.waterway, w: width, pts,
         ...(t.name ? { name: t.name } : {}),
         ...(tunnel ? { tunnel: true } : {}),

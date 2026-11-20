@@ -71,6 +71,8 @@ export interface Polyline {
   layer?: number;
   oneway?: boolean;
   pts: number[];
+  /** Bridges only: deck elevation (m a.s.l.) for each point. */
+  elev?: number[];
 }
 
 export interface Area {
@@ -87,6 +89,10 @@ export interface Poi {
   z: number;
 }
 
+/**
+ * Polylines are stored in every chunk their (widened) segments overlap, so the same
+ * OSM way can appear in several chunks; use `id` to de-duplicate when needed.
+ */
 export interface ChunkData {
   v: number;
   cx: number;

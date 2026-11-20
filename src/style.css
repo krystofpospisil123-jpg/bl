@@ -9,3 +9,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #20242a; fon
 #selection:not(:empty) { margin-top: 8px; padding-top: 8px; border-top: 1px solid #444; }
 #attribution { position: fixed; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.85); color: #222; font-size: 11px; padding: 2px 6px; border-top-left-radius: 4px; }
 #attribution a { color: #1a5fb4; }
+body:not(.map-mode) #view { cursor: crosshair; }
+#hud .keys { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; margin-top: 4px; }
+#hud .keys span:nth-child(odd) { font-weight: 600; white-space: nowrap; }
+#hud summary { cursor: pointer; margin-top: 6px; }
+#hud #stats { font-variant-numeric: tabular-nums; }
+#hud a { color: #9cc8ff; }
+#hud .back { display: inline-block; margin-top: 8px; }

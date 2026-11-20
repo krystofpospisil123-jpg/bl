@@ -12,8 +12,22 @@ Potřebuješ Node.js 22 nebo novější.
 ```bash
 npm install
 npm run data      # stáhne OSM + DMR 5G a vygeneruje dlaždice do public/data (~1 min)
-npm run dev       # http://localhost:5173
+npm run dev       # http://localhost:5173  (2D mapa dat: http://localhost:5173/#mapa)
 ```
+
+### Ovládání (fáze 2: prohlídka města)
+
+| Klávesa | Akce |
+| --- | --- |
+| klik do okna | zamknout myš (Esc uvolní), jinak se rozhlížíš tažením myší |
+| W A S D / šipky | pohyb |
+| Mezerník / Q | nahoru / dolů |
+| Shift | rychleji (4×) |
+| kolečko myši | základní rychlost |
+| 1–4 | náměstí, zámek, nádraží, pohled nad městem |
+| O | stíny zap/vyp |
+| M | 2D mapa dat |
+| H | skrýt nápovědu |
 
 `public/data/` je v repozitáři, takže `npm run data` stačí pustit jen při aktualizaci dat.
 
@@ -46,14 +60,20 @@ public/data/        vygenerovaný svět (manifest + dlaždice)
 src/
   world/format.ts   formát dat sdílený skripty i hrou
   world/WorldData.ts načítání manifestu a dlaždic
-  preview/          2D inspektor dat (fáze 1)
+  world/HeightField.ts  dotazy na výšku terénu napříč dlaždicemi
+  world/ChunkManager.ts streaming dlaždic a LOD podle vzdálenosti
+  world/builders/   terén, textura povrchu, budovy, stromy, voda a mosty
+  render/           materiály, procedurální textury, nebe, slunce, vzdálený terén
+  controls/         létající kamera
+  game/Game.ts      herní smyčka
+  preview/          2D inspektor dat (#mapa)
   ui/               HUD, atribuce
 ```
 
 ## Formát světa
 
 - **Souřadnice:** metry, X = východ, Y = nahoru, Z = jih. Počátek je na 49.3628 N, 16.6448 E
-  (mezi náměstím, zámkem a nádražím). Hratelná oblast je 3 × 3 km (−1500 až 1500 m).
+  (u zámku, náměstí je asi 200 m jižně a nádraží 1,1 km jižně). Hratelná oblast je 3 × 3 km (−1500 až 1500 m).
 - **Dlaždice:** 12 × 12 dlaždic po 250 m. Každá má `chunks/c_X_Z.json` (budovy, silnice, koleje,
   vodní toky a plochy, landuse, stromy, POI) a `chunks/c_X_Z.png` s výškami: 126 × 126
   vzorků po 2 m se sdílenými okraji, bezeztrátové PNG s 16bitovou hodnotou v kanálech R (vyšší bajt)
@@ -61,6 +81,8 @@ src/
 - **`overview.png`:** hrubá výšková mapa celé oblasti (20 m), pro vzdálený terén a LOD.
 - **Výšky budov:** `height` nebo `building:levels` z OSM (`tagged: true`). Jinak odhad podle typu
   a půdorysné plochy. Základ budovy leží na nejnižším bodě terénu pod půdorysem.
+- **Silnice a vodní toky** jsou v každé dlaždici, které se dotýkají, takže se na okrajích neusekávají.
+  Mosty mají výšku mostovky (`elev`) interpolovanou mezi konci mostu.
 - **Stromy:** jednotlivé stromy z OSM a procedurálně rozmístěné stromy v lesích, parcích a sadech
   (deterministicky, mimo silnice, budovy a vodu).
 
@@ -80,8 +102,20 @@ případný externí asset se uvede sem i s licencí.
 ## Plán
 
 1. ✅ Setup a data
-2. Svět: 3D terén, budovy, silnice, voda, stromy, streaming dlaždic, létající kamera
+2. ✅ Svět: 3D terén, budovy, silnice, voda, stromy, streaming dlaždic, létající kamera
 3. Auto (Rapier raycast vehicle)
 4. Postava, nástup a výstup z auta
 5. Provoz a chodci
 6. Den a noc, minimapa, mise, policie
+
+## Jak funguje 3D svět
+
+- **Terén:** síť z výškové mapy v rozlišení 2 m (do 260 m od kamery), dál 10 m. Švy mezi
+  úrovněmi detailu zakrývají svislé „sukně“ na okrajích dlaždic. Mimo načtené dlaždice je vidět
+  hrubý terén celé oblasti (20 m).
+- **Povrch:** silnice (včetně čar), chodníky, koleje, voda a využití území se kreslí do textury
+  každé dlaždice (1024 px nablízku, 256 a 128 px dál). Silnice proto vždy přesně leží na terénu.
+- **Budovy:** extrudované půdorysy sloučené do jedné geometrie na dlaždici. Malé obdélníkové domy
+  mají sedlovou střechu, okna dělá procedurální textura fasády.
+- **Stromy:** instancované low-poly modely, 2 úrovně detailu.
+- **Výkon:** asi 300 draw calls a 0,4–0,9 M trojúhelníků. Stavění dlaždic má rozpočet 6 ms na snímek.
