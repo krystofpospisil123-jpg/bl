@@ -1,0 +1,32 @@
+{
+  "name": "blansko-open-world",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "data:osm": "tsx scripts/fetch-osm.ts",
+    "data:dem": "tsx scripts/fetch-dem.ts",
+    "data:build": "tsx scripts/build-chunks.ts",
+    "data": "npm run data:osm && npm run data:dem && npm run data:build"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/proj4": "^2.5.6",
+    "@types/three": "^0.187.0",
+    "geotiff": "^3.0.5",
+    "proj4": "^2.23.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "undici": "^8.13.0",
+    "vite": "^8.3.8"
+  },
+  "private": true,
+  "type": "module",
+  "description": "Blansko: Open World – browser open-world prototype generated from OSM and ČÚZK data"
+}

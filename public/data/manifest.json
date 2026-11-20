@@ -1,0 +1,2484 @@
+{
+ "version": 1,
+ "name": "Blansko: Open World",
+ "generated": "2026-11-20T11:18:39.636Z",
+ "origin": {
+  "lat": 49.3628,
+  "lon": 16.6448
+ },
+ "halfExtent": 1500,
+ "chunkSize": 250,
+ "chunksPerSide": 12,
+ "heightStep": 2,
+ "heightBase": 257,
+ "heightScale": 0.01,
+ "elevation": {
+  "min": 267.9,
+  "max": 521.6
+ },
+ "overview": {
+  "file": "overview.bin",
+  "size": 151,
+  "step": 20
+ },
+ "chunks": [
+  {
+   "cx": 0,
+   "cz": 0,
+   "file": "chunks/c_0_0.json",
+   "heightFile": "chunks/c_0_0.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 1011
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 0,
+   "file": "chunks/c_1_0.json",
+   "heightFile": "chunks/c_1_0.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 6,
+    "trees": 1021
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 0,
+   "file": "chunks/c_2_0.json",
+   "heightFile": "chunks/c_2_0.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 974
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 0,
+   "file": "chunks/c_3_0.json",
+   "heightFile": "chunks/c_3_0.bin",
+   "counts": {
+    "buildings": 2,
+    "roads": 4,
+    "trees": 295
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 0,
+   "file": "chunks/c_4_0.json",
+   "heightFile": "chunks/c_4_0.bin",
+   "counts": {
+    "buildings": 2,
+    "roads": 9,
+    "trees": 1
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 0,
+   "file": "chunks/c_5_0.json",
+   "heightFile": "chunks/c_5_0.bin",
+   "counts": {
+    "buildings": 15,
+    "roads": 13,
+    "trees": 6
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 0,
+   "file": "chunks/c_6_0.json",
+   "heightFile": "chunks/c_6_0.bin",
+   "counts": {
+    "buildings": 80,
+    "roads": 22,
+    "trees": 7
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 0,
+   "file": "chunks/c_7_0.json",
+   "heightFile": "chunks/c_7_0.bin",
+   "counts": {
+    "buildings": 146,
+    "roads": 38,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 0,
+   "file": "chunks/c_8_0.json",
+   "heightFile": "chunks/c_8_0.bin",
+   "counts": {
+    "buildings": 31,
+    "roads": 13,
+    "trees": 104
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 0,
+   "file": "chunks/c_9_0.json",
+   "heightFile": "chunks/c_9_0.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 1170
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 0,
+   "file": "chunks/c_10_0.json",
+   "heightFile": "chunks/c_10_0.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 4,
+    "trees": 1138
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 0,
+   "file": "chunks/c_11_0.json",
+   "heightFile": "chunks/c_11_0.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 1162
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 1,
+   "file": "chunks/c_0_1.json",
+   "heightFile": "chunks/c_0_1.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 1189
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 1,
+   "file": "chunks/c_1_1.json",
+   "heightFile": "chunks/c_1_1.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 4,
+    "trees": 1143
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 1,
+   "file": "chunks/c_2_1.json",
+   "heightFile": "chunks/c_2_1.bin",
+   "counts": {
+    "buildings": 14,
+    "roads": 3,
+    "trees": 417
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 1,
+   "file": "chunks/c_3_1.json",
+   "heightFile": "chunks/c_3_1.bin",
+   "counts": {
+    "buildings": 1,
+    "roads": 1,
+    "trees": 281
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 1,
+   "file": "chunks/c_4_1.json",
+   "heightFile": "chunks/c_4_1.bin",
+   "counts": {
+    "buildings": 4,
+    "roads": 12,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 1,
+   "file": "chunks/c_5_1.json",
+   "heightFile": "chunks/c_5_1.bin",
+   "counts": {
+    "buildings": 11,
+    "roads": 17,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 1,
+   "file": "chunks/c_6_1.json",
+   "heightFile": "chunks/c_6_1.bin",
+   "counts": {
+    "buildings": 95,
+    "roads": 22,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 1,
+   "file": "chunks/c_7_1.json",
+   "heightFile": "chunks/c_7_1.bin",
+   "counts": {
+    "buildings": 64,
+    "roads": 52,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 1,
+   "file": "chunks/c_8_1.json",
+   "heightFile": "chunks/c_8_1.bin",
+   "counts": {
+    "buildings": 34,
+    "roads": 26,
+    "trees": 310
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 1,
+   "file": "chunks/c_9_1.json",
+   "heightFile": "chunks/c_9_1.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 2,
+    "trees": 1223
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 1,
+   "file": "chunks/c_10_1.json",
+   "heightFile": "chunks/c_10_1.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 5,
+    "trees": 1162
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 1,
+   "file": "chunks/c_11_1.json",
+   "heightFile": "chunks/c_11_1.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 4,
+    "trees": 1133
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 2,
+   "file": "chunks/c_0_2.json",
+   "heightFile": "chunks/c_0_2.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 1,
+    "trees": 1187
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 2,
+   "file": "chunks/c_1_2.json",
+   "heightFile": "chunks/c_1_2.bin",
+   "counts": {
+    "buildings": 8,
+    "roads": 1,
+    "trees": 294
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 2,
+   "file": "chunks/c_2_2.json",
+   "heightFile": "chunks/c_2_2.bin",
+   "counts": {
+    "buildings": 11,
+    "roads": 8,
+    "trees": 641
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 2,
+   "file": "chunks/c_3_2.json",
+   "heightFile": "chunks/c_3_2.bin",
+   "counts": {
+    "buildings": 2,
+    "roads": 2,
+    "trees": 309
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 2,
+   "file": "chunks/c_4_2.json",
+   "heightFile": "chunks/c_4_2.bin",
+   "counts": {
+    "buildings": 13,
+    "roads": 35,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 2,
+   "file": "chunks/c_5_2.json",
+   "heightFile": "chunks/c_5_2.bin",
+   "counts": {
+    "buildings": 19,
+    "roads": 26,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 2,
+   "file": "chunks/c_6_2.json",
+   "heightFile": "chunks/c_6_2.bin",
+   "counts": {
+    "buildings": 61,
+    "roads": 36,
+    "trees": 17
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 2,
+   "file": "chunks/c_7_2.json",
+   "heightFile": "chunks/c_7_2.bin",
+   "counts": {
+    "buildings": 177,
+    "roads": 22,
+    "trees": 153
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 2,
+   "file": "chunks/c_8_2.json",
+   "heightFile": "chunks/c_8_2.bin",
+   "counts": {
+    "buildings": 99,
+    "roads": 22,
+    "trees": 265
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 2,
+   "file": "chunks/c_9_2.json",
+   "heightFile": "chunks/c_9_2.bin",
+   "counts": {
+    "buildings": 20,
+    "roads": 11,
+    "trees": 1016
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 2,
+   "file": "chunks/c_10_2.json",
+   "heightFile": "chunks/c_10_2.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 1161
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 2,
+   "file": "chunks/c_11_2.json",
+   "heightFile": "chunks/c_11_2.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 2,
+    "trees": 1161
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 3,
+   "file": "chunks/c_0_3.json",
+   "heightFile": "chunks/c_0_3.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 1,
+    "trees": 1218
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 3,
+   "file": "chunks/c_1_3.json",
+   "heightFile": "chunks/c_1_3.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 5,
+    "trees": 265
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 3,
+   "file": "chunks/c_2_3.json",
+   "heightFile": "chunks/c_2_3.bin",
+   "counts": {
+    "buildings": 26,
+    "roads": 7,
+    "trees": 210
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 3,
+   "file": "chunks/c_3_3.json",
+   "heightFile": "chunks/c_3_3.bin",
+   "counts": {
+    "buildings": 2,
+    "roads": 1,
+    "trees": 225
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 3,
+   "file": "chunks/c_4_3.json",
+   "heightFile": "chunks/c_4_3.bin",
+   "counts": {
+    "buildings": 3,
+    "roads": 17,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 3,
+   "file": "chunks/c_5_3.json",
+   "heightFile": "chunks/c_5_3.bin",
+   "counts": {
+    "buildings": 164,
+    "roads": 44,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 3,
+   "file": "chunks/c_6_3.json",
+   "heightFile": "chunks/c_6_3.bin",
+   "counts": {
+    "buildings": 147,
+    "roads": 18,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 3,
+   "file": "chunks/c_7_3.json",
+   "heightFile": "chunks/c_7_3.bin",
+   "counts": {
+    "buildings": 55,
+    "roads": 109,
+    "trees": 17
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 3,
+   "file": "chunks/c_8_3.json",
+   "heightFile": "chunks/c_8_3.bin",
+   "counts": {
+    "buildings": 11,
+    "roads": 46,
+    "trees": 274
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 3,
+   "file": "chunks/c_9_3.json",
+   "heightFile": "chunks/c_9_3.bin",
+   "counts": {
+    "buildings": 102,
+    "roads": 44,
+    "trees": 227
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 3,
+   "file": "chunks/c_10_3.json",
+   "heightFile": "chunks/c_10_3.bin",
+   "counts": {
+    "buildings": 2,
+    "roads": 25,
+    "trees": 726
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 3,
+   "file": "chunks/c_11_3.json",
+   "heightFile": "chunks/c_11_3.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 1152
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 4,
+   "file": "chunks/c_0_4.json",
+   "heightFile": "chunks/c_0_4.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 1,
+    "trees": 1216
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 4,
+   "file": "chunks/c_1_4.json",
+   "heightFile": "chunks/c_1_4.bin",
+   "counts": {
+    "buildings": 12,
+    "roads": 3,
+    "trees": 717
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 4,
+   "file": "chunks/c_2_4.json",
+   "heightFile": "chunks/c_2_4.bin",
+   "counts": {
+    "buildings": 29,
+    "roads": 5,
+    "trees": 50
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 4,
+   "file": "chunks/c_3_4.json",
+   "heightFile": "chunks/c_3_4.bin",
+   "counts": {
+    "buildings": 16,
+    "roads": 18,
+    "trees": 49
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 4,
+   "file": "chunks/c_4_4.json",
+   "heightFile": "chunks/c_4_4.bin",
+   "counts": {
+    "buildings": 12,
+    "roads": 15,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 4,
+   "file": "chunks/c_5_4.json",
+   "heightFile": "chunks/c_5_4.bin",
+   "counts": {
+    "buildings": 83,
+    "roads": 33,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 4,
+   "file": "chunks/c_6_4.json",
+   "heightFile": "chunks/c_6_4.bin",
+   "counts": {
+    "buildings": 107,
+    "roads": 40,
+    "trees": 13
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 4,
+   "file": "chunks/c_7_4.json",
+   "heightFile": "chunks/c_7_4.bin",
+   "counts": {
+    "buildings": 29,
+    "roads": 89,
+    "trees": 1
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 4,
+   "file": "chunks/c_8_4.json",
+   "heightFile": "chunks/c_8_4.bin",
+   "counts": {
+    "buildings": 44,
+    "roads": 72,
+    "trees": 1
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 4,
+   "file": "chunks/c_9_4.json",
+   "heightFile": "chunks/c_9_4.bin",
+   "counts": {
+    "buildings": 41,
+    "roads": 28,
+    "trees": 43
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 4,
+   "file": "chunks/c_10_4.json",
+   "heightFile": "chunks/c_10_4.bin",
+   "counts": {
+    "buildings": 3,
+    "roads": 9,
+    "trees": 710
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 4,
+   "file": "chunks/c_11_4.json",
+   "heightFile": "chunks/c_11_4.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 2,
+    "trees": 1251
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 5,
+   "file": "chunks/c_0_5.json",
+   "heightFile": "chunks/c_0_5.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 1208
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 5,
+   "file": "chunks/c_1_5.json",
+   "heightFile": "chunks/c_1_5.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 2,
+    "trees": 1124
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 5,
+   "file": "chunks/c_2_5.json",
+   "heightFile": "chunks/c_2_5.bin",
+   "counts": {
+    "buildings": 18,
+    "roads": 4,
+    "trees": 134
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 5,
+   "file": "chunks/c_3_5.json",
+   "heightFile": "chunks/c_3_5.bin",
+   "counts": {
+    "buildings": 99,
+    "roads": 19,
+    "trees": 167
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 5,
+   "file": "chunks/c_4_5.json",
+   "heightFile": "chunks/c_4_5.bin",
+   "counts": {
+    "buildings": 9,
+    "roads": 47,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 5,
+   "file": "chunks/c_5_5.json",
+   "heightFile": "chunks/c_5_5.bin",
+   "counts": {
+    "buildings": 49,
+    "roads": 69,
+    "trees": 11
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 5,
+   "file": "chunks/c_6_5.json",
+   "heightFile": "chunks/c_6_5.bin",
+   "counts": {
+    "buildings": 80,
+    "roads": 48,
+    "trees": 54
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 5,
+   "file": "chunks/c_7_5.json",
+   "heightFile": "chunks/c_7_5.bin",
+   "counts": {
+    "buildings": 99,
+    "roads": 38,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 5,
+   "file": "chunks/c_8_5.json",
+   "heightFile": "chunks/c_8_5.bin",
+   "counts": {
+    "buildings": 43,
+    "roads": 49,
+    "trees": 55
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 5,
+   "file": "chunks/c_9_5.json",
+   "heightFile": "chunks/c_9_5.bin",
+   "counts": {
+    "buildings": 50,
+    "roads": 10,
+    "trees": 677
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 5,
+   "file": "chunks/c_10_5.json",
+   "heightFile": "chunks/c_10_5.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 4,
+    "trees": 1184
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 5,
+   "file": "chunks/c_11_5.json",
+   "heightFile": "chunks/c_11_5.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 6,
+    "trees": 1166
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 6,
+   "file": "chunks/c_0_6.json",
+   "heightFile": "chunks/c_0_6.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 1198
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 6,
+   "file": "chunks/c_1_6.json",
+   "heightFile": "chunks/c_1_6.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 4,
+    "trees": 1212
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 6,
+   "file": "chunks/c_2_6.json",
+   "heightFile": "chunks/c_2_6.bin",
+   "counts": {
+    "buildings": 19,
+    "roads": 14,
+    "trees": 461
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 6,
+   "file": "chunks/c_3_6.json",
+   "heightFile": "chunks/c_3_6.bin",
+   "counts": {
+    "buildings": 90,
+    "roads": 13,
+    "trees": 35
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 6,
+   "file": "chunks/c_4_6.json",
+   "heightFile": "chunks/c_4_6.bin",
+   "counts": {
+    "buildings": 134,
+    "roads": 41,
+    "trees": 11
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 6,
+   "file": "chunks/c_5_6.json",
+   "heightFile": "chunks/c_5_6.bin",
+   "counts": {
+    "buildings": 70,
+    "roads": 97,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 6,
+   "file": "chunks/c_6_6.json",
+   "heightFile": "chunks/c_6_6.bin",
+   "counts": {
+    "buildings": 63,
+    "roads": 60,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 6,
+   "file": "chunks/c_7_6.json",
+   "heightFile": "chunks/c_7_6.bin",
+   "counts": {
+    "buildings": 96,
+    "roads": 18,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 6,
+   "file": "chunks/c_8_6.json",
+   "heightFile": "chunks/c_8_6.bin",
+   "counts": {
+    "buildings": 48,
+    "roads": 37,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 6,
+   "file": "chunks/c_9_6.json",
+   "heightFile": "chunks/c_9_6.bin",
+   "counts": {
+    "buildings": 44,
+    "roads": 19,
+    "trees": 241
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 6,
+   "file": "chunks/c_10_6.json",
+   "heightFile": "chunks/c_10_6.bin",
+   "counts": {
+    "buildings": 13,
+    "roads": 7,
+    "trees": 1058
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 6,
+   "file": "chunks/c_11_6.json",
+   "heightFile": "chunks/c_11_6.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 14,
+    "trees": 1121
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 7,
+   "file": "chunks/c_0_7.json",
+   "heightFile": "chunks/c_0_7.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 2,
+    "trees": 1056
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 7,
+   "file": "chunks/c_1_7.json",
+   "heightFile": "chunks/c_1_7.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 3,
+    "trees": 1212
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 7,
+   "file": "chunks/c_2_7.json",
+   "heightFile": "chunks/c_2_7.bin",
+   "counts": {
+    "buildings": 4,
+    "roads": 3,
+    "trees": 893
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 7,
+   "file": "chunks/c_3_7.json",
+   "heightFile": "chunks/c_3_7.bin",
+   "counts": {
+    "buildings": 47,
+    "roads": 19,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 7,
+   "file": "chunks/c_4_7.json",
+   "heightFile": "chunks/c_4_7.bin",
+   "counts": {
+    "buildings": 59,
+    "roads": 44,
+    "trees": 5
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 7,
+   "file": "chunks/c_5_7.json",
+   "heightFile": "chunks/c_5_7.bin",
+   "counts": {
+    "buildings": 53,
+    "roads": 64,
+    "trees": 21
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 7,
+   "file": "chunks/c_6_7.json",
+   "heightFile": "chunks/c_6_7.bin",
+   "counts": {
+    "buildings": 70,
+    "roads": 46,
+    "trees": 8
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 7,
+   "file": "chunks/c_7_7.json",
+   "heightFile": "chunks/c_7_7.bin",
+   "counts": {
+    "buildings": 123,
+    "roads": 22,
+    "trees": 14
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 7,
+   "file": "chunks/c_8_7.json",
+   "heightFile": "chunks/c_8_7.bin",
+   "counts": {
+    "buildings": 85,
+    "roads": 29,
+    "trees": 3
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 7,
+   "file": "chunks/c_9_7.json",
+   "heightFile": "chunks/c_9_7.bin",
+   "counts": {
+    "buildings": 80,
+    "roads": 19,
+    "trees": 43
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 7,
+   "file": "chunks/c_10_7.json",
+   "heightFile": "chunks/c_10_7.bin",
+   "counts": {
+    "buildings": 125,
+    "roads": 27,
+    "trees": 31
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 7,
+   "file": "chunks/c_11_7.json",
+   "heightFile": "chunks/c_11_7.bin",
+   "counts": {
+    "buildings": 64,
+    "roads": 19,
+    "trees": 502
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 8,
+   "file": "chunks/c_0_8.json",
+   "heightFile": "chunks/c_0_8.bin",
+   "counts": {
+    "buildings": 23,
+    "roads": 6,
+    "trees": 436
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 8,
+   "file": "chunks/c_1_8.json",
+   "heightFile": "chunks/c_1_8.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 4,
+    "trees": 1187
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 8,
+   "file": "chunks/c_2_8.json",
+   "heightFile": "chunks/c_2_8.bin",
+   "counts": {
+    "buildings": 3,
+    "roads": 4,
+    "trees": 880
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 8,
+   "file": "chunks/c_3_8.json",
+   "heightFile": "chunks/c_3_8.bin",
+   "counts": {
+    "buildings": 53,
+    "roads": 16,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 8,
+   "file": "chunks/c_4_8.json",
+   "heightFile": "chunks/c_4_8.bin",
+   "counts": {
+    "buildings": 83,
+    "roads": 11,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 8,
+   "file": "chunks/c_5_8.json",
+   "heightFile": "chunks/c_5_8.bin",
+   "counts": {
+    "buildings": 15,
+    "roads": 40,
+    "trees": 18
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 8,
+   "file": "chunks/c_6_8.json",
+   "heightFile": "chunks/c_6_8.bin",
+   "counts": {
+    "buildings": 89,
+    "roads": 45,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 8,
+   "file": "chunks/c_7_8.json",
+   "heightFile": "chunks/c_7_8.bin",
+   "counts": {
+    "buildings": 111,
+    "roads": 22,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 8,
+   "file": "chunks/c_8_8.json",
+   "heightFile": "chunks/c_8_8.bin",
+   "counts": {
+    "buildings": 98,
+    "roads": 25,
+    "trees": 1
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 8,
+   "file": "chunks/c_9_8.json",
+   "heightFile": "chunks/c_9_8.bin",
+   "counts": {
+    "buildings": 190,
+    "roads": 34,
+    "trees": 23
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 8,
+   "file": "chunks/c_10_8.json",
+   "heightFile": "chunks/c_10_8.bin",
+   "counts": {
+    "buildings": 74,
+    "roads": 14,
+    "trees": 59
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 8,
+   "file": "chunks/c_11_8.json",
+   "heightFile": "chunks/c_11_8.bin",
+   "counts": {
+    "buildings": 9,
+    "roads": 7,
+    "trees": 393
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 9,
+   "file": "chunks/c_0_9.json",
+   "heightFile": "chunks/c_0_9.bin",
+   "counts": {
+    "buildings": 19,
+    "roads": 6,
+    "trees": 786
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 9,
+   "file": "chunks/c_1_9.json",
+   "heightFile": "chunks/c_1_9.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 2,
+    "trees": 1242
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 9,
+   "file": "chunks/c_2_9.json",
+   "heightFile": "chunks/c_2_9.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 1,
+    "trees": 1207
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 9,
+   "file": "chunks/c_3_9.json",
+   "heightFile": "chunks/c_3_9.bin",
+   "counts": {
+    "buildings": 31,
+    "roads": 6,
+    "trees": 113
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 9,
+   "file": "chunks/c_4_9.json",
+   "heightFile": "chunks/c_4_9.bin",
+   "counts": {
+    "buildings": 37,
+    "roads": 44,
+    "trees": 11
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 9,
+   "file": "chunks/c_5_9.json",
+   "heightFile": "chunks/c_5_9.bin",
+   "counts": {
+    "buildings": 15,
+    "roads": 16,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 9,
+   "file": "chunks/c_6_9.json",
+   "heightFile": "chunks/c_6_9.bin",
+   "counts": {
+    "buildings": 87,
+    "roads": 49,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 9,
+   "file": "chunks/c_7_9.json",
+   "heightFile": "chunks/c_7_9.bin",
+   "counts": {
+    "buildings": 123,
+    "roads": 44,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 9,
+   "file": "chunks/c_8_9.json",
+   "heightFile": "chunks/c_8_9.bin",
+   "counts": {
+    "buildings": 62,
+    "roads": 35,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 9,
+   "file": "chunks/c_9_9.json",
+   "heightFile": "chunks/c_9_9.bin",
+   "counts": {
+    "buildings": 32,
+    "roads": 20,
+    "trees": 210
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 9,
+   "file": "chunks/c_10_9.json",
+   "heightFile": "chunks/c_10_9.bin",
+   "counts": {
+    "buildings": 18,
+    "roads": 6,
+    "trees": 77
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 9,
+   "file": "chunks/c_11_9.json",
+   "heightFile": "chunks/c_11_9.bin",
+   "counts": {
+    "buildings": 5,
+    "roads": 6,
+    "trees": 670
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 10,
+   "file": "chunks/c_0_10.json",
+   "heightFile": "chunks/c_0_10.bin",
+   "counts": {
+    "buildings": 8,
+    "roads": 7,
+    "trees": 561
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 10,
+   "file": "chunks/c_1_10.json",
+   "heightFile": "chunks/c_1_10.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 2,
+    "trees": 1194
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 10,
+   "file": "chunks/c_2_10.json",
+   "heightFile": "chunks/c_2_10.bin",
+   "counts": {
+    "buildings": 1,
+    "roads": 4,
+    "trees": 1169
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 10,
+   "file": "chunks/c_3_10.json",
+   "heightFile": "chunks/c_3_10.bin",
+   "counts": {
+    "buildings": 11,
+    "roads": 3,
+    "trees": 481
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 10,
+   "file": "chunks/c_4_10.json",
+   "heightFile": "chunks/c_4_10.bin",
+   "counts": {
+    "buildings": 14,
+    "roads": 2,
+    "trees": 505
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 10,
+   "file": "chunks/c_5_10.json",
+   "heightFile": "chunks/c_5_10.bin",
+   "counts": {
+    "buildings": 15,
+    "roads": 17,
+    "trees": 254
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 10,
+   "file": "chunks/c_6_10.json",
+   "heightFile": "chunks/c_6_10.bin",
+   "counts": {
+    "buildings": 19,
+    "roads": 68,
+    "trees": 243
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 10,
+   "file": "chunks/c_7_10.json",
+   "heightFile": "chunks/c_7_10.bin",
+   "counts": {
+    "buildings": 43,
+    "roads": 63,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 10,
+   "file": "chunks/c_8_10.json",
+   "heightFile": "chunks/c_8_10.bin",
+   "counts": {
+    "buildings": 101,
+    "roads": 25,
+    "trees": 0
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 10,
+   "file": "chunks/c_9_10.json",
+   "heightFile": "chunks/c_9_10.bin",
+   "counts": {
+    "buildings": 14,
+    "roads": 32,
+    "trees": 100
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 10,
+   "file": "chunks/c_10_10.json",
+   "heightFile": "chunks/c_10_10.bin",
+   "counts": {
+    "buildings": 1,
+    "roads": 7,
+    "trees": 893
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 10,
+   "file": "chunks/c_11_10.json",
+   "heightFile": "chunks/c_11_10.bin",
+   "counts": {
+    "buildings": 4,
+    "roads": 6,
+    "trees": 724
+   }
+  },
+  {
+   "cx": 0,
+   "cz": 11,
+   "file": "chunks/c_0_11.json",
+   "heightFile": "chunks/c_0_11.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 2,
+    "trees": 1092
+   }
+  },
+  {
+   "cx": 1,
+   "cz": 11,
+   "file": "chunks/c_1_11.json",
+   "heightFile": "chunks/c_1_11.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 1,
+    "trees": 1237
+   }
+  },
+  {
+   "cx": 2,
+   "cz": 11,
+   "file": "chunks/c_2_11.json",
+   "heightFile": "chunks/c_2_11.bin",
+   "counts": {
+    "buildings": 10,
+    "roads": 3,
+    "trees": 897
+   }
+  },
+  {
+   "cx": 3,
+   "cz": 11,
+   "file": "chunks/c_3_11.json",
+   "heightFile": "chunks/c_3_11.bin",
+   "counts": {
+    "buildings": 6,
+    "roads": 3,
+    "trees": 24
+   }
+  },
+  {
+   "cx": 4,
+   "cz": 11,
+   "file": "chunks/c_4_11.json",
+   "heightFile": "chunks/c_4_11.bin",
+   "counts": {
+    "buildings": 3,
+    "roads": 1,
+    "trees": 428
+   }
+  },
+  {
+   "cx": 5,
+   "cz": 11,
+   "file": "chunks/c_5_11.json",
+   "heightFile": "chunks/c_5_11.bin",
+   "counts": {
+    "buildings": 4,
+    "roads": 6,
+    "trees": 323
+   }
+  },
+  {
+   "cx": 6,
+   "cz": 11,
+   "file": "chunks/c_6_11.json",
+   "heightFile": "chunks/c_6_11.bin",
+   "counts": {
+    "buildings": 4,
+    "roads": 8,
+    "trees": 392
+   }
+  },
+  {
+   "cx": 7,
+   "cz": 11,
+   "file": "chunks/c_7_11.json",
+   "heightFile": "chunks/c_7_11.bin",
+   "counts": {
+    "buildings": 7,
+    "roads": 15,
+    "trees": 237
+   }
+  },
+  {
+   "cx": 8,
+   "cz": 11,
+   "file": "chunks/c_8_11.json",
+   "heightFile": "chunks/c_8_11.bin",
+   "counts": {
+    "buildings": 101,
+    "roads": 35,
+    "trees": 148
+   }
+  },
+  {
+   "cx": 9,
+   "cz": 11,
+   "file": "chunks/c_9_11.json",
+   "heightFile": "chunks/c_9_11.bin",
+   "counts": {
+    "buildings": 10,
+    "roads": 19,
+    "trees": 453
+   }
+  },
+  {
+   "cx": 10,
+   "cz": 11,
+   "file": "chunks/c_10_11.json",
+   "heightFile": "chunks/c_10_11.bin",
+   "counts": {
+    "buildings": 2,
+    "roads": 5,
+    "trees": 978
+   }
+  },
+  {
+   "cx": 11,
+   "cz": 11,
+   "file": "chunks/c_11_11.json",
+   "heightFile": "chunks/c_11_11.bin",
+   "counts": {
+    "buildings": 0,
+    "roads": 5,
+    "trees": 1164
+   }
+  }
+ ],
+ "pois": [
+  {
+   "id": 1204217176,
+   "kind": "place",
+   "x": 956,
+   "z": 1362.3,
+   "name": "Arnoštov"
+  },
+  {
+   "id": 2880146384,
+   "kind": "restaurant",
+   "x": -1448.1,
+   "z": 1040.5,
+   "name": "Restaurace Hořice"
+  },
+  {
+   "id": 403898230,
+   "kind": "restaurant",
+   "x": 47.5,
+   "z": 899.6,
+   "name": "U Golema"
+  },
+  {
+   "id": 7094978403,
+   "kind": "pharmacy",
+   "x": 64.3,
+   "z": 743.3,
+   "name": "Svitava"
+  },
+  {
+   "id": 7528896888,
+   "kind": "shop",
+   "x": -63.1,
+   "z": 515,
+   "name": "Salenatéka pivotéka & vinotéka"
+  },
+  {
+   "id": 505826252,
+   "kind": "restaurant",
+   "x": -415.5,
+   "z": -78.2,
+   "name": "Restaurace Aquapark"
+  },
+  {
+   "id": 1189687113,
+   "kind": "restaurant",
+   "x": -585.4,
+   "z": 477,
+   "name": "U Rechů"
+  },
+  {
+   "id": 2786166065,
+   "kind": "cafe",
+   "x": -393.1,
+   "z": -215.2,
+   "name": "Bistro Okruh"
+  },
+  {
+   "id": 5310221043,
+   "kind": "place",
+   "x": -505.6,
+   "z": 360.2,
+   "name": "Staré Blansko"
+  },
+  {
+   "id": 6677155486,
+   "kind": "shop",
+   "x": -416,
+   "z": 310.3,
+   "name": "VinárnaStarák"
+  },
+  {
+   "id": 401391569,
+   "kind": "restaurant",
+   "x": -41.6,
+   "z": 264.4,
+   "name": "Pizzerie Piccolo"
+  },
+  {
+   "id": 403654641,
+   "kind": "shop",
+   "x": -32.9,
+   "z": -180,
+   "name": "Prodejna vín a sýrů „z jihu!“"
+  },
+  {
+   "id": 403898177,
+   "kind": "bank",
+   "x": 35.7,
+   "z": 119.5,
+   "name": "Komerční banka"
+  },
+  {
+   "id": 996707541,
+   "kind": "townhall",
+   "x": -75.6,
+   "z": -76.2,
+   "name": "Městský úřad Blansko"
+  },
+  {
+   "id": 1601563389,
+   "kind": "place",
+   "x": -40.7,
+   "z": -94.5,
+   "name": "Blansko"
+  },
+  {
+   "id": 2257678883,
+   "kind": "bank",
+   "x": -106.4,
+   "z": 22.2,
+   "name": "ČSOB"
+  },
+  {
+   "id": 2786169771,
+   "kind": "shop",
+   "x": -130,
+   "z": 459.4,
+   "name": "Kola Novák"
+  },
+  {
+   "id": 4227134491,
+   "kind": "pharmacy",
+   "x": 63.7,
+   "z": 157.5,
+   "name": "Dr. Max"
+  },
+  {
+   "id": 4358560403,
+   "kind": "shop",
+   "x": 86.5,
+   "z": 325.7,
+   "name": "Zákuskárna"
+  },
+  {
+   "id": 4855438606,
+   "kind": "bank",
+   "x": -80.7,
+   "z": -111.8,
+   "name": "Fio banka"
+  },
+  {
+   "id": 4932130471,
+   "kind": "bank",
+   "x": -103.4,
+   "z": 147.2,
+   "name": "Česká spořitelna"
+  },
+  {
+   "id": 4932165920,
+   "kind": "cafe",
+   "x": -93,
+   "z": -146.6,
+   "name": "CoCo"
+  },
+  {
+   "id": 5556690570,
+   "kind": "shop",
+   "x": 85.8,
+   "z": 233,
+   "name": "Optik Otava"
+  },
+  {
+   "id": 5609686276,
+   "kind": "bank",
+   "x": -86.9,
+   "z": 176.2,
+   "name": "Moneta Bank"
+  },
+  {
+   "id": 5609698061,
+   "kind": "shop",
+   "x": -114.7,
+   "z": 108,
+   "name": "Albert"
+  },
+  {
+   "id": 5609698062,
+   "kind": "restaurant",
+   "x": -131.9,
+   "z": 63.6,
+   "name": "Punkva"
+  },
+  {
+   "id": 6698450343,
+   "kind": "shop",
+   "x": -177.4,
+   "z": 133.3,
+   "name": "Gelateria Bianco"
+  },
+  {
+   "id": 7094978404,
+   "kind": "pharmacy",
+   "x": -172,
+   "z": 239.3,
+   "name": "Na Poště"
+  },
+  {
+   "id": 7094978405,
+   "kind": "pharmacy",
+   "x": -219.2,
+   "z": 123.6,
+   "name": "Korunka"
+  },
+  {
+   "id": 7145110690,
+   "kind": "shop",
+   "x": 41.5,
+   "z": 295.5,
+   "name": "Lucie Regent"
+  },
+  {
+   "id": 7145110691,
+   "kind": "bank",
+   "x": -66.9,
+   "z": 168.3,
+   "name": "UniCredit"
+  },
+  {
+   "id": 7145110692,
+   "kind": "shop",
+   "x": -79.5,
+   "z": 140.6,
+   "name": "Rossmann"
+  },
+  {
+   "id": 7145110693,
+   "kind": "shop",
+   "x": -107,
+   "z": 35.8,
+   "name": "Kitos"
+  },
+  {
+   "id": 9297656420,
+   "kind": "cafe",
+   "x": -55.2,
+   "z": 27.8,
+   "name": "Coco cofee 2"
+  },
+  {
+   "id": 9822395949,
+   "kind": "shop",
+   "x": -59.3,
+   "z": -193.5,
+   "name": "Matějovo pekařství"
+  },
+  {
+   "id": 11933719831,
+   "kind": "shop",
+   "x": -156.8,
+   "z": 155.3,
+   "name": "Makovec"
+  },
+  {
+   "id": 11933719832,
+   "kind": "shop",
+   "x": -153.5,
+   "z": 167.6,
+   "name": "Helenka"
+  },
+  {
+   "id": 11933719833,
+   "kind": "shop",
+   "x": -136.4,
+   "z": 162.9,
+   "name": "Knihcentrum.cz"
+  },
+  {
+   "id": 11933719834,
+   "kind": "shop",
+   "x": -120.1,
+   "z": 189.9,
+   "name": "Multi market"
+  },
+  {
+   "id": 11933719835,
+   "kind": "shop",
+   "x": -76.4,
+   "z": 172.2,
+   "name": "Zvěrokruh"
+  },
+  {
+   "id": 11933719836,
+   "kind": "shop",
+   "x": -63.1,
+   "z": 167.6,
+   "name": "Doctor Optic"
+  },
+  {
+   "id": 11933719837,
+   "kind": "shop",
+   "x": -74.8,
+   "z": 139.3,
+   "name": "Lahůdky Nečas"
+  },
+  {
+   "id": 11933719838,
+   "kind": "fast_food",
+   "x": -111.6,
+   "z": 154.5,
+   "name": "Dayi"
+  },
+  {
+   "id": 11933719840,
+   "kind": "shop",
+   "x": -28.9,
+   "z": 258.4,
+   "name": "CZC"
+  },
+  {
+   "id": 11933719841,
+   "kind": "shop",
+   "x": -38.8,
+   "z": 257.9,
+   "name": "Sabe"
+  },
+  {
+   "id": 11933719842,
+   "kind": "shop",
+   "x": -93,
+   "z": 253,
+   "name": "Svítidla"
+  },
+  {
+   "id": 11933719843,
+   "kind": "shop",
+   "x": -151,
+   "z": 242.2,
+   "name": "Ráječko"
+  },
+  {
+   "id": 11933719844,
+   "kind": "shop",
+   "x": -232.6,
+   "z": 293,
+   "name": "Kola Novák"
+  },
+  {
+   "id": 11938091314,
+   "kind": "shop",
+   "x": -36.9,
+   "z": -195.2,
+   "name": "Papírnictví"
+  },
+  {
+   "id": 11938091315,
+   "kind": "restaurant",
+   "x": -31,
+   "z": -165.6,
+   "name": "U Slunce"
+  },
+  {
+   "id": 11938091324,
+   "kind": "shop",
+   "x": -222.7,
+   "z": 111,
+   "name": "Hodinářství"
+  },
+  {
+   "id": 11938091325,
+   "kind": "shop",
+   "x": -185.3,
+   "z": 150.1,
+   "name": "CM Optik"
+  },
+  {
+   "id": 11938091326,
+   "kind": "shop",
+   "x": -178.6,
+   "z": 140,
+   "name": "Tescoma"
+  },
+  {
+   "id": 13576311291,
+   "kind": "fuel",
+   "x": -179,
+   "z": 366.7,
+   "name": "Orlen"
+  },
+  {
+   "id": 13576311294,
+   "kind": "cafe",
+   "x": -175.9,
+   "z": 383.5,
+   "name": "Stop Cafe"
+  },
+  {
+   "id": 13617179030,
+   "kind": "shop",
+   "x": 2.5,
+   "z": -75.8,
+   "name": "Květiny Ing. Roman Koupý"
+  },
+  {
+   "id": 14325203876,
+   "kind": "shop",
+   "x": -268.5,
+   "z": 220.5,
+   "name": "BIO obchod"
+  },
+  {
+   "id": 9822395948,
+   "kind": "fast_food",
+   "x": -533.4,
+   "z": -497.5,
+   "name": "Občerstvení Olympia Club"
+  },
+  {
+   "id": 404720501,
+   "kind": "cafe",
+   "x": -13.3,
+   "z": -388.5,
+   "name": "Kavárna Cafisco"
+  },
+  {
+   "id": 404721138,
+   "kind": "restaurant",
+   "x": -114.6,
+   "z": -739.6,
+   "name": "Pizzeria Pizzazz"
+  },
+  {
+   "id": 404721142,
+   "kind": "shop",
+   "x": -122.1,
+   "z": -762.4,
+   "name": "KiK"
+  },
+  {
+   "id": 404721147,
+   "kind": "shop",
+   "x": -134.2,
+   "z": -853.1,
+   "name": "Kaufland"
+  },
+  {
+   "id": 404721151,
+   "kind": "fuel",
+   "x": -240,
+   "z": -722.3,
+   "name": "Shell"
+  },
+  {
+   "id": 3188265845,
+   "kind": "shop",
+   "x": -115.2,
+   "z": -722.7,
+   "name": "dm"
+  },
+  {
+   "id": 3920290077,
+   "kind": "pharmacy",
+   "x": -116.1,
+   "z": -815.6,
+   "name": "Dr. Max"
+  },
+  {
+   "id": 3920290078,
+   "kind": "shop",
+   "x": -116.4,
+   "z": -781.8,
+   "name": "Expert"
+  },
+  {
+   "id": 7289524346,
+   "kind": "restaurant",
+   "x": 28.8,
+   "z": -424.7,
+   "name": "Amrit"
+  },
+  {
+   "id": 7810314285,
+   "kind": "shop",
+   "x": -176.4,
+   "z": -835.9,
+   "name": "Matějovo pekařství"
+  },
+  {
+   "id": 11013367733,
+   "kind": "shop",
+   "x": -296.1,
+   "z": -601.4,
+   "name": "Action"
+  },
+  {
+   "id": 11013367734,
+   "kind": "shop",
+   "x": -305.5,
+   "z": -601.2,
+   "name": "Wiky Hračky - Papírnictví"
+  },
+  {
+   "id": 11013367735,
+   "kind": "shop",
+   "x": -318.9,
+   "z": -601.5,
+   "name": "Datart"
+  },
+  {
+   "id": 11013367736,
+   "kind": "restaurant",
+   "x": -333.9,
+   "z": -623.2,
+   "name": "Čínská restaurace Palace Food"
+  },
+  {
+   "id": 11013367737,
+   "kind": "shop",
+   "x": -334.1,
+   "z": -635.7,
+   "name": "Super zoo"
+  },
+  {
+   "id": 11013367738,
+   "kind": "shop",
+   "x": -334.5,
+   "z": -659.3,
+   "name": "Makovec"
+  },
+  {
+   "id": 11013367739,
+   "kind": "pharmacy",
+   "x": -334.6,
+   "z": -667.2,
+   "name": "Benu"
+  },
+  {
+   "id": 11013367740,
+   "kind": "shop",
+   "x": -334.5,
+   "z": -675.3,
+   "name": "Teta"
+  },
+  {
+   "id": 11013367741,
+   "kind": "shop",
+   "x": -335,
+   "z": -690.5,
+   "name": "Sportisimo"
+  },
+  {
+   "id": 11013367742,
+   "kind": "shop",
+   "x": -334.3,
+   "z": -706.8,
+   "name": "TEDi"
+  },
+  {
+   "id": 11013367743,
+   "kind": "shop",
+   "x": -334.8,
+   "z": -724.2,
+   "name": "Takko Fashion"
+  },
+  {
+   "id": 11013367744,
+   "kind": "shop",
+   "x": -335.1,
+   "z": -744.8,
+   "name": "Deichmann"
+  },
+  {
+   "id": 11013367745,
+   "kind": "shop",
+   "x": -334.3,
+   "z": -648.6,
+   "name": "Banquet"
+  },
+  {
+   "id": 11013465540,
+   "kind": "shop",
+   "x": -339.7,
+   "z": -785.6,
+   "name": "Lidl"
+  },
+  {
+   "id": 11938091313,
+   "kind": "shop",
+   "x": -23.3,
+   "z": -330.3,
+   "name": "Hruška"
+  },
+  {
+   "id": 11940402814,
+   "kind": "shop",
+   "x": -7.5,
+   "z": -312.9,
+   "name": "Myrtha"
+  },
+  {
+   "id": 11940402817,
+   "kind": "shop",
+   "x": -19.2,
+   "z": -356.8,
+   "name": "Tasko"
+  },
+  {
+   "id": 11940402818,
+   "kind": "shop",
+   "x": -19.5,
+   "z": -349.9,
+   "name": "Škoďák"
+  },
+  {
+   "id": 11036057807,
+   "kind": "fuel",
+   "x": -302.3,
+   "z": -977.1,
+   "name": "Unicorn Blansko"
+  },
+  {
+   "id": 12206437085,
+   "kind": "shop",
+   "x": -192,
+   "z": -978.6,
+   "name": "DEK"
+  },
+  {
+   "id": 404317240,
+   "kind": "cafe",
+   "x": 402,
+   "z": 819.3,
+   "name": "Kavárna a cukrárna V Pohádce"
+  },
+  {
+   "id": 1601459086,
+   "kind": "post_office",
+   "x": 369.9,
+   "z": 751.7,
+   "name": "Blansko 1"
+  },
+  {
+   "id": 2815707853,
+   "kind": "restaurant",
+   "x": 185.5,
+   "z": 1128.3,
+   "name": "Restaurace Na Pražci"
+  },
+  {
+   "id": 2815707854,
+   "kind": "cafe",
+   "x": 195.1,
+   "z": 1002.2,
+   "name": "Štrůdlkafe"
+  },
+  {
+   "id": 3749553966,
+   "kind": "restaurant",
+   "x": 386.2,
+   "z": 485.5,
+   "name": "pizza siesta"
+  },
+  {
+   "id": 4972481988,
+   "kind": "station",
+   "x": 170.6,
+   "z": 1142.3,
+   "name": "Blansko"
+  },
+  {
+   "id": 5042836021,
+   "kind": "fast_food",
+   "x": 251.2,
+   "z": 1149.4,
+   "name": "Bistro U Ohně"
+  },
+  {
+   "id": 7145110689,
+   "kind": "shop",
+   "x": 191.7,
+   "z": 1020.8,
+   "name": "Tabák Nečas"
+  },
+  {
+   "id": 9675029273,
+   "kind": "shop",
+   "x": 390.4,
+   "z": 491.3,
+   "name": "Kadeřnictví Suchá"
+  },
+  {
+   "id": 9822395953,
+   "kind": "cafe",
+   "x": 399,
+   "z": 744.5,
+   "name": "Kavárna Archa"
+  },
+  {
+   "id": 10730386440,
+   "kind": "shop",
+   "x": 409.9,
+   "z": 528.7,
+   "name": "Uzenářství Zdeněk Pavlů"
+  },
+  {
+   "id": 10730386441,
+   "kind": "shop",
+   "x": 405.6,
+   "z": 519.6,
+   "name": "Smíšené zboží"
+  },
+  {
+   "id": 11036035791,
+   "kind": "fuel",
+   "x": 337.6,
+   "z": 1090.8,
+   "name": "OMV"
+  },
+  {
+   "id": 11940402808,
+   "kind": "shop",
+   "x": 129.3,
+   "z": 543.1,
+   "name": "Autoservis"
+  },
+  {
+   "id": 11940402809,
+   "kind": "shop",
+   "x": 122.8,
+   "z": 525.6,
+   "name": "u Lumíra"
+  },
+  {
+   "id": 4831501919,
+   "kind": "place",
+   "x": 738.8,
+   "z": 1161.1,
+   "name": "Písečná"
+  },
+  {
+   "id": 14335667301,
+   "kind": "pub",
+   "x": 849.3,
+   "z": 756,
+   "name": "Fotbalová Hospůdka"
+  },
+  {
+   "id": 14335667302,
+   "kind": "pub",
+   "x": 644.5,
+   "z": 952.8,
+   "name": "Pivnice Písečná"
+  },
+  {
+   "id": 401391449,
+   "kind": "shop",
+   "x": 347.4,
+   "z": 436.4,
+   "name": "Coop"
+  },
+  {
+   "id": 996707530,
+   "kind": "cafe",
+   "x": 274.7,
+   "z": 132.8,
+   "name": "Čajovna a klub Ulita"
+  },
+  {
+   "id": 4021769050,
+   "kind": "cafe",
+   "x": 150.8,
+   "z": 427.3,
+   "name": "Kavárna Na Kině"
+  },
+  {
+   "id": 7094978406,
+   "kind": "pharmacy",
+   "x": 549.1,
+   "z": 134.2,
+   "name": "Nemocniční lékárna"
+  },
+  {
+   "id": 7094978407,
+   "kind": "pharmacy",
+   "x": 392,
+   "z": 90.9,
+   "name": "Pod Nemocnicí"
+  },
+  {
+   "id": 12451636659,
+   "kind": "shop",
+   "x": 324.6,
+   "z": 334.2,
+   "name": "Chráněná dílna TiRO Blansko s.r.o."
+  },
+  {
+   "id": 4122505839,
+   "kind": "shop",
+   "x": 702,
+   "z": 400.4,
+   "name": "Hruška"
+  },
+  {
+   "id": 14335587789,
+   "kind": "restaurant",
+   "x": 707.3,
+   "z": 445.1,
+   "name": "U Šesti"
+  },
+  {
+   "id": 3812278212,
+   "kind": "shop",
+   "x": 484,
+   "z": -411,
+   "name": "Hruška"
+  },
+  {
+   "id": 4842185521,
+   "kind": "place",
+   "x": 503,
+   "z": -310.3,
+   "name": "Sever Ⅱ"
+  },
+  {
+   "id": 4842185535,
+   "kind": "place",
+   "x": 337.4,
+   "z": -603.3,
+   "name": "Sever Ⅰ"
+  },
+  {
+   "id": 13615525972,
+   "kind": "restaurant",
+   "x": 176.6,
+   "z": -268.3,
+   "name": "Bowling Blansko"
+  },
+  {
+   "id": 403898759,
+   "kind": "restaurant",
+   "x": 1040.9,
+   "z": -548.5,
+   "name": "restaurace Myslivna"
+  },
+  {
+   "id": 3919347732,
+   "kind": "shop",
+   "x": 640.7,
+   "z": -593.2,
+   "name": "Sever Cars"
+  },
+  {
+   "id": 4842185522,
+   "kind": "place",
+   "x": 716.4,
+   "z": -419.1,
+   "name": "Sever Ⅲ"
+  },
+  {
+   "id": 3920151854,
+   "kind": "fuel",
+   "x": 119.9,
+   "z": -1405.2,
+   "name": "LPG"
+  },
+  {
+   "id": 14335672784,
+   "kind": "pub",
+   "x": 417.4,
+   "z": -1093.4,
+   "name": "Velvet"
+  },
+  {
+   "id": 12115181017,
+   "kind": "place",
+   "x": 614.3,
+   "z": -1394.5,
+   "name": "Zborovec"
+  }
+ ],
+ "attribution": [
+  "© přispěvatelé OpenStreetMap (ODbL), openstreetmap.org/copyright",
+  "Výškopis: DMR 5G © ČÚZK (CC BY 4.0)"
+ ]
+}
