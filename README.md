@@ -193,3 +193,12 @@ případný externí asset se uvede sem i s licencí.
   protože názvy obchodů jsou ochranné známky.
 - **Detaily:** jemná textura terénu zblízka, koruny stromů z více shluků s pohybem ve větru,
   animovaná vodní hladina a pouliční lampy podél ulic (instancované).
+
+## Plynulost
+
+- **Textury povrchu** se kreslí ve Web Workeru (OffscreenCanvas) a na GPU se nahrává nejvýš
+  jedna za snímek.
+- **Shadery** se před startem předkompilují pro všechny druhy objektů („Připravuji grafiku…“),
+  takže se hra nezasekne, když poprvé uvidíš vodu, cedule nebo provoz.
+- **Změna kvality** překompiluje materiály jen při zapnutí nebo vypnutí stínů.
+- **Kolize** se stavějí nejvýš pro 2 dlaždice za snímek.

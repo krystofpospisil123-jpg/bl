@@ -49,14 +49,18 @@ export class Pipeline {
     r.setPixelRatio(q === 'low' ? 1 : Math.min(dpr, q === 'high' ? 1.5 : 1.25));
     r.toneMapping = THREE.ACESFilmicToneMapping;
     r.toneMappingExposure = 0.85;
-    r.shadowMap.enabled = q !== 'low';
-    this.env.sun.castShadow = q !== 'low';
+    const shadows = q !== 'low';
+    const shadowsChanged = r.shadowMap.enabled !== shadows || this.env.sun.castShadow !== shadows;
+    r.shadowMap.enabled = shadows;
+    this.env.sun.castShadow = shadows;
     this.env.setShadowQuality(q === 'high' ? 4096 : 2048, q === 'high' ? 200 : 150);
-    // Materials must recompile when shadows are toggled.
-    this.scene.traverse((o) => {
-      const m = (o as THREE.Mesh).material;
-      if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
-    });
+    // Only switching shadows on/off changes shaders; avoid recompiling everything otherwise.
+    if (shadowsChanged) {
+      this.scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material;
+        if (m) (Array.isArray(m) ? m : [m]).forEach((mm) => (mm.needsUpdate = true));
+      });
+    }
 
     this.composer?.dispose();
     this.composer = undefined;

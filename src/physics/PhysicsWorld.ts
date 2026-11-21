@@ -43,6 +43,7 @@ export class PhysicsWorld {
   updateStreaming(fx: number, fz: number, source: (cx: number, cz: number) => PhysicsChunkSource | null): boolean {
     const { halfExtent: H, chunkSize: S, chunksPerSide: N } = this.m;
     let focusReady = false;
+    let built = 0; // limit collider builds per frame to keep frames short
     const wanted = new Set<string>();
     for (let cz = 0; cz < N; cz++)
       for (let cx = 0; cx < N; cx++) {
@@ -56,8 +57,10 @@ export class PhysicsWorld {
           if (inside) focusReady = true;
           continue;
         }
+        if (built >= 2 && !inside) continue;
         const src = source(cx, cz);
         if (!src) continue;
+        built++;
         this.chunkColliders.set(key, this.buildChunk(src));
         if (inside) focusReady = true;
       }

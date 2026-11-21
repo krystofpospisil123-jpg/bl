@@ -52,9 +52,12 @@ export class Game {
   notice = '';
   private noticeUntil = 0;
   readonly pipeline: Pipeline;
+  private mats: Materials;
   private hud: Hud;
   private timer = new THREE.Timer();
   private autoQualityArmed = false;
+  /** Shown by the HUD while mode === 'loading'. */
+  loadingText = 'Načítám město a fyziku…';
 
   constructor(private canvas: HTMLCanvasElement, world: WorldData) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -62,10 +65,12 @@ export class Game {
 
     this.heights = new HeightField(world.manifest);
     const mats = new Materials();
+    this.mats = mats;
     this.env = new Environment(this.scene, this.renderer);
     this.pipeline = new Pipeline(this.renderer, this.scene, this.camera, this.env);
     this.pipeline.onQualityChange = (q, auto) => this.say(auto ? `Kvalita grafiky snížena na: ${QUALITY_LABEL[q]}` : `Kvalita grafiky: ${QUALITY_LABEL[q]}`);
     this.chunks = new ChunkManager(world, this.heights, mats);
+    this.chunks.uploadTexture = (t) => this.renderer.initTexture(t);
     this.scene.add(this.chunks.root);
     this.mouse = new MouseLook(canvas);
     this.fly = new FlyCamera(this.camera, this.input, this.mouse, canvas, (x, z) => this.heights.sample(x, z));
@@ -334,6 +339,42 @@ export class Game {
     this.scene.add(this.player.model.root);
     this.chase?.setStyle(FOOT_STYLE);
     this.chase?.setYaw(SPAWN.yaw);
-    this.setMode('foot');
+    this.warmUp().finally(() => this.setMode('foot'));
+  }
+
+  /**
+   * Compiles every shader the city needs before play starts. Without this, each new kind
+   * of object (water, signs, traffic, lamps...) froze the game for up to a second the first
+   * time it came into view.
+   */
+  private async warmUp() {
+    this.loadingText = 'Připravuji grafiku…';
+    // Wait until the chunks around the player are built so their materials are in the scene.
+    const t0 = performance.now();
+    while (this.chunks.stats().queued > 0 && performance.now() - t0 < 8000) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    // One small sample of every material variant, in case the nearby chunks lack some (water, signs...).
+    const samples = new THREE.Group();
+    const box = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    const m = this.mats;
+    const tex = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+    tex.needsUpdate = true;
+    const sign = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.12 });
+    for (const mat of [m.walls, m.roofs, m.flatRoofs, m.water, m.bridge, m.bridgeDeck, m.overview, sign]) samples.add(new THREE.Mesh(box, mat));
+    for (const mat of [m.trees, m.props]) samples.add(new THREE.InstancedMesh(box, mat, 1));
+    samples.position.copy(this.camera.position).add(new THREE.Vector3(0, -50, 0));
+    samples.traverse((o) => { o.castShadow = o.receiveShadow = true; });
+    this.scene.add(samples);
+    try {
+      await this.renderer.compileAsync(this.scene, this.camera);
+    } catch (err) {
+      console.warn('Shader warm-up failed', err);
+    }
+    this.scene.remove(samples);
+    box.dispose();
+    sign.dispose();
+    tex.dispose();
+    this.loadingText = '';
   }
 }

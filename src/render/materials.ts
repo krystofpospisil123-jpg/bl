@@ -1,6 +1,8 @@
 // Shared materials and procedurally generated textures (no external assets).
 import * as THREE from 'three';
 import { makeFacadeAtlas, applyFacadeAtlas } from './facades.ts';
+import { makeNoiseCanvas } from './noise.ts';
+export { makeNoiseCanvas } from './noise.ts';
 
 /** Roof tile texture (u along the ridge, v down the slope; 1 unit = 4 m). */
 function makeRoofTexture(): THREE.Texture {
@@ -26,38 +28,10 @@ function makeRoofTexture(): THREE.Texture {
   return t;
 }
 
-/** Tileable value noise used to break up flat colours. */
-export function makeNoiseCanvas(size = 128, seed = 1, grid = 16): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const g = c.getContext('2d')!;
-  const img = g.createImageData(size, size);
-  let s = seed * 9301 + 49297;
-  const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
-  const cells = size / grid;
-  const v: number[] = [];
-  for (let i = 0; i < cells * cells; i++) v.push(rnd());
-  const at = (x: number, y: number) => v[((y + cells) % cells) * cells + ((x + cells) % cells)];
-  for (let y = 0; y < size; y++)
-    for (let x = 0; x < size; x++) {
-      const fx = x / grid, fy = y / grid;
-      const x0 = Math.floor(fx), y0 = Math.floor(fy);
-      const tx = fx - x0, ty = fy - y0;
-      const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
-      const n = (at(x0, y0) * (1 - sx) + at(x0 + 1, y0) * sx) * (1 - sy) + (at(x0, y0 + 1) * (1 - sx) + at(x0 + 1, y0 + 1) * sx) * sy;
-      const val = Math.round(255 * (0.7 * n + 0.3 * rnd()));
-      const k = (y * size + x) * 4;
-      img.data[k] = img.data[k + 1] = img.data[k + 2] = val;
-      img.data[k + 3] = 255;
-    }
-  g.putImageData(img, 0, 0);
-  return c;
-}
-
 /** Normal map for small water ripples, derived from a noise height field. */
 function makeWaterNormals(): THREE.Texture {
   const size = 256;
-  const h = makeNoiseCanvas(size, 11, 32).getContext('2d')!.getImageData(0, 0, size, size).data;
+  const h = (makeNoiseCanvas(size, 11, 32).getContext('2d') as CanvasRenderingContext2D).getImageData(0, 0, size, size).data;
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const g = c.getContext('2d')!;
@@ -90,7 +64,7 @@ let detailTexture: THREE.Texture | null = null;
  */
 export function applyGroundDetail(mat: THREE.MeshStandardMaterial) {
   if (!detailTexture) {
-    detailTexture = new THREE.CanvasTexture(makeNoiseCanvas(256, 23, 8));
+    detailTexture = new THREE.CanvasTexture(makeNoiseCanvas(256, 23, 8) as HTMLCanvasElement);
     detailTexture.wrapS = detailTexture.wrapT = THREE.RepeatWrapping;
     detailTexture.anisotropy = 8;
   }

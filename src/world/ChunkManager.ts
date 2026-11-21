@@ -4,7 +4,7 @@ import type { WorldData, LoadedChunk } from './WorldData.ts';
 import type { HeightField } from './HeightField.ts';
 import type { Materials } from '../render/materials.ts';
 import { buildTerrainGeometry } from './builders/terrain.ts';
-import { paintGround } from './builders/groundTexture.ts';
+import { GroundPainter } from './GroundPainter.ts';
 import { buildBuildingsGeometry } from './builders/buildings.ts';
 import { ChunkTrees } from './builders/trees.ts';
 import { buildWaterGeometry, buildBridgeGeometry } from './builders/water.ts';
@@ -35,6 +35,9 @@ interface ChunkState {
   collisionMeshes: Float32Array[];
   signs?: { group: THREE.Group; dispose: () => void };
   lamps: LampSpot[];
+  /** Ground texture size currently shown / last requested from the worker. */
+  texShown: number;
+  texRequested: number;
   disposables: { dispose(): void }[];
 }
 
@@ -52,8 +55,20 @@ export class ChunkManager {
   readonly root = new THREE.Group();
   private states = new Map<string, ChunkState>();
   private terrainMaterials = new Map<string, THREE.MeshStandardMaterial>();
+  private painter = new GroundPainter();
+  /** Ground textures painted by the worker, waiting to be uploaded (one per frame). */
+  private readyTextures: { st: ChunkState; size: number; tex: THREE.Texture }[] = [];
+  /** Uploads a texture to the GPU right away (set by the game; spreads upload cost over frames). */
+  uploadTexture?: (t: THREE.Texture) => void;
+  private placeholder: THREE.Texture;
 
-  constructor(private world: WorldData, private heights: HeightField, private mats: Materials) {}
+  constructor(private world: WorldData, private heights: HeightField, private mats: Materials) {
+    // 1x1 meadow-coloured texture so the ground material keeps the same shader while waiting.
+    const data = new Uint8Array([111, 143, 74, 255]);
+    this.placeholder = new THREE.DataTexture(data, 1, 1);
+    this.placeholder.colorSpace = THREE.SRGBColorSpace;
+    this.placeholder.needsUpdate = true;
+  }
 
   update(viewer: THREE.Vector3) {
     const m = this.world.manifest;
@@ -72,7 +87,7 @@ export class ChunkManager {
           continue;
         }
         if (!st) {
-          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], lamps: [], disposables: [] };
+          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], lamps: [], texShown: 0, texRequested: 0, disposables: [] };
           this.states.set(key, st);
         }
         // LOD with hysteresis around the current level.
@@ -86,7 +101,11 @@ export class ChunkManager {
       }
     }
 
-    // 2. Build the most urgent chunks within the time budget.
+    // 2. Apply at most one finished ground texture per frame (GPU upload is the costly part).
+    const ready = this.readyTextures.shift();
+    if (ready) this.applyTexture(ready.st, ready.size, ready.tex);
+
+    // 3. Build the most urgent chunks within the time budget.
     const pending = [...this.states.values()]
       .filter((s) => s.data && s.lod !== s.wantLod)
       .sort((a, b) => a.wantLod - b.wantLod || dist2(a, viewer) - dist2(b, viewer));
@@ -133,7 +152,7 @@ export class ChunkManager {
         loaded++;
         lodCounts[s.lod]++;
       }
-      if (s.lod !== s.wantLod) queued++;
+      if (s.lod !== s.wantLod || s.texShown !== s.texRequested) queued++;
     }
     return { loaded, queued, lodCounts };
   }
@@ -205,30 +224,45 @@ export class ChunkManager {
 
     // Terrain mesh and ground texture depend on the LOD.
     const prevLod = st.lod >= 0 ? LODS[st.lod] : undefined;
-    if (!prevLod || prevLod.stride !== lod.stride || prevLod.tex !== lod.tex) {
+    if (!prevLod || prevLod.stride !== lod.stride) {
       const geo = buildTerrainGeometry(data, minX, minZ, m.heightStep, lod.stride);
-      let mat = st.terrain?.material as THREE.MeshStandardMaterial | undefined;
-      if (!prevLod || prevLod.tex !== lod.tex) {
-        const tex = paintGround(data.data, minX, minZ, m.chunkSize, lod.tex);
-        if (mat) {
-          mat.map?.dispose();
-          mat.map = tex;
-          mat.needsUpdate = true;
-        } else {
-          mat = this.mats.makeGround(tex);
-          this.terrainMaterials.set(`${st.cx},${st.cz}`, mat);
-        }
-      }
       if (st.terrain) {
         st.terrain.geometry.dispose();
         st.terrain.geometry = geo;
       } else {
+        const mat = this.mats.makeGround(this.placeholder);
+        this.terrainMaterials.set(`${st.cx},${st.cz}`, mat);
         st.terrain = new THREE.Mesh(geo, mat);
         st.terrain.receiveShadow = true;
         st.group.add(st.terrain);
       }
     }
+    if (st.texRequested !== lod.tex) {
+      // Painted in a worker; applied later by update() so this frame stays short.
+      const size = lod.tex;
+      st.texRequested = size;
+      this.painter.paint(data.data, minX, minZ, m.chunkSize, size).then((tex) => {
+        if (this.states.get(`${st.cx},${st.cz}`) !== st || st.texRequested !== size) {
+          tex.dispose();
+          return;
+        }
+        this.readyTextures.push({ st, size, tex });
+      });
+    }
     st.lod = st.wantLod;
+  }
+
+  private applyTexture(st: ChunkState, size: number, tex: THREE.Texture) {
+    const mat = this.terrainMaterials.get(`${st.cx},${st.cz}`);
+    if (!mat || this.states.get(`${st.cx},${st.cz}`) !== st || st.texRequested !== size) {
+      tex.dispose();
+      return;
+    }
+    if (mat.map && mat.map !== this.placeholder) mat.map.dispose();
+    // Same material features as before, so no shader recompile is needed.
+    mat.map = tex;
+    st.texShown = size;
+    this.uploadTexture?.(tex);
   }
 
   private unload(key: string, st: ChunkState) {
@@ -239,7 +273,7 @@ export class ChunkManager {
     st.terrain?.geometry.dispose();
     const mat = this.terrainMaterials.get(key);
     if (mat) {
-      mat.map?.dispose();
+      if (mat.map !== this.placeholder) mat.map?.dispose();
       mat.dispose();
       this.terrainMaterials.delete(key);
     }

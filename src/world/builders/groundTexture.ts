@@ -1,8 +1,8 @@
 // Paints the ground cover of one chunk (land use, water, rails, roads) into a canvas
 // that is draped over the terrain mesh. Roads are therefore always glued to the terrain.
-import * as THREE from 'three';
+// Runs inside a Web Worker (OffscreenCanvas) as well as on the main thread.
 import type { ChunkData, Polyline } from '../format.ts';
-import { makeNoiseCanvas } from '../../render/materials.ts';
+import { createCanvas, makeNoiseCanvas, type AnyCanvas } from '../../render/noise.ts';
 
 const BASE = '#6f8f4a'; // meadow
 const AREA_FILL: Record<string, string> = {
@@ -24,12 +24,12 @@ const ROAD_FILL: Record<string, string> = {
 const MAJOR = new Set(['primary', 'secondary', 'tertiary', 'primary_link', 'secondary_link', 'tertiary_link', 'trunk']);
 const PAVED_EDGE = new Set([...MAJOR, 'residential', 'unclassified', 'service', 'living_street']);
 
-let noiseCanvas: HTMLCanvasElement | null = null;
+let noiseCanvas: AnyCanvas | null = null;
 
-export function paintGround(data: ChunkData, minX: number, minZ: number, chunkSize: number, size: number): THREE.CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const g = c.getContext('2d')!;
+/** Paints the chunk's ground cover; canvas row 0 is the chunk's north edge (min z). */
+export function paintGround(data: ChunkData, minX: number, minZ: number, chunkSize: number, size: number): AnyCanvas {
+  const c = createCanvas(size, size);
+  const g = c.getContext('2d') as CanvasRenderingContext2D;
   const s = size / chunkSize;
   g.setTransform(s, 0, 0, s, -minX * s, -minZ * s);
   const px = 1 / s;
@@ -48,7 +48,7 @@ export function paintGround(data: ChunkData, minX: number, minZ: number, chunkSi
 
   // Large-scale tonal noise, aligned to world coordinates so it is seamless across chunks.
   noiseCanvas ??= makeNoiseCanvas(128, 7);
-  const noise = g.createPattern(noiseCanvas, 'repeat');
+  const noise = g.createPattern(noiseCanvas as CanvasImageSource, 'repeat');
   if (noise) {
     noise.setTransform(new DOMMatrix().scale(125 / 128));
     g.globalAlpha = 0.28;
@@ -129,11 +129,7 @@ export function paintGround(data: ChunkData, minX: number, minZ: number, chunkSi
     g.lineCap = 'round';
   }
 
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
-  tex.anisotropy = 8;
-  return tex;
+  return c;
 }
 
 /** Strokes a line parallel to the polyline at a lateral offset (simple miter-less offset). */

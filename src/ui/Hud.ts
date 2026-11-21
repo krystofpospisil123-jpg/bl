@@ -73,7 +73,7 @@ export class Hud {
       this.shownMode = g.mode;
       this.help.innerHTML = HELP[g.mode].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
     }
-    const msg = g.notice || (g.canEnterCar ? 'F – nastoupit do auta' : '');
+    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar ? 'F – nastoupit do auta' : '');
     if (this.prompt.textContent !== msg) this.prompt.textContent = msg;
     this.prompt.hidden = !msg;
     const driving = g.mode === 'car' && g.car;

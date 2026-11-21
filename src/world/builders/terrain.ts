@@ -31,7 +31,7 @@ export function buildTerrainGeometry(chunk: LoadedChunk, minX: number, minZ: num
     nor[k * 3 + 1] = 1 / len;
     nor[k * 3 + 2] = -dz / len;
     uv[k * 2] = i / intervals;
-    uv[k * 2 + 1] = 1 - j / intervals;
+    uv[k * 2 + 1] = j / intervals; // ground textures are uploaded without flipY
   };
 
   for (let jj = 0; jj < m; jj++) for (let ii = 0; ii < m; ii++) writeVertex(jj * m + ii, ii * step, jj * step, 0);
