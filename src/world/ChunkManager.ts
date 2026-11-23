@@ -13,7 +13,7 @@ import { buildSigns } from './builders/signs.ts';
 import { buildLamps, type LampSpot } from './builders/props.ts';
 
 /** LOD settings: terrain sample stride, ground texture size, tree detail. */
-const LODS = [
+const DESKTOP_LODS = [
   { maxDist: 260, stride: 1, tex: 1024, trees: 0 },
   { maxDist: 650, stride: 5, tex: 256, trees: 1 },
   { maxDist: Infinity, stride: 5, tex: 128, trees: 1 },
@@ -53,6 +53,18 @@ export class ChunkManager {
   /** Per-frame time budget for building meshes, in ms. */
   budgetMs = 6;
   readonly root = new THREE.Group();
+  private lods = DESKTOP_LODS;
+
+  /** Lighter settings for phones: shorter view distance, smaller ground textures. */
+  useMobileProfile() {
+    this.viewDistance = 1000;
+    this.budgetMs = 4;
+    this.lods = [
+      { maxDist: 200, stride: 1, tex: 512, trees: 0 },
+      { maxDist: 500, stride: 5, tex: 128, trees: 1 },
+      { maxDist: Infinity, stride: 5, tex: 64, trees: 1 },
+    ];
+  }
   private states = new Map<string, ChunkState>();
   private terrainMaterials = new Map<string, THREE.MeshStandardMaterial>();
   private painter = new GroundPainter();
@@ -91,9 +103,9 @@ export class ChunkManager {
           this.states.set(key, st);
         }
         // LOD with hysteresis around the current level.
-        let lod = LODS.findIndex((l) => d < l.maxDist);
+        let lod = this.lods.findIndex((l) => d < l.maxDist);
         if (st.lod >= 0 && lod !== st.lod) {
-          const keep = lod > st.lod ? d < LODS[st.lod].maxDist + HYSTERESIS : d > LODS[lod].maxDist - HYSTERESIS;
+          const keep = lod > st.lod ? d < this.lods[st.lod].maxDist + HYSTERESIS : d > this.lods[lod].maxDist - HYSTERESIS;
           if (keep) lod = st.lod;
         }
         st.wantLod = lod;
@@ -145,7 +157,7 @@ export class ChunkManager {
   }
 
   stats(): ChunkStats {
-    const lodCounts = LODS.map(() => 0);
+    const lodCounts = this.lods.map(() => 0);
     let loaded = 0, queued = 0;
     for (const s of this.states.values()) {
       if (s.lod >= 0) {
@@ -175,7 +187,7 @@ export class ChunkManager {
 
   private build(st: ChunkState) {
     const data = st.data!;
-    const lod = LODS[st.wantLod];
+    const lod = this.lods[st.wantLod];
     const m = this.world.manifest;
     const { minX, minZ } = st.rect;
 
@@ -223,7 +235,7 @@ export class ChunkManager {
     }
 
     // Terrain mesh and ground texture depend on the LOD.
-    const prevLod = st.lod >= 0 ? LODS[st.lod] : undefined;
+    const prevLod = st.lod >= 0 ? this.lods[st.lod] : undefined;
     if (!prevLod || prevLod.stride !== lod.stride) {
       const geo = buildTerrainGeometry(data, minX, minZ, m.heightStep, lod.stride);
       if (st.terrain) {

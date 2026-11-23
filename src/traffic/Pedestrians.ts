@@ -54,6 +54,8 @@ export class Pedestrians {
   readonly group = new THREE.Group();
   readonly peds: Ped[] = [];
   enabled = true;
+  /** Population limit (lower on phones); at most MAX_PEDS. */
+  maxPeds = MAX_PEDS;
   private meshes: Record<'torso' | 'head' | 'armL' | 'armR' | 'legL' | 'legR', THREE.InstancedMesh>;
   private spawnTimer = 0;
 
@@ -114,8 +116,8 @@ export class Pedestrians {
     if (!this.enabled) this.peds.length = 0;
     for (let i = this.peds.length - 1; i >= 0; i--) if (this.peds[i].pos.distanceTo(focus) > DESPAWN && !this.peds[i].fresh) this.peds.splice(i, 1);
     this.spawnTimer -= dt;
-    if (this.enabled && this.peds.length < MAX_PEDS && this.spawnTimer <= 0) {
-      this.spawn(focus, this.peds.length < MAX_PEDS / 2 ? 10 : SPAWN_MIN);
+    if (this.enabled && this.peds.length < this.maxPeds && this.spawnTimer <= 0) {
+      this.spawn(focus, this.peds.length < this.maxPeds / 2 ? 10 : SPAWN_MIN);
       this.spawnTimer = 0.08;
     }
 

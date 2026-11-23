@@ -46,6 +46,8 @@ export class Traffic {
   readonly group = new THREE.Group();
   readonly cars: AiCar[] = [];
   enabled = true;
+  /** Population limit (lower on phones); at most MAX_CARS. */
+  maxCars = MAX_CARS;
   private paintMesh: THREE.InstancedMesh;
   private detailMesh: THREE.InstancedMesh;
   /** Junction reservations: node -> car id. */
@@ -137,8 +139,8 @@ export class Traffic {
     // Despawn far cars, top up the population gradually.
     for (const c of [...this.cars]) if (c.pos.distanceTo(focus) > DESPAWN && !c.fresh) this.remove(c);
     this.spawnTimer -= dt;
-    if (this.cars.length < MAX_CARS && this.spawnTimer <= 0) {
-      this.spawn(focus, this.cars.length < MAX_CARS / 2 ? 40 : SPAWN_MIN);
+    if (this.cars.length < this.maxCars && this.spawnTimer <= 0) {
+      this.spawn(focus, this.cars.length < this.maxCars / 2 ? 40 : SPAWN_MIN);
       this.spawnTimer = 0.15;
     }
     this.checkPlayerHits(playerCar);

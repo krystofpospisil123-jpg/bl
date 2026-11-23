@@ -11,6 +11,7 @@ import { Environment, buildOverviewMesh } from '../render/Environment.ts';
 import { FlyCamera } from '../controls/FlyCamera.ts';
 import { ChaseCamera, CAR_STYLE, FOOT_STYLE } from '../controls/ChaseCamera.ts';
 import { Input, MouseLook } from '../controls/Input.ts';
+import { TouchControls, isTouchDevice } from '../controls/TouchControls.ts';
 import { PhysicsWorld } from '../physics/PhysicsWorld.ts';
 import { Car } from '../vehicle/Car.ts';
 import { Player } from '../character/Player.ts';
@@ -52,6 +53,8 @@ export class Game {
   notice = '';
   private noticeUntil = 0;
   readonly pipeline: Pipeline;
+  /** On-screen controls on phones and tablets. */
+  touch?: TouchControls;
   private mats: Materials;
   private hud: Hud;
   private timer = new THREE.Timer();
@@ -71,6 +74,11 @@ export class Game {
     this.pipeline.onQualityChange = (q, auto) => this.say(auto ? `Kvalita grafiky snížena na: ${QUALITY_LABEL[q]}` : `Kvalita grafiky: ${QUALITY_LABEL[q]}`);
     this.chunks = new ChunkManager(world, this.heights, mats);
     this.chunks.uploadTexture = (t) => this.renderer.initTexture(t);
+    const mobile = isTouchDevice();
+    if (mobile) {
+      this.chunks.useMobileProfile();
+      this.touch = new TouchControls(this.input, { canEnterCar: () => this.canEnterCar });
+    }
     this.scene.add(this.chunks.root);
     this.mouse = new MouseLook(canvas);
     this.fly = new FlyCamera(this.camera, this.input, this.mouse, canvas, (x, z) => this.heights.sample(x, z));
@@ -89,6 +97,10 @@ export class Game {
       this.physics = p;
       this.traffic = new Traffic(new Graph(graphs.drive, true), p, this.heights);
       this.pedestrians = new Pedestrians(new Graph(graphs.walk, false), this.heights);
+      if (this.touch) {
+        this.traffic.maxCars = 12;
+        this.pedestrians.maxPeds = 24;
+      }
       this.scene.add(this.traffic.group, this.pedestrians.group);
       this.chase = new ChaseCamera(this.camera, this.mouse, (x, z) => this.heights.sample(x, z), (o, d, max) =>
         p.castRay(o, d, max, this.mode === 'car' ? this.car?.body : this.player?.body),
@@ -210,6 +222,7 @@ export class Game {
     const k = this.input;
     VIEWPOINTS.forEach((v, i) => k.justPressed(v.key) && this.goTo(i));
     if (k.justPressed('KeyO')) this.env.sun.castShadow = !this.env.sun.castShadow;
+    if (k.justPressed('KeyM')) location.hash = 'mapa';
     if (k.justPressed('KeyP') && this.car) {
       if (this.mode === 'fly') this.landHere();
       else if (this.mode !== 'loading') {
@@ -275,6 +288,7 @@ export class Game {
     }
     this.pipeline.render(dt);
     this.hud.update(dt);
+    this.touch?.update(this.mode);
     this.input.endFrame();
   }
 
@@ -284,16 +298,16 @@ export class Game {
     const driving = this.mode === 'car';
     const walking = this.mode === 'foot';
     const carInput = {
-      throttle: driving && k.down('KeyW', 'ArrowUp') ? 1 : 0,
-      brake: driving && k.down('KeyS', 'ArrowDown') ? 1 : 0,
-      steer: driving ? (k.down('KeyA', 'ArrowLeft') ? 1 : 0) - (k.down('KeyD', 'ArrowRight') ? 1 : 0) : 0,
+      throttle: driving ? Math.max(k.down('KeyW', 'ArrowUp') ? 1 : 0, k.stick.y > 0 ? Math.min(1, k.stick.y * 1.3) : 0) : 0,
+      brake: driving ? Math.max(k.down('KeyS', 'ArrowDown') ? 1 : 0, k.stick.y < -0.2 ? Math.min(1, -k.stick.y * 1.3) : 0) : 0,
+      steer: driving ? THREE.MathUtils.clamp((k.down('KeyA', 'ArrowLeft') ? 1 : 0) - (k.down('KeyD', 'ArrowRight') ? 1 : 0) - k.stick.x, -1, 1) : 0,
       handbrake: driving ? k.down('Space') : true,
     };
     // On foot, WASD is relative to the camera direction.
     let mx = 0, mz = 0;
     if (walking && this.chase) {
-      const f = (k.down('KeyW', 'ArrowUp') ? 1 : 0) - (k.down('KeyS', 'ArrowDown') ? 1 : 0);
-      const r = (k.down('KeyD', 'ArrowRight') ? 1 : 0) - (k.down('KeyA', 'ArrowLeft') ? 1 : 0);
+      const f = (k.down('KeyW', 'ArrowUp') ? 1 : 0) - (k.down('KeyS', 'ArrowDown') ? 1 : 0) + k.stick.y;
+      const r = (k.down('KeyD', 'ArrowRight') ? 1 : 0) - (k.down('KeyA', 'ArrowLeft') ? 1 : 0) + k.stick.x;
       const yaw = this.chase.viewYaw;
       mx = Math.sin(yaw) * f - Math.cos(yaw) * r;
       mz = Math.cos(yaw) * f + Math.sin(yaw) * r;

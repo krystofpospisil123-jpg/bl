@@ -10,7 +10,8 @@ export interface Settings {
 const KEY = 'blansko-settings-v1';
 
 function load(): Settings {
-  const defaults: Settings = { realNames: true, quality: 'high' };
+  const coarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+  const defaults: Settings = { realNames: true, quality: coarse ? 'low' : 'high' };
   try {
     const raw = localStorage.getItem(KEY);
     return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;

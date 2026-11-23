@@ -52,6 +52,7 @@ export class FlyCamera {
     if (k.down('KeyA', 'ArrowLeft')) p.addScaledVector(right, -v);
     if (k.down('Space', 'KeyE')) p.y += v;
     if (k.down('KeyQ', 'KeyC')) p.y -= v;
+    p.addScaledVector(forward, v * k.stick.y).addScaledVector(right, v * k.stick.x);
     const minY = this.ground(p.x, p.z) + 1.7;
     if (p.y < minY) p.y = minY;
     this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');

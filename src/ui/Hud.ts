@@ -73,7 +73,7 @@ export class Hud {
       this.shownMode = g.mode;
       this.help.innerHTML = HELP[g.mode].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
     }
-    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar ? 'F – nastoupit do auta' : '');
+    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '');
     if (this.prompt.textContent !== msg) this.prompt.textContent = msg;
     this.prompt.hidden = !msg;
     const driving = g.mode === 'car' && g.car;
@@ -92,6 +92,11 @@ export class Hud {
     const p = g.focus;
     const s = g.chunks.stats();
     const info = g.renderer.info.render;
+    if (g.touch) {
+      // Phones: one compact line so the view stays clear.
+      this.stats.innerHTML = `<b>${this.fps.toFixed(0)} fps</b> · ${QUALITY_LABEL[g.pipeline.quality]}`;
+      return;
+    }
     this.stats.innerHTML =
       `<b>${this.fps.toFixed(0)} fps</b> · kvalita ${QUALITY_LABEL[g.pipeline.quality]} · ${info.calls} draw calls · ${(info.triangles / 1e6).toFixed(2)} M trojúhelníků<br>` +
       `x ${p.x.toFixed(0)} z ${p.z.toFixed(0)} · ${p.y.toFixed(0)} m n. m.<br>` +

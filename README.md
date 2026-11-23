@@ -202,3 +202,15 @@ případný externí asset se uvede sem i s licencí.
   takže se hra nezasekne, když poprvé uvidíš vodu, cedule nebo provoz.
 - **Změna kvality** překompiluje materiály jen při zapnutí nebo vypnutí stínů.
 - **Kolize** se stavějí nejvýš pro 2 dlaždice za snímek.
+
+## Mobil a tablet
+
+- **Ovládání:** na dotykových zařízeních se zobrazí joystick vlevo (objeví se tam, kam položíš
+  palec). Rozhlížíš se tažením prstu kdekoli jinde na obrazovce, obojí jde současně.
+- **Tlačítka vpravo** se mění podle situace:
+  - pěšky: Skok, Sprint, Nastoupit
+  - v autě: Ruční brzda, Vystoupit, Na kola
+  - ve volné kameře: Nahoru, Dolů, Sem
+- **Menu** vpravo nahoře: kvalita grafiky, volná kamera, provoz, názvy obchodů, 2D mapa.
+- **Výkon:** telefony začínají na nízké kvalitě. Dohled je 1 km, textury povrchu jsou menší
+  a ve městě je nejvýš 12 aut a 24 chodců.
