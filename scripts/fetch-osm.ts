@@ -39,6 +39,11 @@ export function buildQuery(): string {
   way["barrier"~"^(wall|retaining_wall)$"];
   way["man_made"="bridge"];
   node["natural"="tree"];
+  node["amenity"~"^(bench|fountain|waste_basket)$"];
+  way["amenity"="fountain"];
+  node["barrier"="bollard"];
+  node["highway"="street_lamp"];
+  way["barrier"="hedge"];
   node["amenity"~"^(fuel|police|hospital|pharmacy|cafe|restaurant|pub|fast_food|bank|post_office|townhall)$"];
   node["shop"];
   node["railway"="station"];

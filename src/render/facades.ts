@@ -14,13 +14,14 @@ export const FACADE = {
   supermarket: 5,
   ornate: 6, // church / château
   blank: 7, // garages, sheds
+  sorela: 8, // 1950s residential blocks: plaster, white windows, balconies
 } as const;
 
-export const ATLAS_COLS = 8;
-const ROWS = 3;
+export const ATLAS_COLS = 9;
+const ROWS = 4;
 const T = 256; // tile size in px
 
-type Row = 'upper' | 'ground' | 'door';
+type Row = 'upper' | 'balcony' | 'ground' | 'door';
 type Painter = (g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: number, y: number, row: Row) => void;
 
 /** Fills a rect in the colour canvas and the matching roughness (0..1) in the roughness canvas. */
@@ -89,6 +90,19 @@ function door(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: numbe
   if (glazed) glass(g, r, x + 10, y + 12, w - 20, h * 0.55);
   rect(g, r, x + w - 18, y + h * 0.55, 6, 14, '#c8c8c8', 0.3); // handle
   rect(g, r, x - 10, y + h, w + 20, 6, '#bdbdbd', 0.9); // step
+}
+
+/** Balcony slab with a railing drawn in front of the lower part of the tile. */
+function balcony(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: number, y: number, rail = '#cfd2d4') {
+  // Shadow cast on the wall above and the slab's underside.
+  shade(g, x + 18, y + 150, T - 36, 12, 0.22);
+  rect(g, r, x + 14, y + 232, T - 28, 14, '#bfbfbf', 0.85);
+  shade(g, x + 14, y + 246, T - 28, 10, 0.3);
+  g.fillStyle = rail;
+  g.fillRect(x + 14, y + 162, T - 28, 6);
+  for (let i = 18; i < T - 18; i += 13) g.fillRect(x + i, y + 168, 3, 64);
+  r.fillStyle = 'rgb(90,90,90)';
+  r.fillRect(x + 14, y + 162, T - 28, 6);
 }
 
 const STYLES: Painter[] = [
@@ -226,6 +240,7 @@ const STYLES: Painter[] = [
     rect(g, r, wx + w / 2 - 3, wy + 20, 6, h - 20, '#ddd2b6', 0.8);
     rect(g, r, wx - 14, wy + h + 6, w + 28, 10, '#d3c8ac', 0.85);
   },
+  // (8 sorela is appended below)
   // 7 blank: garages, sheds
   (g, r, x, y, row) => {
     rect(g, r, x, y, T, T, '#ebebeb', 0.95);
@@ -235,6 +250,28 @@ const STYLES: Painter[] = [
       {
         rect(g, r, x + 34, y + 60, 188, 196, '#c2c6c9', 0.55); // garage door
         for (let i = 0; i < 196; i += 16) shade(g, x + 34, y + 60 + i, 188, 3, 0.12);
+      }
+    }
+  },
+  // 8 sorela: 1950s blocks (like náměstí Republiky): smooth plaster, white double windows,
+  // stacked balconies with a balcony door, dark plinth on the ground floor.
+  (g, r, x, y, row) => {
+    rect(g, r, x, y, T, T, '#f3f3f1', 0.93);
+    plasterNoise(g, x, y, 240, 12, 900);
+    if (row === 'upper') {
+      windowAt(g, r, x + 70, y + 50, 116, 120, { frame: '#fbfbfb', mullions: 1, transom: true });
+    } else if (row === 'balcony') {
+      // Balcony door next to a smaller window.
+      windowAt(g, r, x + 52, y + 40, 70, 192, { frame: '#fbfbfb', mullions: 0, transom: true, sill: false });
+      windowAt(g, r, x + 138, y + 50, 70, 100, { frame: '#fbfbfb', mullions: 0, transom: false });
+      balcony(g, r, x, y);
+    } else {
+      rect(g, r, x, y + 170, T, 86, '#6e6862', 0.95); // dark plinth (tinted to brown)
+      shade(g, x, y + 170, T, 5, 0.25);
+      if (row === 'door') door(g, r, x + 78, y + 40, 100, 160, '#7a6450');
+      else {
+        windowAt(g, r, x + 70, y + 46, 116, 100, { frame: '#fbfbfb' });
+        rect(g, r, x + 100, y + 196, 56, 34, '#3a3d40', 0.6); // cellar window
       }
     }
   },
@@ -254,9 +291,18 @@ export function makeFacadeAtlas(): FacadeAtlas {
   };
   const cc = make(), rc = make();
   const g = cc.getContext('2d')!, r = rc.getContext('2d')!;
-  // Canvas rows top to bottom: upper floors, ground floor, ground floor with entrance.
-  const rows: Row[] = ['upper', 'ground', 'door'];
-  STYLES.forEach((paint, col) => rows.forEach((row, ri) => paint(g, r, col * T, ri * T, row)));
+  // Canvas rows top to bottom: upper floor, upper floor with balcony, ground floor, entrance.
+  const rows: Row[] = ['upper', 'balcony', 'ground', 'door'];
+  STYLES.forEach((paint, col) => rows.forEach((row, ri) => {
+    const x = col * T, y = ri * T;
+    if (row !== 'balcony' || col === FACADE.sorela) {
+      paint(g, r, x, y, row);
+    } else {
+      // Other styles: plain upper floor, plus a balcony where such buildings have them.
+      paint(g, r, x, y, 'upper');
+      if (col === FACADE.plaster || col === FACADE.panel) balcony(g, r, x, y);
+    }
+  }));
   const map = new THREE.CanvasTexture(cc);
   map.colorSpace = THREE.SRGBColorSpace;
   const roughness = new THREE.CanvasTexture(rc);
@@ -290,7 +336,8 @@ export function applyFacadeAtlas(mat: THREE.MeshStandardMaterial) {
         float col = ground ? vFacade.y : vFacade.x;
         // Canvas row 0 (upper floors) is at the top of the texture (v near 1).
         float row = 0.0;
-        if (ground) row = facadeHash(vec2(cell.x, col + 7.0)) < 0.22 ? 2.0 : 1.0;
+        if (ground) row = facadeHash(vec2(cell.x, col + 7.0)) < 0.22 ? 3.0 : 2.0;
+        else row = facadeHash(vec2(cell.x, col + 19.0)) < 0.34 ? 1.0 : 0.0; // balconies stack per bay
         float vBase = 1.0 - (row + 1.0) * ${rowH};
         return vec2((col + 0.005 + f.x * 0.99) * ${colW}, vBase + (0.004 + f.y * 0.992) * ${rowH});
       }`;
@@ -316,5 +363,5 @@ export function applyFacadeAtlas(mat: THREE.MeshStandardMaterial) {
         `float roughnessFactor = roughness;\nroughnessFactor *= textureGrad(roughnessMap, atlasUv, ${grad}).g;`,
       );
   };
-  mat.customProgramCacheKey = () => 'facade-atlas-v2';
+  mat.customProgramCacheKey = () => 'facade-atlas-v3';
 }

@@ -417,7 +417,7 @@ export class Game {
     tex.needsUpdate = true;
     const sign = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.12 });
     for (const mat of [m.walls, m.roofs, m.flatRoofs, m.water, m.bridge, m.bridgeDeck, m.overview, sign]) samples.add(new THREE.Mesh(box, mat));
-    for (const mat of [m.trees, m.props]) samples.add(new THREE.InstancedMesh(box, mat, 1));
+    for (const mat of [m.trees, m.props, m.jets, m.parkedCars]) samples.add(new THREE.InstancedMesh(box, mat, 1));
     samples.position.copy(this.camera.position).add(new THREE.Vector3(0, -50, 0));
     samples.traverse((o) => { o.castShadow = o.receiveShadow = true; });
     this.scene.add(samples);

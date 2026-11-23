@@ -21,11 +21,28 @@ let lampGeo: THREE.BufferGeometry | null = null;
 /** Lamp post facing +Z (the arm reaches over the street). */
 function lampGeometry(): THREE.BufferGeometry {
   if (lampGeo) return lampGeo;
+  // Blansko-style lamp: light grey base, red pole, red arm curving over the street.
+  const red = 0xa3322b, grey = 0xc9ccce;
+  const arm: THREE.BufferGeometry[] = [];
+  const segs = 5;
+  for (let i = 0; i < segs; i++) {
+    const a0 = (i / segs) * (Math.PI / 2), a1 = ((i + 1) / segs) * (Math.PI / 2);
+    const p0 = new THREE.Vector3(0, 6.6 + Math.sin(a0) * 0.6, (1 - Math.cos(a0)) * 0.6);
+    const p1 = new THREE.Vector3(0, 6.6 + Math.sin(a1) * 0.6, (1 - Math.cos(a1)) * 0.6);
+    const len = p0.distanceTo(p1);
+    // Orient the segment from p0 to p1.
+    const dir = p1.clone().sub(p0).normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+    const g = new THREE.CylinderGeometry(0.05, 0.05, len, 6).applyQuaternion(q).translate((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, (p0.z + p1.z) / 2);
+    arm.push(coloured(g, red));
+  }
   lampGeo = mergeGeometries([
-    coloured(new THREE.CylinderGeometry(0.07, 0.11, 7, 6).translate(0, 3.5, 0), 0x50565c),
-    coloured(new THREE.BoxGeometry(0.08, 0.08, 1.4).translate(0, 6.95, 0.65), 0x50565c),
-    coloured(new THREE.BoxGeometry(0.34, 0.12, 0.6).translate(0, 6.9, 1.3), 0x3a3e42),
-    coloured(new THREE.BoxGeometry(0.28, 0.03, 0.5).translate(0, 6.83, 1.3), 0xfff3d6),
+    coloured(new THREE.CylinderGeometry(0.13, 0.16, 1.1, 8).translate(0, 0.55, 0), grey),
+    coloured(new THREE.CylinderGeometry(0.07, 0.1, 5.6, 8).translate(0, 3.9, 0), red),
+    ...arm,
+    coloured(new THREE.BoxGeometry(0.06, 0.06, 0.9).translate(0, 7.2, 1.05), red),
+    coloured(new THREE.CylinderGeometry(0.22, 0.32, 0.22, 10).translate(0, 7.1, 1.45), 0x55585b),
+    coloured(new THREE.CylinderGeometry(0.28, 0.28, 0.03, 10).translate(0, 6.98, 1.45), 0xfff3d6),
   ])!;
   lampGeo.computeVertexNormals();
   return lampGeo;
@@ -72,7 +89,7 @@ export function buildLamps(data: ChunkData, rect: { minX: number; minZ: number; 
     const y = heights.sample(s.x, s.z) - 0.1;
     m.compose(new THREE.Vector3(s.x, y, s.z), q.setFromAxisAngle(up, s.yaw), one);
     mesh.setMatrixAt(i, m);
-    lamps.push({ x: s.x + Math.sin(s.yaw) * 1.3, y: y + 6.8, z: s.z + Math.cos(s.yaw) * 1.3 });
+    lamps.push({ x: s.x + Math.sin(s.yaw) * 1.45, y: y + 6.95, z: s.z + Math.cos(s.yaw) * 1.45 });
   });
   mesh.castShadow = true;
   mesh.computeBoundingSphere();

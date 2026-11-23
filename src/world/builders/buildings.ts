@@ -9,6 +9,7 @@ import { LANDMARKS, styleForUse, type LandmarkStyle, type Tower } from '../landm
 const WALL_COLORS: Record<string, number[]> = {
   residential: [0xe8dcc0, 0xf0e2b6, 0xe6c9b0, 0xd9d7cf, 0xe3e6d5, 0xf2ead8, 0xd8c7a8, 0xe9d3c2, 0xcfd8d6],
   panel: [0xe6e2d8, 0xd8dcd6, 0xe9dcc6, 0xd5dbe0, 0xefe6cf],
+  sorela: [0xe9c25e, 0xe3b874, 0xe6cfa2, 0xdfa883, 0xeeeae2, 0xd9b98a, 0xf0d27a, 0xd8c3a0],
   oldtown: [0xf1dfb0, 0xe9c9a8, 0xf3ead6, 0xdfe2cf, 0xf0d2b8, 0xe6d8b4],
   industrial: [0xb9bec2, 0xc7c1b4, 0xaab4ba, 0xc9c6bd],
   commercial: [0xe4e2dc, 0xd5d8d8, 0xeee6d4, 0xc9cfd2],
@@ -169,7 +170,9 @@ export function resolveStyle(b: Building): BuildingStyle {
   else if (INDUSTRIAL.has(b.kind)) { facade = FACADE.industrial; group = 'industrial'; }
   else if (COMMERCIAL.has(b.kind)) { facade = area > 2500 ? FACADE.supermarket : oldTown ? FACADE.oldtown : FACADE.glass; group = 'commercial'; }
   else if (['church', 'chapel', 'cathedral'].includes(b.kind)) { facade = FACADE.ornate; group = 'oldtown'; }
-  else if (levels >= 5 && !HOUSE.has(b.kind)) { facade = FACADE.panel; group = 'panel'; }
+  else if (!HOUSE.has(b.kind) && levels >= 7) { facade = FACADE.panel; group = 'panel'; }
+  else if (!HOUSE.has(b.kind) && levels >= 4 && (oldTown || hash(b.id, 5) < 0.5)) { facade = FACADE.sorela; group = 'sorela'; }
+  else if (!HOUSE.has(b.kind) && levels >= 4) { facade = FACADE.panel; group = 'panel'; }
   else if (oldTown && !HOUSE.has(b.kind)) { facade = FACADE.oldtown; group = 'oldtown'; }
   let ground = facade;
   if (b.use && /^(shop:|amenity:(cafe|restaurant|pub|bar|fast_food|pharmacy|bank))/.test(b.use) && facade !== FACADE.supermarket) ground = FACADE.glass;

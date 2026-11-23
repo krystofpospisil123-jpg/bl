@@ -11,6 +11,8 @@ import { buildWaterGeometry, buildBridgeGeometry } from './builders/water.ts';
 import type { PhysicsChunkSource } from '../physics/PhysicsWorld.ts';
 import { buildSigns } from './builders/signs.ts';
 import { buildLamps, type LampSpot } from './builders/props.ts';
+import { buildStreetProps } from './builders/streetProps.ts';
+import { sceneFor } from './scenes.ts';
 
 /** LOD settings: terrain sample stride, ground texture size, tree detail. */
 const DESKTOP_LODS = [
@@ -33,6 +35,11 @@ interface ChunkState {
   trees?: ChunkTrees;
   /** Triangle positions used for collision (buildings, bridges). */
   collisionMeshes: Float32Array[];
+  /** Collision boxes of props and parked cars, flat [x, y, z, yaw, hx, hy, hz, ...]. */
+  propBoxes: number[];
+  /** Small details shown only near the viewer (props, parked cars) / at medium range (lamps). */
+  propsGroup?: THREE.Group;
+  lampMesh?: THREE.Object3D;
   signs?: { group: THREE.Group; dispose: () => void };
   lamps: LampSpot[];
   /** Ground texture size currently shown / last requested from the worker. */
@@ -62,7 +69,7 @@ export class ChunkManager {
     this.viewDistance = 1000;
     this.budgetMs = 4;
     this.lods = [
-      { maxDist: 200, stride: 1, tex: 512, trees: 0 },
+      { maxDist: 200, stride: 1, tex: 512, trees: 1 }, // simple trees everywhere on phones
       { maxDist: 500, stride: 5, tex: 128, trees: 1 },
       { maxDist: Infinity, stride: 5, tex: 64, trees: 1 },
     ];
@@ -105,7 +112,7 @@ export class ChunkManager {
           continue;
         }
         if (!st) {
-          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], lamps: [], texShown: 0, texRequested: 0, retryAt: 0, disposables: [] };
+          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], propBoxes: [], lamps: [], texShown: 0, texRequested: 0, retryAt: 0, disposables: [] };
           this.states.set(key, st);
         }
         // LOD with hysteresis around the current level.
@@ -140,7 +147,7 @@ export class ChunkManager {
     if (!st || !st.data || st.lod < 0) return null;
     return {
       heights: st.data.heights, n: st.data.n, minX: st.rect.minX, minZ: st.rect.minZ,
-      size: this.world.manifest.chunkSize, meshes: st.collisionMeshes,
+      size: this.world.manifest.chunkSize, meshes: st.collisionMeshes, boxes: st.propBoxes,
     };
   }
 
@@ -151,6 +158,7 @@ export class ChunkManager {
       st.group.remove(st.signs.group);
       st.signs.dispose();
       st.signs = buildSigns(st.data.data);
+      st.signs.group.visible = st.lod <= 1;
       st.group.add(st.signs.group);
     }
   }
@@ -202,6 +210,10 @@ export class ChunkManager {
       // First build: static content that does not depend on LOD.
       st.group = new THREE.Group();
       st.group.name = `chunk ${st.cx},${st.cz}`;
+      // Hand-placed scene details (paved square, extra trees) join the chunk's own data.
+      const scene = sceneFor(st.rect);
+      data.data.areas.push(...scene.areas);
+      data.data.trees.push(...scene.trees);
       const bGeo = buildBuildingsGeometry(data.data.buildings);
       if (bGeo) {
         const mesh = new THREE.Mesh(bGeo, [this.mats.walls, this.mats.roofs, this.mats.flatRoofs]);
@@ -234,6 +246,12 @@ export class ChunkManager {
         st.disposables.push(lamps.mesh);
       }
       st.lamps = lamps.lamps;
+      const props = buildStreetProps(data.data, st.rect, this.heights, scene.props, this.mats);
+      st.group.add(props.group);
+      st.disposables.push(props);
+      st.propsGroup = props.group;
+      st.lampMesh = lamps.mesh ?? undefined;
+      st.propBoxes = props.boxes;
       st.trees = new ChunkTrees(data.data.trees, this.heights, this.mats.trees, lod.trees);
       st.group.add(st.trees.group);
       this.root.add(st.group);
@@ -275,6 +293,10 @@ export class ChunkManager {
       });
     }
     st.lod = st.wantLod;
+    // Small details only where they can be seen.
+    if (st.propsGroup) st.propsGroup.visible = st.lod === 0;
+    if (st.lampMesh) st.lampMesh.visible = st.lod <= 1;
+    if (st.signs) st.signs.group.visible = st.lod <= 1;
   }
 
   private applyTexture(st: ChunkState, size: number, tex: THREE.Texture) {

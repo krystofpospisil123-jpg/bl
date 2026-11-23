@@ -10,6 +10,7 @@ export interface PhysicsChunkSource {
   minZ: number;
   size: number;
   meshes: Float32Array[]; // non-indexed triangle positions (buildings, bridges)
+  boxes?: number[]; // flat [x, y, z, yaw, hx, hy, hz, ...] (props, parked cars)
 }
 
 export const FIXED_DT = 1 / 60;
@@ -91,6 +92,18 @@ export class PhysicsWorld {
       for (let i = 0; i < idx.length; i++) idx[i] = i;
       const desc = RAPIER.ColliderDesc.trimesh(pos, idx);
       if (desc) cols.push(this.world.createCollider(desc.setFriction(0.4)));
+    }
+    const b = src.boxes ?? [];
+    for (let i = 0; i + 6 < b.length; i += 7) {
+      const yaw = b[i + 3];
+      cols.push(
+        this.world.createCollider(
+          RAPIER.ColliderDesc.cuboid(b[i + 4], b[i + 5], b[i + 6])
+            .setTranslation(b[i], b[i + 1], b[i + 2])
+            .setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) })
+            .setFriction(0.5),
+        ),
+      );
     }
     return cols;
   }

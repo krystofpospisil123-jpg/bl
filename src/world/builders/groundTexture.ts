@@ -8,7 +8,7 @@ const BASE = '#6f8f4a'; // meadow
 const AREA_FILL: Record<string, string> = {
   farmland: '#a39a63', orchard: '#7c9450', allotments: '#7b8f4c', grass: '#6c9448', park: '#5f8c40', sport: '#5e9a4a',
   cemetery: '#66874a', residential: '#78904f', commercial: '#9a958c', industrial: '#8e8a84', railway: '#857a6c',
-  construction: '#8f7b5c', parking: '#5f6163', plaza: '#a9a196', forest: '#4b5e30', scrub: '#5f7339',
+  construction: '#8f7b5c', parking: '#8f8c88', plaza: '#b3aea6', forest: '#4b5e30', scrub: '#5f7339',
 };
 // Drawing order: later kinds paint over earlier ones.
 const AREA_ORDER = [
@@ -46,6 +46,8 @@ export function paintGround(
     // Real colours of fields, meadows and woods from the aerial image.
     g.imageSmoothingEnabled = true;
     g.imageSmoothingQuality = 'high';
+    // Partly transparent so dark tree canopies and shadows in the photo do not stain the ground.
+    g.globalAlpha = 0.65;
     g.drawImage(photo, minX - photoMargin, minZ - photoMargin, chunkSize + 2 * photoMargin, chunkSize + 2 * photoMargin);
     // Land-use colours only tint the photo, so its texture shows through.
     g.globalAlpha = 0.4;

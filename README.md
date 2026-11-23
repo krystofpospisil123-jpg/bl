@@ -236,3 +236,24 @@ případný externí asset se uvede sem i s licencí.
   - Zastaralé úlohy kreslení textur se ruší. Dřív držely v paměti staré dlaždice, takže
     paměť rostla zhruba o 0,6 MB/s.
   - Neúspěšné načtení dlaždice se zkouší znovu po 5 s.
+
+## Náměstí Republiky a městské detaily
+
+- **Náměstí Republiky** (u startu) je postavené podle ortofota a fotografií z ulice dodaných
+  hráčem, které sloužily jen jako vzor: dlážděná plocha, čtyři kruhové záhony se stromy,
+  kvetoucí pyramidy, fontána ze země, lavičky, koše a sloupky k parkovišti
+  (`src/world/scenes.ts`).
+- **Po celém městě:**
+  - plná parkoviště zaparkovaných aut s kolizemi
+  - lavičky a koše u pěších ploch a keře u bytových domů
+  - červené lampy se zahnutým ramenem
+  - dlažba v shaderu na chodnících, náměstích a parkovištích
+  - stromy rozpoznané na ortofotu tam, kde je OSM nemá
+- **Fasáda „sorela“** (bytové domy z 50. let): žluté, okrové a béžové omítky, bílá okna, balkony
+  nad sebou ve stejných osách a tmavý sokl.
+- **Vzdálenost:** drobnosti se kreslí jen nablízku (do 260 m, na mobilu 200 m), lampy a cedule
+  do střední vzdálenosti.
+- **Data z OSM:** dotaz už obsahuje lavičky, fontány, sloupky a lampy. Projeví se při příštím
+  stažení dat, až bude Overpass dostupný.
+- **Ladění:** `npx tsx scripts/dev/ortho-crop.ts x0 z0 x1 z1 out.jpg` vyřízne ortofoto
+  s mřížkou pro umisťování scén.

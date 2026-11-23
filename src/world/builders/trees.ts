@@ -18,7 +18,7 @@ function makeGeometries() {
   const trunk = (r: number, h: number, seg: number) => colored(new THREE.CylinderGeometry(r * 0.7, r, h, seg).translate(0, h / 2, 0), 0x5b4632);
   // Crown made of several leaf clumps, lighter on top for a sunlit look.
   const clump = (r: number, x: number, y: number, z: number, hex: number) =>
-    colored(new THREE.IcosahedronGeometry(r, 1).scale(1, 0.85, 1).translate(x, y, z), hex);
+    colored(new THREE.IcosahedronGeometry(r, 0).scale(1, 0.85, 1).translate(x, y, z), hex);
   const deciduous0 = mergeGeometries([
     trunk(0.035, 0.5, 6),
     clump(0.24, 0, 0.6, 0, 0x45702c),

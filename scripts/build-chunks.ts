@@ -499,6 +499,42 @@ async function main() {
       }
     }
   }
+  // --- Trees seen on the orthophoto (street trees, gardens) that OSM does not map.
+  if (ortho) {
+    const cell = 5;
+    const occupied = new Set<string>();
+    const key = (x: number, y: number) => `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
+    for (const row of chunks) for (const c of row) for (let i = 0; i < c.trees.length; i += 4) occupied.add(key(c.trees[i], -c.trees[i + 1]));
+    let added = 0;
+    for (let gx = -HALF_EXTENT + cell / 2; gx < HALF_EXTENT; gx += cell) {
+      for (let gy = -HALF_EXTENT + cell / 2; gy < HALF_EXTENT; gy += cell) {
+        if (occupied.has(key(gx, gy))) continue;
+        // Average a 3 x 3 m patch: canopies are dark, clearly green and fairly uniform.
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let dx = -1.5; dx <= 1.5; dx += 1.5) for (let dy = -1.5; dy <= 1.5; dy += 1.5) {
+          const c = ortho.sample(gx + dx, gy + dy);
+          if (c) { r += c[0]; g += c[1]; b += c[2]; n++; }
+        }
+        if (n < 5) continue;
+        r /= n; g /= n; b /= n;
+        const lum = 0.3 * r + 0.59 * g + 0.11 * b;
+        if (!(g > r + 12 && g > b + 14 && lum < 80 && lum > 25)) continue;
+        const ix = Math.round(gx), iy = Math.round(gy);
+        const p: Vec2 = [gx + (hash01(ix, iy, 21) - 0.5) * 2.5, gy + (hash01(ix, iy, 22) - 0.5) * 2.5];
+        if (obstacles.blocked(p)) continue;
+        const c = chunkAt(p[0], p[1]);
+        if (!c) continue;
+        // Darker canopies are usually bigger trees.
+        const h = 7 + (80 - lum) / 7 + 3 * hash01(ix, iy, 23);
+        c.trees.push(r1(p[0]), r1(-p[1]), r1(h), hash01(ix, iy, 24) < 0.2 ? 1 : 0);
+        occupied.add(key(p[0], p[1]));
+        added++;
+      }
+    }
+    stats.trees += added;
+    console.log(`Added ${added} trees detected on the orthophoto`);
+  }
+
   for (const row of treeRows) {
     for (let i = 0; i + 1 < row.length; i++) {
       const [a, b] = [row[i], row[i + 1]];
@@ -540,7 +576,7 @@ async function main() {
   const heightScale = 0.01;
   const enc = (h: number) => Math.max(0, Math.min(65535, Math.round((h - heightBase) / heightScale)));
 
-  await fs.rm(path.join(OUT_DIR, 'chunks'), { recursive: true, force: true });
+  // Overwrite files in place (deleting the folder confuses dev-server file watchers).
   await fs.mkdir(path.join(OUT_DIR, 'chunks'), { recursive: true });
 
   const manifest: Manifest = {

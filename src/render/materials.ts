@@ -81,10 +81,24 @@ export function applyGroundDetail(mat: THREE.MeshStandardMaterial) {
         `#include <map_fragment>
         float dNear = texture2D(detailMap, vWorldXZ / 3.0).r;
         float dFar = texture2D(detailMap, vWorldXZ / 17.0).g;
-        diffuseColor.rgb *= 0.78 + 0.22 * dNear + 0.18 * (dFar - 0.5);`,
+        diffuseColor.rgb *= 0.78 + 0.22 * dNear + 0.18 * (dFar - 0.5);
+        // Paving blocks on light grey surfaces (sidewalks, squares, parking): offset-bond
+        // pattern with grout lines, faded out where it would alias.
+        vec3 base = diffuseColor.rgb;
+        float lum = dot(base, vec3(0.299, 0.587, 0.114));
+        float sat = max(base.r, max(base.g, base.b)) - min(base.r, min(base.g, base.b));
+        float paved = smoothstep(0.12, 0.2, lum) * (1.0 - smoothstep(0.05, 0.1, sat));
+        vec2 pv = vWorldXZ / vec2(0.3, 0.15);
+        pv.x += 0.5 * mod(floor(pv.y), 2.0);
+        vec2 pf = fract(pv);
+        vec2 pw = fwidth(pv);
+        float fade = clamp(1.0 - max(pw.x, pw.y) * 1.5, 0.0, 1.0);
+        float joint = 1.0 - smoothstep(0.0, 0.08 + pw.x, min(pf.x, 1.0 - pf.x)) * smoothstep(0.0, 0.12 + pw.y, min(pf.y, 1.0 - pf.y));
+        float tint = fract(sin(dot(floor(pv), vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+        diffuseColor.rgb *= 1.0 - paved * fade * (0.3 * joint - 0.08 * tint);`,
       );
   };
-  mat.customProgramCacheKey = () => 'ground-detail';
+  mat.customProgramCacheKey = () => 'ground-detail-v2';
 }
 
 export class Materials {
@@ -96,7 +110,10 @@ export class Materials {
   readonly bridge = new THREE.MeshStandardMaterial({ color: 0x9a958e, roughness: 0.85 });
   readonly bridgeDeck = new THREE.MeshStandardMaterial({ color: 0x4a4a4c, roughness: 0.75 });
   readonly overview = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
-  readonly props = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.4 });
+  readonly props = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.15 });
+  readonly parkedCars = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 });
+  /** Floor-fountain jets: translucent water columns that pulse up and down. */
+  readonly jets = new THREE.MeshStandardMaterial({ color: 0xe6f2ff, transparent: true, opacity: 0.55, roughness: 0.05, depthWrite: false });
 
   constructor() {
     const atlas = makeFacadeAtlas();
@@ -137,6 +154,21 @@ export class Materials {
         );
     };
     this.trees.customProgramCacheKey = () => 'trees-wind';
+
+    this.jets.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = timeUniform;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform float uTime;')
+        .replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>
+          #ifdef USE_INSTANCING
+            float ph = instanceMatrix[3][0] * 2.1 + instanceMatrix[3][2] * 1.3;
+            transformed.y *= 0.35 + 0.65 * abs(sin(uTime * 0.9 + ph));
+          #endif`,
+        );
+    };
+    this.jets.customProgramCacheKey = () => 'jets';
   }
 
   /** Per-chunk ground material (it owns the chunk's painted ground texture). */
