@@ -89,6 +89,9 @@ export class Graph {
   next(l: Lane): Lane[] {
     const n = this.endNode(l);
     const opts = this.out[n].filter((o) => !(o.edge === l.edge && o.dir !== l.dir));
-    return opts.length ? opts : this.out[n];
+    if (opts.length) return opts;
+    if (this.out[n].length) return this.out[n];
+    // Dead end (e.g. the far end of a one-way street): turn around on the same edge.
+    return [{ edge: l.edge, dir: l.dir === 1 ? -1 : 1 }];
   }
 }

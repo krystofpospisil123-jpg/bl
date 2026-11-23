@@ -8,7 +8,7 @@ export function renderAttribution(el: HTMLElement, lines: string[]): void {
     a.href = osm ? 'https://www.openstreetmap.org/copyright' : 'https://geoportal.cuzk.gov.cz';
     a.target = '_blank';
     a.rel = 'noopener';
-    a.textContent = osm ? '© přispěvatelé OpenStreetMap' : 'Výškopis DMR 5G © ČÚZK';
+    a.textContent = osm ? '© přispěvatelé OpenStreetMap' : line.replace(/\s*\(.*\)$/, '');
     el.append(a);
   });
 }

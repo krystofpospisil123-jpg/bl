@@ -117,6 +117,31 @@ function isConvex(r: number[]): boolean {
   return true;
 }
 
+/** Real roofing colours; photo samples snap to the nearest one so shadows and haze do not tint roofs. */
+const ROOF_MATERIALS = [
+  0xa8452c, 0xb85a3a, 0x8e3b28, 0xc7704c, 0x7a3a2c, // terracotta tiles
+  0x6b4a3a, 0x5a4034, // brown tiles
+  0x3e3c3b, 0x4f4d4b, 0x5f5d5a, 0x2e2f31, // dark grey / slate / bitumen
+  0x8a8984, 0xa5a49f, 0xbebdb8, 0xd2d1cc, // concrete, gravel, light membranes
+  0x7f8b8e, 0x9aa3a6, // metal sheet
+  0x5e7a5a, 0x2f5f6f, // green copper / coated metal
+];
+
+function photoRoof(hex: string | undefined): THREE.Color | null {
+  const c = cssColor(hex);
+  if (!c) return null;
+  // Aerial images are a bit dark; compare in sRGB with brightness boosted.
+  const r = Math.min(1, c.r * 1.15), g = Math.min(1, c.g * 1.15), b = Math.min(1, c.b * 1.15);
+  let best = ROOF_MATERIALS[0], bestD = Infinity;
+  for (const m of ROOF_MATERIALS) {
+    const mr = ((m >> 16) & 255) / 255, mg = ((m >> 8) & 255) / 255, mb = (m & 255) / 255;
+    // Weighted distance (green matters most to the eye; blue least).
+    const d = 2 * (r - mr) ** 2 + 4 * (g - mg) ** 2 + 1.5 * (b - mb) ** 2;
+    if (d < bestD) { bestD = d; best = m; }
+  }
+  return new THREE.Color(best);
+}
+
 export interface BuildingStyle {
   h: number;
   top: number;
@@ -155,7 +180,7 @@ export function resolveStyle(b: Building): BuildingStyle {
   const wall = cssColor(lm.colour) ?? cssColor(b.colour) ?? new THREE.Color(pick(WALL_COLORS[group], b.id, 1));
   const shape = (lm.roof ?? b.roof ?? '').toLowerCase();
   const pitched = shape && shape !== 'flat';
-  const roof = cssColor(lm.roofColour) ?? cssColor(b.roofColour)
+  const roof = cssColor(lm.roofColour) ?? cssColor(b.roofColour) ?? photoRoof(b.roofPhoto)
     ?? new THREE.Color(pitched || HOUSE.has(b.kind) ? pick(PITCHED_ROOF_COLORS, b.id, 2) : pick(FLAT_ROOF_COLORS, b.id, 3));
   return { h, top, wall, roof, roofShape: shape, facade, ground, tower: lm.tower, sign: !!lm.sign };
 }

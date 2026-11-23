@@ -86,6 +86,14 @@ export class Game {
     this.hud = new Hud(this);
 
     this.camera.position.set(SPAWN.x + 30, 330, SPAWN.z + 30);
+    // Chunks wait for the aerial photo so every ground texture is painted with it.
+    world.loadGroundPhoto().then(
+      (photo) => {
+        if (photo) this.chunks.painter.setPhoto(photo.bitmap, photo.step, photo.half);
+        this.chunks.paused = false;
+      },
+      () => (this.chunks.paused = false),
+    );
     world.loadOverview().then((o) => {
       this.heights.setOverview(o);
       this.scene.add(buildOverviewMesh(world.manifest, o, mats.overview));
@@ -109,7 +117,22 @@ export class Game {
 
     new ResizeObserver(() => this.resize()).observe(canvas);
     this.resize();
-    this.renderer.setAnimationLoop(() => this.frame());
+    let frameErrors = 0;
+    this.renderer.setAnimationLoop(() => {
+      try {
+        this.frame();
+      } catch (err) {
+        // Keep the game running (and the picture moving) even if one frame fails.
+        if (++frameErrors <= 5) console.error('Frame failed', err);
+        this.input.endFrame();
+      }
+    });
+    // Phones can drop the GPU context under memory pressure: tell the player instead of freezing.
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      this.say('Grafika telefonu se restartuje…', 10);
+    });
+    canvas.addEventListener('webglcontextrestored', () => location.reload());
   }
 
   /** Position the world streams around. */
@@ -322,8 +345,9 @@ export class Game {
       const obstacles = [{ x: car.position.x, z: car.position.z, radius: 2.2 }, ...this.pedestrians.obstacles()];
       if (player.isActive) obstacles.push({ x: player.position.x, z: player.position.z, radius: 0.6 });
       const pc = driving ? { position: car.position, yaw: car.yaw, speed: car.speed } : undefined;
-      this.traffic.update(dt, focus, obstacles, pc);
-      this.pedestrians.update(dt, focus, pc);
+      // A bug in the AI must never stop the whole game: log it and start the AI afresh.
+      this.guard('traffic', () => this.traffic!.update(dt, focus, obstacles, pc), () => this.traffic!.reset());
+      this.guard('pedestrians', () => this.pedestrians!.update(dt, focus, pc), () => this.pedestrians!.reset());
     }
 
     // Only simulate while the ground around the player exists.
@@ -340,6 +364,23 @@ export class Game {
     const below = (p: THREE.Vector3) => p.y < this.heights.sample(p.x, p.z) - 10;
     if (below(car.position)) car.reset(new THREE.Vector3(car.position.x, this.heights.sample(car.position.x, car.position.z) + 2, car.position.z), car.yaw);
     if (player.isActive && below(player.position)) player.teleport(new THREE.Vector3(player.position.x, this.heights.sample(player.position.x, player.position.z) + 0.5, player.position.z));
+  }
+
+  private guardErrors = new Map<string, number>();
+
+  private guard(name: string, run: () => void, recover: () => void) {
+    try {
+      run();
+    } catch (err) {
+      const n = (this.guardErrors.get(name) ?? 0) + 1;
+      this.guardErrors.set(name, n);
+      if (n <= 3) console.error(`${name} failed, restarting it`, err);
+      try {
+        recover();
+      } catch {
+        /* nothing more to do */
+      }
+    }
   }
 
   private spawn() {

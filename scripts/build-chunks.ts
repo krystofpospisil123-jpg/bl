@@ -5,6 +5,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { encodeUint16Png } from './lib/png.ts';
 import { buildRoadGraphs, type GraphWay } from './lib/roadGraph.ts';
+import { loadOrtho, roofColour } from './lib/ortho.ts';
+import jpeg from 'jpeg-js';
 import { RAW_DIR, OUT_DIR, ORIGIN, HALF_EXTENT, CHUNK_SIZE, HEIGHT_STEP, lonLatToLocal } from './lib/config.ts';
 import {
   type Ring, type Vec2, type Rect,
@@ -325,6 +327,7 @@ async function main() {
   dem = new Float32Array(demBuf.buffer, demBuf.byteOffset, demBuf.byteLength / 4);
   demSize = demMeta.size;
 
+  const ortho = await loadOrtho();
   const osm: { elements: OsmElement[] } = JSON.parse(await fs.readFile(path.join(RAW_DIR, 'osm.json'), 'utf8'));
   const obstacles = new ObstacleIndex();
   const treeAreas: { kind: string; rings: Ring[] }[] = [];
@@ -383,6 +386,7 @@ async function main() {
           ...(buildingUse(t) ? { use: buildingUse(t) } : {}),
           ...(t['building:colour'] ? { colour: t['building:colour'] } : {}),
           ...(t['roof:colour'] ? { roofColour: t['roof:colour'] } : {}),
+          ...(ortho ? { roofPhoto: roofColour(ortho, outer, (p) => pointInPolygon(p, rings)) ?? undefined } : {}),
           ...(parseFloat(t['building:levels']) > 0 ? { levels: parseFloat(t['building:levels']) } : {}),
         };
         c.buildings.push(b);
@@ -590,6 +594,29 @@ async function main() {
   await fs.rm(path.join(OUT_DIR, 'overview.bin'), { force: true });
   await fs.writeFile(path.join(OUT_DIR, 'overview.png'), encodeUint16Png(ov, ovSize, ovSize));
   manifest.overview = { file: 'overview.png', size: ovSize, step: HEIGHT_STEP * stride };
+
+  // --- Orthophoto ground colours (2.5 m grid, north-up) used under the painted ground cover.
+  if (ortho) {
+    const step = 2.5, size = Math.round((2 * HALF_EXTENT) / step);
+    const img = Buffer.alloc(size * size * 4);
+    for (let j = 0; j < size; j++)
+      for (let i = 0; i < size; i++) {
+        // Average a 3x3 neighbourhood so cars and small details blur away.
+        let r = 0, g = 0, b = 0, n = 0;
+        for (let dy = -1; dy <= 1; dy++)
+          for (let dx = -1; dx <= 1; dx++) {
+            const c = ortho.sample(-HALF_EXTENT + (i + 0.5 + dx * 0.33) * step, HALF_EXTENT - (j + 0.5 + dy * 0.33) * step);
+            if (c) { r += c[0]; g += c[1]; b += c[2]; n++; }
+          }
+        const k = (j * size + i) * 4;
+        img[k] = n ? r / n : 110; img[k + 1] = n ? g / n : 140; img[k + 2] = n ? b / n : 80; img[k + 3] = 255;
+      }
+    const jpg = jpeg.encode({ data: img, width: size, height: size }, 82).data;
+    await fs.writeFile(path.join(OUT_DIR, 'ground.jpg'), jpg);
+    manifest.groundPhoto = { file: 'ground.jpg', size, step };
+    manifest.attribution.push('Ortofoto © ČÚZK (CC BY 4.0)');
+    console.log(`Ground photo ${size}x${size} px, ${(jpg.length / 1e3).toFixed(0)} kB`);
+  }
 
   // --- Road graphs for traffic and pedestrians.
   const graphs = buildRoadGraphs(graphWays, elevation, HALF_EXTENT - 5);

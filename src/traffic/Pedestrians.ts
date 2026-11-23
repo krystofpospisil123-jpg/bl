@@ -107,6 +107,11 @@ export class Pedestrians {
     }
   }
 
+  /** Removes all pedestrians (used to recover from errors); new ones spawn gradually. */
+  reset() {
+    this.peds.length = 0;
+  }
+
   /** Points AI cars should stop for. */
   obstacles(): { x: number; z: number; radius: number }[] {
     return this.peds.map((p) => ({ x: p.pos.x, z: p.pos.z, radius: 0.5 }));

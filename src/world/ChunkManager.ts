@@ -37,6 +37,8 @@ interface ChunkState {
   lamps: LampSpot[];
   /** Ground texture size currently shown / last requested from the worker. */
   texShown: number;
+  /** Earliest time to retry loading after a failure. */
+  retryAt: number;
   texRequested: number;
   disposables: { dispose(): void }[];
 }
@@ -67,7 +69,7 @@ export class ChunkManager {
   }
   private states = new Map<string, ChunkState>();
   private terrainMaterials = new Map<string, THREE.MeshStandardMaterial>();
-  private painter = new GroundPainter();
+  readonly painter = new GroundPainter();
   /** Ground textures painted by the worker, waiting to be uploaded (one per frame). */
   private readyTextures: { st: ChunkState; size: number; tex: THREE.Texture }[] = [];
   /** Uploads a texture to the GPU right away (set by the game; spreads upload cost over frames). */
@@ -82,7 +84,11 @@ export class ChunkManager {
     this.placeholder.needsUpdate = true;
   }
 
+  /** Set to false once shared inputs (e.g. the ground photo) are ready. */
+  paused = true;
+
   update(viewer: THREE.Vector3) {
+    if (this.paused) return;
     const m = this.world.manifest;
     const H = m.halfExtent, S = m.chunkSize, N = m.chunksPerSide;
     // 1. Decide which chunks are wanted and at which LOD.
@@ -99,7 +105,7 @@ export class ChunkManager {
           continue;
         }
         if (!st) {
-          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], lamps: [], texShown: 0, texRequested: 0, disposables: [] };
+          st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], lamps: [], texShown: 0, texRequested: 0, retryAt: 0, disposables: [] };
           this.states.set(key, st);
         }
         // LOD with hysteresis around the current level.
@@ -109,7 +115,7 @@ export class ChunkManager {
           if (keep) lod = st.lod;
         }
         st.wantLod = lod;
-        if (!st.data && !st.loading) this.load(st);
+        if (!st.data && !st.loading && performance.now() >= st.retryAt) this.load(st);
       }
     }
 
@@ -119,7 +125,7 @@ export class ChunkManager {
 
     // 3. Build the most urgent chunks within the time budget.
     const pending = [...this.states.values()]
-      .filter((s) => s.data && s.lod !== s.wantLod)
+      .filter((s) => s.data && (s.lod !== s.wantLod || (s.lod >= 0 && s.texRequested === 0)))
       .sort((a, b) => a.wantLod - b.wantLod || dist2(a, viewer) - dist2(b, viewer));
     const t0 = performance.now();
     for (const st of pending) {
@@ -180,6 +186,7 @@ export class ChunkManager {
       },
       (err) => {
         st.loading = false;
+        st.retryAt = performance.now() + 5000; // back off instead of retrying every frame
         console.error(`Chunk ${st.cx},${st.cz} failed to load`, err);
       },
     );
@@ -253,8 +260,14 @@ export class ChunkManager {
       // Painted in a worker; applied later by update() so this frame stays short.
       const size = lod.tex;
       st.texRequested = size;
-      this.painter.paint(data.data, minX, minZ, m.chunkSize, size).then((tex) => {
-        if (this.states.get(`${st.cx},${st.cz}`) !== st || st.texRequested !== size) {
+      const key = `${st.cx},${st.cz}`;
+      this.painter.paint(key, data.data, minX, minZ, m.chunkSize, size).then((tex) => {
+        if (!tex) {
+          // Superseded or failed: ask again on a later frame if this chunk still needs it.
+          if (this.states.get(key) === st && st.texRequested === size) st.texRequested = 0;
+          return;
+        }
+        if (this.states.get(key) !== st || st.texRequested !== size) {
           tex.dispose();
           return;
         }
@@ -279,6 +292,12 @@ export class ChunkManager {
 
   private unload(key: string, st: ChunkState) {
     this.states.delete(key);
+    this.painter.cancel(key);
+    this.readyTextures = this.readyTextures.filter((r) => {
+      if (r.st !== st) return true;
+      r.tex.dispose();
+      return false;
+    });
     this.heights.setChunk(st.cx, st.cz, undefined);
     this.world.unloadChunk(st.cx, st.cz);
     if (st.group) this.root.remove(st.group);

@@ -27,7 +27,11 @@ const PAVED_EDGE = new Set([...MAJOR, 'residential', 'unclassified', 'service', 
 let noiseCanvas: AnyCanvas | null = null;
 
 /** Paints the chunk's ground cover; canvas row 0 is the chunk's north edge (min z). */
-export function paintGround(data: ChunkData, minX: number, minZ: number, chunkSize: number, size: number): AnyCanvas {
+export function paintGround(
+  data: ChunkData, minX: number, minZ: number, chunkSize: number, size: number,
+  /** Orthophoto patch covering the chunk plus `photoMargin` (in metres) on each side. */
+  photo?: CanvasImageSource, photoMargin = 0,
+): AnyCanvas {
   const c = createCanvas(size, size);
   const g = c.getContext('2d') as CanvasRenderingContext2D;
   const s = size / chunkSize;
@@ -38,20 +42,31 @@ export function paintGround(data: ChunkData, minX: number, minZ: number, chunkSi
 
   g.fillStyle = BASE;
   g.fillRect(minX, minZ, chunkSize, chunkSize);
+  if (photo) {
+    // Real colours of fields, meadows and woods from the aerial image.
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(photo, minX - photoMargin, minZ - photoMargin, chunkSize + 2 * photoMargin, chunkSize + 2 * photoMargin);
+    // Land-use colours only tint the photo, so its texture shows through.
+    g.globalAlpha = 0.4;
+  }
 
   // --- Land use
   const areas = data.areas.slice().sort((a, b) => AREA_ORDER.indexOf(a.kind) - AREA_ORDER.indexOf(b.kind));
+  const PAVED = new Set(['parking', 'plaza', 'sport', 'railway']);
   for (const a of areas) {
+    if (photo) g.globalAlpha = PAVED.has(a.kind) ? 0.92 : 0.4;
     g.fillStyle = AREA_FILL[a.kind] ?? BASE;
     g.fill(ringsPath(a.rings), 'evenodd');
   }
+  g.globalAlpha = 1;
 
   // Large-scale tonal noise, aligned to world coordinates so it is seamless across chunks.
   noiseCanvas ??= makeNoiseCanvas(128, 7);
   const noise = g.createPattern(noiseCanvas as CanvasImageSource, 'repeat');
   if (noise) {
     noise.setTransform(new DOMMatrix().scale(125 / 128));
-    g.globalAlpha = 0.28;
+    g.globalAlpha = photo ? 0.12 : 0.28;
     g.globalCompositeOperation = 'multiply';
     g.fillStyle = noise;
     g.fillRect(minX, minZ, chunkSize, chunkSize);

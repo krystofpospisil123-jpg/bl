@@ -118,6 +118,12 @@ export class Traffic {
     }
   }
 
+  /** Removes all cars (used to recover from errors); new ones spawn gradually. */
+  reset() {
+    while (this.cars.length) this.remove(this.cars[0]);
+    this.reserved.clear();
+  }
+
   private remove(c: AiCar) {
     this.phys.world.removeRigidBody(c.body);
     for (const [n, id] of this.reserved) if (id === c.id) this.reserved.delete(n);

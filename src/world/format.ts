@@ -29,6 +29,8 @@ export interface Manifest {
   /** Coarse heightmap of the whole area (same PNG encoding), for distant terrain. */
   overview: { file: string; size: number; step: number };
   chunks: ChunkInfo[];
+  /** Blurred orthophoto of the whole area (north-up JPEG), drawn under the ground cover. */
+  groundPhoto?: { file: string; size: number; step: number };
   /** Road graphs for traffic and pedestrians (see RoadGraphs). */
   graphFile: string;
   pois: Poi[];
@@ -66,6 +68,8 @@ export interface Building {
   /** Facade / roof colours from OSM (`building:colour`, `roof:colour`) as CSS colours. */
   colour?: string;
   roofColour?: string;
+  /** Roof colour measured on the ČÚZK orthophoto. */
+  roofPhoto?: string;
   levels?: number;
   rings: number[][];
 }

@@ -44,6 +44,16 @@ export class WorldData {
     return { heights: await this.fetchHeights(file), size, step };
   }
 
+  /** Whole-area orthophoto used under the ground cover (null if the data has none). */
+  async loadGroundPhoto(): Promise<{ bitmap: ImageBitmap; step: number; half: number } | null> {
+    const g = this.manifest.groundPhoto;
+    if (!g) return null;
+    const res = await this.get(g.file);
+    if (!res.ok) return null;
+    const bitmap = await createImageBitmap(await res.blob());
+    return { bitmap, step: g.step, half: this.manifest.halfExtent };
+  }
+
   async loadGraphs(): Promise<RoadGraphs> {
     const res = await this.get(this.manifest.graphFile ?? 'roads.json');
     if (!res.ok) throw new Error(`roads.json not found (${res.status}). Run "npm run data:build".`);

@@ -1,7 +1,7 @@
 {
  "version": 1,
  "name": "Blansko: Open World",
- "generated": "2026-11-20T13:20:18.864Z",
+ "generated": "2026-11-23T12:35:51.645Z",
  "origin": {
   "lat": 49.3628,
   "lon": 16.6448
@@ -2544,6 +2544,12 @@
  ],
  "attribution": [
   "© přispěvatelé OpenStreetMap (ODbL), openstreetmap.org/copyright",
-  "Výškopis: DMR 5G © ČÚZK (CC BY 4.0)"
- ]
+  "Výškopis: DMR 5G © ČÚZK (CC BY 4.0)",
+  "Ortofoto © ČÚZK (CC BY 4.0)"
+ ],
+ "groundPhoto": {
+  "file": "ground.jpg",
+  "size": 1200,
+  "step": 2.5
+ }
 }

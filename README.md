@@ -39,6 +39,7 @@ Hra startuje pěšky vedle auta na náměstí Republiky.
 | Příkaz | Co dělá |
 | --- | --- |
 | `npm run data:osm` | Stáhne OSM přes Overpass API do `data/raw/osm.json` |
+| `npm run data:ortho` | Stáhne ortofoto ČÚZK (0,5 m) pro barvy střech a podklad terénu |
 | `npm run data:dem` | Stáhne DMR 5G z ČÚZK ImageServeru do `data/raw/dem.tif` a převzorkuje do lokální mřížky |
 | `npm run data:build` | Rozřeže vše na dlaždice do `public/data/` |
 | `npm run build` | Typecheck + produkční build do `dist/` |
@@ -104,6 +105,7 @@ src/
 | --- | --- | --- |
 | © přispěvatelé OpenStreetMap | ODbL 1.0 | budovy, silnice, voda, plochy, koleje, POI |
 | ČÚZK – DMR 5G | CC BY 4.0 | výškový model terénu |
+| ČÚZK – Ortofoto | CC BY 4.0 | barvy střech, rozmazaný podklad terénu (2,5 m) |
 
 Atribuce se zobrazuje ve hře vpravo dole. Vygenerovaná data v `public/data/` jsou odvozená
 databáze z OSM, a proto také spadají pod ODbL.
@@ -215,3 +217,22 @@ případný externí asset se uvede sem i s licencí.
 - **Menu** vpravo nahoře: kvalita grafiky, volná kamera, provoz, názvy obchodů, 2D mapa.
 - **Výkon:** telefony začínají na nízké kvalitě. Dohled je 1 km, textury povrchu jsou menší
   a ve městě je nejvýš 12 aut a 24 chodců.
+
+## Realističtější vzhled a stabilita (z listopadu 2026)
+
+- **Střechy** mají barvu změřenou na ortofotu ČÚZK. Bere se střední jas uvnitř půdorysu
+  a přiřadí se nejbližší skutečná krytina (pálená taška, břidlice, beton, plech…), takže stíny
+  a opar barvu nezkreslí.
+- **Terén** má pod povrchem rozmazané ortofoto (2,5 m/px), takže louky, pole a lesy mají skutečné
+  barvy. Silnice, chodníky a voda se kreslí přes něj.
+- **Fasády:** atlas 256 px na pole a tři řady:
+  - patro, přízemí a přízemí se vchodem
+  - hloubka oken, parapety, sokl, balkony paneláků
+  - každé okno má jiný odstín (záclony, tma, odlesk) a stěna je u země zašpiněná
+- **Stabilita:**
+  - Graf silnic se už nezasekne na konci jednosměrky. Dřív to po chvíli vyhodilo chybu
+    a hra zamrzla.
+  - Chyba v provozu ani v chodcích už nezastaví celou hru.
+  - Zastaralé úlohy kreslení textur se ruší. Dřív držely v paměti staré dlaždice, takže
+    paměť rostla zhruba o 0,6 MB/s.
+  - Neúspěšné načtení dlaždice se zkouší znovu po 5 s.
