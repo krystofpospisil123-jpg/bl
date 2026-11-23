@@ -42,6 +42,7 @@ Hra startuje pěšky vedle auta na náměstí Republiky.
 | `npm run data:dem` | Stáhne DMR 5G z ČÚZK ImageServeru do `data/raw/dem.tif` a převzorkuje do lokální mřížky |
 | `npm run data:build` | Rozřeže vše na dlaždice do `public/data/` |
 | `npm run build` | Typecheck + produkční build do `dist/` |
+| `npm run build:single` | Jeden samostatný HTML soubor s daty uvnitř (`dist-single/blansko.html`, asi 12 MB): jde otevřít i bez serveru nebo offline |
 
 ### Když API nefunguje (ruční stažení)
 

@@ -9,7 +9,8 @@
     "data:osm": "tsx scripts/fetch-osm.ts",
     "data:dem": "tsx scripts/fetch-dem.ts",
     "data:build": "tsx scripts/build-chunks.ts",
-    "data": "npm run data:osm && npm run data:dem && npm run data:build"
+    "data": "npm run data:osm && npm run data:dem && npm run data:build",
+    "build:single": "npm run build && tsx scripts/build-single.ts && tsx scripts/build-single.ts --fragment"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

@@ -1,5 +1,6 @@
 // Loads the manifest and individual chunks produced by scripts/build-chunks.ts.
 import type { ChunkData, ChunkInfo, Manifest, RoadGraphs } from './format.ts';
+import { openDataSource, type DataGet } from './DataSource.ts';
 
 export interface LoadedChunk {
   info: ChunkInfo;
@@ -13,17 +14,18 @@ export interface LoadedChunk {
 export class WorldData {
   private cache = new Map<string, Promise<LoadedChunk>>();
 
-  private constructor(readonly baseUrl: string, readonly manifest: Manifest) {}
+  private constructor(private get: DataGet, readonly manifest: Manifest) {}
 
   static async load(baseUrl = `${import.meta.env.BASE_URL}data/`): Promise<WorldData> {
-    const res = await fetch(baseUrl + 'manifest.json');
-    if (!res.ok) throw new Error(`manifest.json not found (${res.status}). Run "npm run data" first.`);
-    return new WorldData(baseUrl, await res.json());
+    const get = await openDataSource(baseUrl);
+    const res = await get('manifest.json');
+    if (!res.ok) throw new Error(`Data města se nepodařilo načíst (manifest.json: ${res.status}).`);
+    return new WorldData(get, await res.json());
   }
 
   /** Decodes a height PNG (R = high byte, G = low byte) to elevations in metres. */
-  async fetchHeights(url: string): Promise<Float32Array> {
-    const blob = await (await fetch(url)).blob();
+  async fetchHeights(path: string): Promise<Float32Array> {
+    const blob = await (await this.get(path)).blob();
     // Disable colour management and premultiplication so the bytes stay exact.
     const bmp = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
     const canvas = new OffscreenCanvas(bmp.width, bmp.height);
@@ -39,11 +41,11 @@ export class WorldData {
 
   async loadOverview(): Promise<{ heights: Float32Array; size: number; step: number }> {
     const { file, size, step } = this.manifest.overview;
-    return { heights: await this.fetchHeights(this.baseUrl + file), size, step };
+    return { heights: await this.fetchHeights(file), size, step };
   }
 
   async loadGraphs(): Promise<RoadGraphs> {
-    const res = await fetch(this.baseUrl + (this.manifest.graphFile ?? 'roads.json'));
+    const res = await this.get(this.manifest.graphFile ?? 'roads.json');
     if (!res.ok) throw new Error(`roads.json not found (${res.status}). Run "npm run data:build".`);
     return res.json();
   }
@@ -67,8 +69,8 @@ export class WorldData {
       const info = this.chunkInfo(cx, cz);
       if (!info) return Promise.reject(new Error(`No chunk ${key}`));
       p = Promise.all([
-        fetch(this.baseUrl + info.file).then((r) => r.json() as Promise<ChunkData>),
-        this.fetchHeights(this.baseUrl + info.heightFile),
+        this.get(info.file).then((r) => r.json() as Promise<ChunkData>),
+        this.fetchHeights(info.heightFile),
       ]).then(([data, heights]) => {
         return { info, data, heights, n: Math.round(Math.sqrt(heights.length)) };
       });
