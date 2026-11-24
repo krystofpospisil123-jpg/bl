@@ -173,11 +173,17 @@ export function buildStreetProps(data: ChunkData, rect: Rect, heights: HeightFie
 
   // Parked cars in parking areas.
   const cars: { x: number; z: number; yaw: number }[] = [];
+  const plazas = data.areas.filter((a) => a.kind === 'plaza').map((a) => a.rings);
   for (const a of data.areas) {
     if (a.kind !== 'parking') continue;
     const slots: { x: number; z: number; yaw: number }[] = [];
     parkingSlots(a.rings, slots);
-    for (const s of slots) if (inChunk(s.x, s.z) && hash(s.x, s.z) < 0.72) cars.push(s);
+    for (const s of slots) {
+      if (!inChunk(s.x, s.z) || hash(s.x, s.z) >= 0.72) continue;
+      // OSM may still map old parking where a square has since been built.
+      if (plazas.some((pl) => inPolygon(s.x, s.z, pl))) continue;
+      cars.push(s);
+    }
   }
 
   // Shrubs along residential buildings, kept off roads.

@@ -15,9 +15,11 @@ export const FACADE = {
   ornate: 6, // church / château
   blank: 7, // garages, sheds
   sorela: 8, // 1950s residential blocks: plaster, white windows, balconies
+  civic: 9, // public buildings with white pilasters (e.g. náměstí Republiky)
+  castle: 10, // château: white walls, ochre window surrounds
 } as const;
 
-export const ATLAS_COLS = 9;
+export const ATLAS_COLS = 11;
 const ROWS = 4;
 const T = 256; // tile size in px
 
@@ -25,11 +27,15 @@ type Row = 'upper' | 'balcony' | 'ground' | 'door';
 type Painter = (g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: number, y: number, row: Row) => void;
 
 /** Fills a rect in the colour canvas and the matching roughness (0..1) in the roughness canvas. */
-function rect(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, rough: number) {
+/**
+ * The roughness atlas also carries a tint mask in its blue channel: 255 = take the
+ * building's colour (plaster), 0 = keep the painted colour (white frames, stone, doors).
+ */
+function rect(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, rough: number, tint = true) {
   g.fillStyle = color;
   g.fillRect(x, y, w, h);
   const v = Math.round(rough * 255);
-  r.fillStyle = `rgb(${v},${v},${v})`;
+  r.fillStyle = `rgb(${v},${v},${tint ? 255 : 0})`;
   r.fillRect(x, y, w, h);
 }
 
@@ -55,7 +61,7 @@ function glass(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: numb
   grad.addColorStop(1, '#1b232c');
   g.fillStyle = grad;
   g.fillRect(x, y, w, h);
-  r.fillStyle = 'rgb(18,18,18)';
+  r.fillStyle = 'rgb(18,18,0)';
   r.fillRect(x, y, w, h);
 }
 
@@ -63,14 +69,14 @@ function glass(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: numb
  * A recessed window: reveal shadow, frame, glass with mullions and a transom, sill below.
  */
 function windowAt(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: number, y: number, w: number, h: number,
-  o: { frame?: string; mullions?: number; transom?: boolean; sill?: boolean; surround?: string } = {}) {
+  o: { frame?: string; mullions?: number; transom?: boolean; sill?: boolean; surround?: string; surroundTint?: boolean } = {}) {
   const frame = o.frame ?? '#ececec';
-  if (o.surround) rect(g, r, x - 12, y - 12, w + 24, h + 20, o.surround, 0.85);
+  if (o.surround) rect(g, r, x - 12, y - 12, w + 24, h + 20, o.surround, 0.85, o.surroundTint ?? true);
   // Reveal (the wall's thickness) in shadow, deeper at top and left (sun from above).
   rect(g, r, x - 4, y - 4, w + 8, h + 8, '#9b9b9b', 0.9);
   shade(g, x - 4, y - 4, w + 8, 8, 0.25);
   shade(g, x - 4, y - 4, 6, h + 8, 0.15);
-  rect(g, r, x, y, w, h, frame, 0.55);
+  rect(g, r, x, y, w, h, frame, 0.55, false);
   const f = 5;
   glass(g, r, x + f, y + f, w - 2 * f, h - 2 * f);
   g.fillStyle = frame;
@@ -78,7 +84,7 @@ function windowAt(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: n
   for (let i = 1; i <= mullions; i++) g.fillRect(x + (w * i) / (mullions + 1) - 3, y, 6, h);
   if (o.transom ?? true) g.fillRect(x, y + h * 0.3, w, 6);
   if (o.sill ?? true) {
-    rect(g, r, x - 8, y + h + 4, w + 16, 8, '#d7d7d7', 0.7);
+    rect(g, r, x - 8, y + h + 4, w + 16, 8, '#d7d7d7', 0.7, false);
     shade(g, x - 8, y + h + 12, w + 16, 6, 0.18);
   }
 }
@@ -86,22 +92,22 @@ function windowAt(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: n
 function door(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string, glazed = true) {
   rect(g, r, x - 6, y - 6, w + 12, h + 6, '#9d9d9d', 0.9);
   shade(g, x - 6, y - 6, w + 12, 8, 0.25);
-  rect(g, r, x, y, w, h, color, 0.6);
+  rect(g, r, x, y, w, h, color, 0.6, false);
   if (glazed) glass(g, r, x + 10, y + 12, w - 20, h * 0.55);
-  rect(g, r, x + w - 18, y + h * 0.55, 6, 14, '#c8c8c8', 0.3); // handle
-  rect(g, r, x - 10, y + h, w + 20, 6, '#bdbdbd', 0.9); // step
+  rect(g, r, x + w - 18, y + h * 0.55, 6, 14, '#c8c8c8', 0.3, false); // handle
+  rect(g, r, x - 10, y + h, w + 20, 6, '#bdbdbd', 0.9, false); // step
 }
 
 /** Balcony slab with a railing drawn in front of the lower part of the tile. */
 function balcony(g: CanvasRenderingContext2D, r: CanvasRenderingContext2D, x: number, y: number, rail = '#cfd2d4') {
   // Shadow cast on the wall above and the slab's underside.
   shade(g, x + 18, y + 150, T - 36, 12, 0.22);
-  rect(g, r, x + 14, y + 232, T - 28, 14, '#bfbfbf', 0.85);
+  rect(g, r, x + 14, y + 232, T - 28, 14, '#bfbfbf', 0.85, false);
   shade(g, x + 14, y + 246, T - 28, 10, 0.3);
   g.fillStyle = rail;
   g.fillRect(x + 14, y + 162, T - 28, 6);
   for (let i = 18; i < T - 18; i += 13) g.fillRect(x + i, y + 168, 3, 64);
-  r.fillStyle = 'rgb(90,90,90)';
+  r.fillStyle = 'rgb(90,90,0)';
   r.fillRect(x + 14, y + 162, T - 28, 6);
 }
 
@@ -235,7 +241,7 @@ const STYLES: Painter[] = [
     g.lineTo(wx + w, wy + h);
     g.closePath();
     g.fill();
-    r.fillStyle = 'rgb(25,25,25)';
+    r.fillStyle = 'rgb(25,25,0)';
     r.fill();
     rect(g, r, wx + w / 2 - 3, wy + 20, 6, h - 20, '#ddd2b6', 0.8);
     rect(g, r, wx - 14, wy + h + 6, w + 28, 10, '#d3c8ac', 0.85);
@@ -274,6 +280,32 @@ const STYLES: Painter[] = [
         rect(g, r, x + 100, y + 196, 56, 34, '#3a3d40', 0.6); // cellar window
       }
     }
+  },
+  // 9 civic: two-storey white pilasters framing tall windows (continuous across floors).
+  (g, r, x, y, row) => {
+    rect(g, r, x, y, T, T, '#f2f2f0', 0.93);
+    plasterNoise(g, x, y, 238, 12, 900);
+    // Pilasters on both tile edges (white, not tinted) with a slight shadow beside them.
+    rect(g, r, x, y, 30, T, '#f7f7f5', 0.9, false);
+    rect(g, r, x + T - 30, y, 30, T, '#f7f7f5', 0.9, false);
+    shade(g, x + 30, y, 5, T, 0.15);
+    if (row === 'upper' || row === 'balcony') {
+      windowAt(g, r, x + 72, y + 34, 112, 170, { frame: '#fbfbfb', mullions: 1, transom: true });
+    } else {
+      rect(g, r, x, y + 200, T, 56, '#d7d3c8', 0.95, false); // stone plinth
+      shade(g, x, y + 200, T, 4, 0.25);
+      if (row === 'door') door(g, r, x + 70, y + 30, 116, 170, '#5e4a38');
+      else windowAt(g, r, x + 72, y + 40, 112, 130, { frame: '#fbfbfb' });
+    }
+  },
+  // 10 castle: white walls, small-paned windows in ochre stone surrounds, plain ground floor.
+  (g, r, x, y, row) => {
+    rect(g, r, x, y, T, T, '#f4f4f2', 0.95);
+    plasterNoise(g, x, y, 240, 10, 1400);
+    const surround = { surround: '#c99c4a', surroundTint: false, frame: '#3d3227', mullions: 1, transom: true };
+    if (row === 'door') door(g, r, x + 82, y + 40, 92, 170, '#4a3426', false);
+    else if (row === 'ground') windowAt(g, r, x + 92, y + 70, 72, 100, surround);
+    else windowAt(g, r, x + 90, y + 50, 76, 120, surround);
   },
 ];
 
@@ -356,12 +388,15 @@ export function applyFacadeAtlas(mat: THREE.MeshStandardMaterial) {
         // Walls get dirtier towards the ground.
         float grime = mix(0.84, 1.0, smoothstep(-0.2, 0.9, vFacadeUv.y));
         sampledDiffuseColor.rgb *= mix(grime, 1.0, glassMask);
-        diffuseColor *= sampledDiffuseColor;`,
+        diffuseColor *= sampledDiffuseColor;
+        float facadeTint = textureGrad(roughnessMap, atlasUv, ${grad}).b;`,
       )
+      // Building colour only on plaster (tint mask), not on frames, stone or doors.
+      .replace('#include <color_fragment>', 'diffuseColor.rgb *= mix(vec3(1.0), vColor.rgb, facadeTint);')
       .replace(
         '#include <roughnessmap_fragment>',
         `float roughnessFactor = roughness;\nroughnessFactor *= textureGrad(roughnessMap, atlasUv, ${grad}).g;`,
       );
   };
-  mat.customProgramCacheKey = () => 'facade-atlas-v3';
+  mat.customProgramCacheKey = () => 'facade-atlas-v4';
 }

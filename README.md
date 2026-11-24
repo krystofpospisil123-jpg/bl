@@ -240,10 +240,21 @@ případný externí asset se uvede sem i s licencí.
 
 ## Náměstí Republiky a městské detaily
 
-- **Náměstí Republiky** (u startu) je postavené podle ortofota a fotografií z ulice dodaných
-  hráčem, které sloužily jen jako vzor: dlážděná plocha, čtyři kruhové záhony se stromy,
-  kvetoucí pyramidy, fontána ze země, lavičky, koše a sloupky k parkovišti
-  (`src/world/scenes.ts`).
+- **Náměstí Republiky** (u startu) je postavené podle fotografií z ulice dodaných hráčem (sloužily
+  jen jako vzor). Je to dlouhá dlážděná plocha mezi dvěma pruhy parkovišť, od ulice s kočičími
+  hlavami a sloupky po žlutou budovu s pilastry (OSM 919690221). Na ploše jsou dvě pole fontán
+  ze země, dvě řady kvetoucích pyramid, lavičky a stromořadí. Ortofoto i OSM jsou starší než
+  přestavba náměstí, proto jsou tam pořád parkoviště a auta se na ploše náměstí negenerují.
+  Sousední park se čtyřmi kruhovými záhony a stromy zůstal (`src/world/scenes.ts`).
+- **Zámek Blansko** podle fotografií:
+  - bílá fasáda s okrovými šambránami a červená střecha
+  - hodinová věž s ciferníky
+  - renesanční štít
+  - okrouhlá kamenná bašta
+  - kamenný portál brány
+  - Prvky jsou umístěné podle obrysu z OSM (`src/world/builders/landmarkExtras.ts`).
+- **Rámy oken, parapety a dveře** zůstávají bílé a nepřebírají barvu fasády (maska obarvení
+  v modrém kanálu atlasu drsnosti).
 - **Po celém městě:**
   - plná parkoviště zaparkovaných aut s kolizemi
   - lavičky a koše u pěších ploch a keře u bytových domů

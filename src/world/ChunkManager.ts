@@ -13,6 +13,7 @@ import { buildSigns } from './builders/signs.ts';
 import { buildLamps, type LampSpot } from './builders/props.ts';
 import { buildStreetProps } from './builders/streetProps.ts';
 import { sceneFor } from './scenes.ts';
+import { buildLandmarkExtras } from './builders/landmarkExtras.ts';
 
 /** LOD settings: terrain sample stride, ground texture size, tree detail. */
 const DESKTOP_LODS = [
@@ -252,6 +253,13 @@ export class ChunkManager {
       st.propsGroup = props.group;
       st.lampMesh = lamps.mesh ?? undefined;
       st.propBoxes = props.boxes;
+      if (scene.extras.length) {
+        // Landmark features stay visible at every distance.
+        const extras = buildLandmarkExtras(scene.extras, this.heights, this.mats.props);
+        st.group.add(extras.group);
+        st.disposables.push(extras);
+        st.propBoxes = st.propBoxes.concat(extras.boxes);
+      }
       st.trees = new ChunkTrees(data.data.trees, this.heights, this.mats.trees, lod.trees);
       st.group.add(st.trees.group);
       this.root.add(st.group);
