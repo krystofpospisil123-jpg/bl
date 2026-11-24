@@ -350,6 +350,48 @@ export class Game {
     return { value, text, ready: this.ready };
   }
 
+  /** Cheat codes typed in the cheat menu; returns a message for the player. */
+  cheat(code: string): string {
+    const [cmd, arg] = code.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/);
+    const n = Number(arg);
+    switch (cmd) {
+      case 'penize':
+      case 'money': {
+        const amount = Number.isFinite(n) && n > 0 ? Math.min(n, 1e9) : 10000;
+        this.arsenal.money += amount;
+        return `Přidáno ${formatKc(amount)} (máš ${formatKc(this.arsenal.money)})`;
+      }
+      case 'zbrane':
+        for (const w of ['pistol', 'smg', 'shotgun'] as const) {
+          this.arsenal.owned.add(w);
+          this.arsenal.ammo[w] += 500;
+        }
+        return 'Máš všechny zbraně a 500 nábojů do každé';
+      case 'hvezdy': {
+        const level = Math.max(0, Math.min(5, Number.isFinite(n) ? Math.round(n) : 0));
+        if (!this.police) return 'Policie se ještě načítá';
+        if (level === 0) this.police.clear();
+        else {
+          this.police.clear();
+          this.police.report(level, 'cheat');
+        }
+        return `Hledanost: ${level ? '★'.repeat(level) : 'žádná'}`;
+      }
+      case 'tuning':
+        if (!this.car) return 'Auto ještě není';
+        Object.assign(this.car.tuning, { engine: 3, exhaust: 2, spoiler: true, lowered: true, neon: 0x2f7bff, rims: 0xc9a23a });
+        this.car.applyTuning();
+        return 'Plný tuning hotový';
+      case 'oprava':
+        if (!this.car) return 'Auto ještě není';
+        this.car.setLook(this.car.look.color, this.car.look.type);
+        this.car.applyTuning();
+        return 'Auto je opravené';
+      default:
+        return 'Neznámý kód';
+    }
+  }
+
   /** Play pressed in the menu. */
   start() {
     if (this.mode === 'loading' && this.ready) this.setMode('foot');

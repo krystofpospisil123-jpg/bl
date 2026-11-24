@@ -208,6 +208,19 @@ postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blende
   a tipy. Po načtení menu: Hrát, Nastavení (grafika, zvuk, názvy obchodů), Ovládání, O hře.
   Esc ve hře otevře pauzu (svět se zastaví) s tlačítkem Pokračovat.
 
+## Cheaty
+
+F2 nebo klávesa ; / ` (vlevo od 1) otevře cheat menu (na mobilu Menu → Pauza a cheaty, nebo
+v pauze tlačítko Cheaty). Napiš kód a stiskni Enter:
+
+| Kód | Co udělá |
+| --- | --- |
+| `penize 50000` | přidá peníze (libovolné číslo, bez čísla 10 000 Kč) |
+| `zbrane` | všechny zbraně a 500 nábojů do každé |
+| `hvezdy 0`–`hvezdy 5` | nastaví hledanost (0 = policie odjede) |
+| `tuning` | plný tuning auta |
+| `oprava` | opraví promáčkliny |
+
 ## Zvuky
 
 Všechny zvuky se syntetizují přímo v prohlížeči (Web Audio), žádné nahrávky se nepoužívají:

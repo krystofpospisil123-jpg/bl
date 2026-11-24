@@ -74,6 +74,7 @@ export class Hud {
     this.ammo.id = 'ammo';
     document.body.append(this.speedo, this.prompt, this.wanted, this.money, this.ammo);
     window.addEventListener('keydown', (e) => {
+      if (e.target instanceof HTMLInputElement) return;
       if (e.code === 'KeyM' && e.shiftKey) location.hash = 'mapa';
       if (e.code === 'KeyH') {
         const d = el.querySelector('#help') as HTMLDetailsElement;

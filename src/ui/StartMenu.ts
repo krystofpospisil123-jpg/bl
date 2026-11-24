@@ -25,7 +25,7 @@ export class StartMenu {
   private label: HTMLElement;
   private body: HTMLElement;
   private tip: HTMLElement;
-  private shown: 'loading' | 'main' | 'settings' | 'keys' | 'about' | null = 'loading';
+  private shown: 'loading' | 'main' | 'settings' | 'keys' | 'about' | 'cheats' | null = 'loading';
   private started = false;
   private tipIndex = Math.floor(Math.random() * TIPS.length);
 
@@ -45,7 +45,25 @@ export class StartMenu {
     this.tip = this.el.querySelector('.tip')!;
     this.tip.textContent = `Tip: ${TIPS[this.tipIndex]}`;
     document.body.append(this.el);
+    // Phones have no Esc key: a "Pauza a cheaty" item in the touch menu opens this menu.
+    const touchMenu = document.querySelector('.touch-menu');
+    if (touchMenu) {
+      const b = document.createElement('button');
+      b.textContent = 'Pauza a cheaty';
+      b.addEventListener('click', () => {
+        (touchMenu as HTMLElement).hidden = true;
+        if (this.started) this.pause();
+      });
+      touchMenu.append(b);
+    }
     window.addEventListener('keydown', (e) => {
+      // F2 or ; (the key left of 1 on a Czech keyboard) opens the cheat menu.
+      if ((e.code === 'F2' || e.code === 'Backquote') && this.started && !(e.target instanceof HTMLInputElement)) {
+        e.preventDefault();
+        this.pause();
+        this.show('cheats');
+        return;
+      }
       if (e.code !== 'Escape' || !this.started) return;
       if (this.el.hidden) this.pause();
       else this.resume();
@@ -80,7 +98,7 @@ export class StartMenu {
     this.shown = null;
   }
 
-  private show(view: 'main' | 'settings' | 'keys' | 'about') {
+  private show(view: 'main' | 'settings' | 'keys' | 'about' | 'cheats') {
     this.shown = view;
     this.el.classList.add('ready');
     const back = '<button data-go="main" class="ghost">Zpět</button>';
@@ -89,7 +107,30 @@ export class StartMenu {
         <button data-go="play" class="primary">${this.started ? 'Pokračovat' : 'Hrát'}</button>
         <button data-go="settings">Nastavení</button>
         <button data-go="keys">Ovládání</button>
-        <button data-go="about">O hře</button>`;
+        <button data-go="about">O hře</button>
+        ${this.started ? '<button data-go="cheats">Cheaty</button>' : ''}`;
+    } else if (view === 'cheats') {
+      this.body.innerHTML = `
+        <h3>Cheaty</h3>
+        <input class="cheat" type="text" placeholder="napiš kód a Enter" autocomplete="off" spellcheck="false" />
+        <p class="text small">
+          <b>penize 50000</b> – přidá peníze (číslo si zvol)<br>
+          <b>zbrane</b> – všechny zbraně a 500 nábojů do každé<br>
+          <b>hvezdy 0–5</b> – nastaví hledanost (0 = policie tě nechá)<br>
+          <b>tuning</b> – plný tuning auta (motor, výfuk, křídlo, neon…)<br>
+          <b>oprava</b> – opraví auto
+        </p>
+        <p class="cheat-msg"></p>
+        ${back}`;
+      const input = this.body.querySelector<HTMLInputElement>('input.cheat')!;
+      const msg = this.body.querySelector<HTMLElement>('.cheat-msg')!;
+      input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key !== 'Enter') return;
+        msg.textContent = this.game.cheat(input.value);
+        input.value = '';
+      });
+      setTimeout(() => input.focus(), 50);
     } else if (view === 'settings') {
       const q = (v: Quality, n: string) => `<button data-q="${v}" class="${settings.quality === v ? 'on' : ''}">${n}</button>`;
       this.body.innerHTML = `
