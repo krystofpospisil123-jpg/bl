@@ -112,7 +112,12 @@ src/
 Atribuce se zobrazuje ve hře vpravo dole. Vygenerovaná data v `public/data/` jsou odvozená
 databáze z OSM, a proto také spadají pod ODbL.
 
-Žádné cizí modely, textury ani zvuky se nepoužívají. Auta a postavy jsou vlastní modely
+Fasády budov jsou z AI vygenerovaných předloh (Higgsfield, model Z-Image, popsané slovně podle
+stylů v Blansku; žádné fotky ze Street View se nenahrávaly) rozřezaných na dlaždice skriptem
+`scripts/textures/build_facades.py` → `public/data/textures/facades-photo*.{jpg,png}`: rodinný dům,
+panelák, dům z 50. let, starý městský dům, úřad/zámek, cihlová továrna, prosklená budova
+a obchodní hala. Světlá omítka se barví barvou budovy (maska v modrém kanálu), sklo je lesklé.
+Další cizí modely, textury ani zvuky se nepoužívají. Auta a postavy jsou vlastní modely
 postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blender v Higgsfield
 3D Jutsu, export `public/data/models/vehicles.glb`). Ostatní je procedurální.
 

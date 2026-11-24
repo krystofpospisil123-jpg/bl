@@ -13,7 +13,7 @@ export async function openDataSource(baseUrl: string): Promise<DataGet> {
   return async (path) => {
     const bytes = files.get(path);
     if (!bytes) return new Response(null, { status: 404 });
-    const type = path.endsWith('.png') ? 'image/png' : 'application/json';
+    const type = path.endsWith('.png') ? 'image/png' : path.endsWith('.jpg') ? 'image/jpeg' : path.endsWith('.glb') ? 'model/gltf-binary' : 'application/json';
     return new Response(new Blob([bytes as BlobPart], { type }));
   };
 }

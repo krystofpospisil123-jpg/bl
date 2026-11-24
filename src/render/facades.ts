@@ -346,6 +346,24 @@ export function makeFacadeAtlas(): FacadeAtlas {
   return { map, roughness };
 }
 
+/** Facade columns replaced by the photo atlas, in the order of its columns (see scripts/textures). */
+export const PHOTO_COLUMNS = [FACADE.plaster, FACADE.panel, FACADE.oldtown, FACADE.industrial, FACADE.glass, FACADE.supermarket, FACADE.sorela, FACADE.civic, FACADE.castle];
+
+/**
+ * Draws the photo facades (AI-generated texture sheets, cut into tiles) over the painted ones:
+ * `color` into the colour atlas, `aux` (G = roughness, B = tint mask) into the roughness atlas.
+ */
+export function applyPhotoFacades(atlas: { map: THREE.Texture; roughness: THREE.Texture }, color: CanvasImageSource, aux: CanvasImageSource) {
+  const g = (atlas.map.image as HTMLCanvasElement).getContext('2d')!;
+  const r = (atlas.roughness.image as HTMLCanvasElement).getContext('2d')!;
+  PHOTO_COLUMNS.forEach((col, i) => {
+    g.drawImage(color, i * T, 0, T, T * ROWS, col * T, 0, T, T * ROWS);
+    r.drawImage(aux, i * T, 0, T, T * ROWS, col * T, 0, T, T * ROWS);
+  });
+  atlas.map.needsUpdate = true;
+  atlas.roughness.needsUpdate = true;
+}
+
 /**
  * Patches a MeshStandardMaterial so `uv` (bays, floors) is mapped into the atlas using the
  * per-vertex `facade` attribute (x = upper-floor style, y = ground-floor style).

@@ -2,6 +2,7 @@
 // and a free camera for exploring.
 import * as THREE from 'three';
 import { loadModels } from '../assets/models.ts';
+import { applyPhotoFacades } from '../render/facades.ts';
 import type { WorldData } from '../world/WorldData.ts';
 import { HeightField } from '../world/HeightField.ts';
 import { ChunkManager } from '../world/ChunkManager.ts';
@@ -143,6 +144,11 @@ export class Game {
 
     this.camera.position.set(SPAWN.x + 30, 330, SPAWN.z + 30);
     // Chunks wait for the aerial photo so every ground texture is painted with it.
+    // Photo facades (AI-generated texture sheets) replace the painted ones when they arrive.
+    Promise.all([world.loadImage('textures/facades-photo.jpg'), world.loadImage('textures/facades-photo-aux.png')]).then(
+      ([color, aux]) => applyPhotoFacades({ map: mats.walls.map!, roughness: mats.walls.roughnessMap! }, color, aux),
+      (err) => console.warn('Fotky fasád se nenačetly, zůstávají kreslené', err),
+    );
     // Car and pedestrian models are needed before the first chunks (parked cars) and traffic.
     const models = world.loadModelsFile().then((buf) => loadModels(buf)).catch((err) => {
       console.error('Modely aut a postav se nenačetly, používám jednoduché tvary', err);

@@ -54,6 +54,13 @@ export class WorldData {
     return { bitmap, step: g.step, half: this.manifest.halfExtent };
   }
 
+  /** Decodes an image from the world data (no colour conversion, so masks stay exact). */
+  async loadImage(path: string): Promise<ImageBitmap> {
+    const res = await this.get(path);
+    if (!res.ok) throw new Error(`${path}: ${res.status}`);
+    return createImageBitmap(await res.blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+  }
+
   /** Cars and pedestrians made in Blender (GLB). */
   async loadModelsFile(): Promise<ArrayBuffer> {
     const res = await this.get('models/vehicles.glb');
