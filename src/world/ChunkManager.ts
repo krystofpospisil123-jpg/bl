@@ -259,7 +259,7 @@ export class ChunkManager {
       st.propBoxes = props.boxes;
       if (scene.extras.length) {
         // Landmark features stay visible at every distance.
-        const extras = buildLandmarkExtras(scene.extras, this.heights, this.mats.props);
+        const extras = buildLandmarkExtras(scene.extras, this.heights, this.mats.props, data.data);
         st.group.add(extras.group);
         st.disposables.push(extras);
         st.propBoxes = st.propBoxes.concat(extras.boxes);

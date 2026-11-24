@@ -1,7 +1,7 @@
 {
  "version": 1,
  "name": "Blansko: Open World",
- "generated": "2026-11-24T10:59:21.630Z",
+ "generated": "2026-11-24T15:52:14.980Z",
  "origin": {
   "lat": 49.3628,
   "lon": 16.6448
@@ -84,7 +84,7 @@
    "heightFile": "chunks/c_5_0.png",
    "counts": {
     "buildings": 15,
-    "roads": 16,
+    "roads": 15,
     "trees": 39
    }
   },

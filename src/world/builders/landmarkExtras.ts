@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { Extra } from '../scenes.ts';
 import type { HeightField } from '../HeightField.ts';
+import type { ChunkData } from '../format.ts';
 
 const WHITE = 0xf2f0ea, OCHRE = 0xc99c4a, ROOF = 0xa8462e, STONE = 0xb8b0a0, DARK = 0x2c2a28;
 
@@ -117,12 +118,106 @@ function canopy(width: number, height: number, colour: number): THREE.BufferGeom
   ])!;
 }
 
-export function buildLandmarkExtras(extras: Extra[], heights: HeightField, material: THREE.Material) {
+/** Straight beam of square-ish section between two points (world space). */
+function beam(p0: THREE.Vector3, p1: THREE.Vector3, w: number, d = w): THREE.BufferGeometry {
+  const dir = p1.clone().sub(p0);
+  const len = dir.length();
+  const g = new THREE.BoxGeometry(w, len, d);
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize()));
+  return g.translate((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, (p0.z + p1.z) / 2);
+}
+
+/** Deck height of a bridge road at (x, z): elevation of the nearest point on its polyline. */
+function deckAt(data: ChunkData, roadId: number, x: number, z: number): number | null {
+  let best = Infinity, y: number | null = null;
+  for (const r of data.roads) {
+    if (r.id !== roadId || !r.elev) continue;
+    const p = r.pts;
+    for (let i = 0; i + 3 < p.length; i += 2) {
+      const dx = p[i + 2] - p[i], dz = p[i + 3] - p[i + 1], l2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((x - p[i]) * dx + (z - p[i + 1]) * dz) / l2));
+      const dist = Math.hypot(p[i] + dx * t - x, p[i + 1] + dz * t - z);
+      if (dist < best) { best = dist; y = r.elev[i / 2] + (r.elev[i / 2 + 1] - r.elev[i / 2]) * t; }
+    }
+  }
+  return y;
+}
+
+/**
+ * Tied steel arch over a bridge deck, built in world space: two ribs leaning towards each other,
+ * braced together at the top, crossing (network) hangers down to the deck edges, piers at the ends.
+ */
+function archBridge(e: Extra, data: ChunkData, heights: HeightField): THREE.BufferGeometry | null {
+  const ax = e.x, az = e.z, bx = e.x2!, bz = e.z2!;
+  const len = Math.hypot(bx - ax, bz - az);
+  const ux = (bx - ax) / len, uz = (bz - az) / len, nx = -uz, nz = ux;
+  const H = e.height ?? 14, half = (e.size ?? 7) / 2 + 0.6, lean = 1.3;
+  const N = 30;
+  const deck: number[] = [];
+  for (let i = 0; i <= N; i++) {
+    const y = deckAt(data, e.road!, ax + (bx - ax) * (i / N), az + (bz - az) * (i / N));
+    if (y === null) return null;
+    deck.push(y);
+  }
+  const deckY = (t: number) => {
+    const f = Math.min(N - 1e-6, Math.max(0, t * N)), i = Math.floor(f);
+    return deck[i] + (deck[i + 1] - deck[i]) * (f - i);
+  };
+  const rise = (t: number) => 4 * t * (1 - t);
+  const rib = (t: number, side: number) => {
+    const off = side * (half - lean * rise(t));
+    return new THREE.Vector3(ax + (bx - ax) * t + nx * off, deckY(t) + 0.6 + H * rise(t), az + (bz - az) * t + nz * off);
+  };
+  const edge = (t: number, side: number) => new THREE.Vector3(ax + (bx - ax) * t + nx * side * half, deckY(t) + 0.3, az + (bz - az) * t + nz * side * half);
+  const parts: THREE.BufferGeometry[] = [];
+  const steel = e.colour ?? 0xe4e7ea;
+  for (let i = 0; i < N; i++) {
+    const t0 = i / N, t1 = (i + 1) / N;
+    for (const sd of [-1, 1]) parts.push(col(beam(rib(t0, sd), rib(t1, sd), 0.6, 0.75), steel));
+    if (rise(t0) > 0.5) {
+      // Top bracing: struts and diagonals between the two ribs.
+      parts.push(col(beam(rib(t0, -1), rib(t0, 1), 0.22), steel));
+      parts.push(col(beam(rib(t0, -1), rib(t1, 1), 0.16), steel));
+    }
+  }
+  // Crossing hangers (network arch).
+  for (let i = 2; i <= N - 2; i += 2) {
+    const t = i / N;
+    for (const sd of [-1, 1]) for (const dt of [-0.1, 0.1]) {
+      const td = t + dt;
+      if (td <= 0.02 || td >= 0.98) continue;
+      parts.push(col(beam(rib(t, sd), edge(td, sd), 0.08), 0xcfd3d6));
+    }
+  }
+  // Steel tie girders along the deck edges and concrete piers under both ends.
+  for (const sd of [-1, 1]) parts.push(col(beam(edge(0, sd), edge(1, sd), 0.5, 0.9), steel));
+  for (const t of [0, 1]) {
+    const cx = ax + (bx - ax) * t, cz = az + (bz - az) * t;
+    const top = deckY(t) - 1, ground = heights.sample(cx, cz) - 0.5;
+    if (top - ground < 0.5) continue;
+    const pier = new THREE.BoxGeometry(half * 2 + 0.6, top - ground, 1.8)
+      .rotateY(Math.atan2(ux, uz)).translate(cx, (top + ground) / 2, cz);
+    parts.push(col(pier, 0xb9b6ae));
+  }
+  return mergeGeometries(parts);
+}
+
+export function buildLandmarkExtras(extras: Extra[], heights: HeightField, material: THREE.Material, data?: ChunkData) {
   const group = new THREE.Group();
   const boxes: number[] = [];
   const geos: THREE.BufferGeometry[] = [];
   for (const e of extras) {
-    let geo: THREE.BufferGeometry;
+    if (e.kind === 'arch') {
+      const g = data && archBridge(e, data, heights);
+      if (!g) continue;
+      g.computeVertexNormals();
+      const mesh = new THREE.Mesh(g, material);
+      mesh.castShadow = mesh.receiveShadow = true;
+      group.add(mesh);
+      geos.push(g);
+      continue;
+    }
+    let geo!: THREE.BufferGeometry;
     switch (e.kind) {
       case 'clockTower': geo = clockTower(e.size ?? 7); break;
       case 'bastion': geo = bastion(e.size ?? 5); break;

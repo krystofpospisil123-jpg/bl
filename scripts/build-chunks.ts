@@ -213,13 +213,61 @@ function addPolyline(
   for (const c of [...runs.keys()]) flush(c);
 }
 
-/** Deck elevation for bridges: linear between the terrain at both ends, never below terrain + 1 m. */
+/** Inserts points every `step` m; new points get unique negative node ids (never junctions). */
+function densify(line: Vec2[], nodes: number[], wayId: number, step = 5): { line: Vec2[]; nodes: number[] } {
+  const outL: Vec2[] = [line[0]], outN = [nodes[0]];
+  let k = 0;
+  for (let i = 1; i < line.length; i++) {
+    const [ax, ay] = line[i - 1], [bx, by] = line[i];
+    const n = Math.floor(Math.hypot(bx - ax, by - ay) / step);
+    for (let j = 1; j < n; j++) {
+      outL.push([ax + ((bx - ax) * j) / n, ay + ((by - ay) * j) / n]);
+      outN.push(-(wayId * 1000 + ++k));
+    }
+    outL.push(line[i]);
+    outN.push(nodes[i]);
+  }
+  return { line: outL, nodes: outN };
+}
+
+/** Lines a bridge must clear: railways (7 m for overhead wires) and rivers/streams (4 m). */
+const clearanceLines: { line: Vec2[]; clear: number }[] = [];
+
+function segCross(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number | null {
+  const r1x = b[0] - a[0], r1y = b[1] - a[1], r2x = d[0] - c[0], r2y = d[1] - c[1];
+  const den = r1x * r2y - r1y * r2x;
+  if (Math.abs(den) < 1e-9) return null;
+  const t = ((c[0] - a[0]) * r2y - (c[1] - a[1]) * r2x) / den;
+  const u = ((c[0] - a[0]) * r1y - (c[1] - a[1]) * r1x) / den;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? t : null;
+}
+
+/**
+ * Deck elevation for bridges: linear between the terrain at both ends, never below terrain + 1 m,
+ * and raised over railways and rivers it crosses, with ramps of at most 6 % towards the ends.
+ */
 function bridgeElevations(line: Vec2[]): number[] {
   const d = [0];
   for (let i = 1; i < line.length; i++) d.push(d[i - 1] + Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1]));
   const total = d[d.length - 1] || 1;
   const h0 = elevation(...line[0]), h1 = elevation(...line[line.length - 1]);
-  return line.map((p, i) => Math.max(h0 + ((h1 - h0) * d[i]) / total, elevation(p[0], p[1]) + 1));
+  const peaks: { at: number; h: number }[] = [];
+  for (let i = 0; i + 1 < line.length; i++) {
+    for (const { line: o, clear } of clearanceLines) {
+      for (let j = 0; j + 1 < o.length; j++) {
+        const t = segCross(line[i], line[i + 1], o[j], o[j + 1]);
+        if (t === null) continue;
+        const p: Vec2 = [line[i][0] + (line[i + 1][0] - line[i][0]) * t, line[i][1] + (line[i + 1][1] - line[i][1]) * t];
+        peaks.push({ at: d[i] + (d[i + 1] - d[i]) * t, h: elevation(...p) + clear });
+      }
+    }
+  }
+  return line.map((p, i) => {
+    let e = Math.max(h0 + ((h1 - h0) * d[i]) / total, elevation(p[0], p[1]) + 1);
+    // Only lift the deck where both ends leave room for a ramp (short footbridges stay flat).
+    for (const pk of peaks) e = Math.max(e, Math.min(pk.h - 0.06 * Math.abs(d[i] - pk.at), h0 + 0.06 * d[i], h1 + 0.06 * (total - d[i])));
+    return e;
+  });
 }
 
 /** Clips a polygon (outer + holes) into every chunk it overlaps. */
@@ -342,6 +390,13 @@ async function main() {
 
   for (const el of osm.elements) {
     const t = el.tags ?? {};
+    if (el.type !== 'way' || !el.geometry || t.bridge || t.tunnel) continue;
+    const clear = t.railway === 'rail' ? 7 : t.waterway === 'river' || t.waterway === 'stream' || t.waterway === 'canal' ? 4 : 0;
+    if (clear) clearanceLines.push({ line: el.geometry.filter((p): p is OsmGeomPoint => !!p).map(toMap), clear });
+  }
+
+  for (const el of osm.elements) {
+    const t = el.tags ?? {};
 
     // --- Nodes: individual trees and points of interest
     if (el.type === 'node') {
@@ -363,7 +418,7 @@ async function main() {
       continue;
     }
 
-    const line = (el.geometry ?? []).filter((p): p is OsmGeomPoint => !!p).map(toMap);
+    let line = (el.geometry ?? []).filter((p): p is OsmGeomPoint => !!p).map(toMap);
 
     // --- Buildings
     if (t.building && t.building !== 'no') {
@@ -410,9 +465,12 @@ async function main() {
       const layer = parseInt(t.layer ?? '', 10);
       const tunnel = t.tunnel === 'yes' || t.tunnel === 'culvert';
       const bridge = !!t.bridge && t.bridge !== 'no';
+      // Bridge decks get points every 5 m so their height profile can rise over what they cross.
+      let nodes = el.nodes;
+      if (bridge && nodes && nodes.length === line.length) ({ line, nodes } = densify(line, nodes, el.id));
       if (!tunnel && !bridge && STREET_TREE_ROADS[t.highway]) streetTreeRoads.push({ id: el.id, line, w, chance: STREET_TREE_ROADS[t.highway] });
-      if (el.nodes && el.nodes.length === line.length && !tunnel) {
-        graphWays.push({ id: el.id, tags: t, nodes: el.nodes, pts: line, elev: bridge ? bridgeElevations(line).map((e) => e + 0.1) : undefined });
+      if (nodes && nodes.length === line.length && !tunnel) {
+        graphWays.push({ id: el.id, tags: t, nodes, pts: line, elev: bridge ? bridgeElevations(line).map((e) => e + 0.1) : undefined });
       }
       addPolyline(line, w / 2 + 1, (pts, elev) => ({
         id: el.id, kind: t.highway, w, pts, ...(elev ? { elev } : {}),
@@ -432,6 +490,7 @@ async function main() {
     if (t.railway && el.type === 'way' && line.length >= 2) {
       const tunnel = t.tunnel === 'yes';
       const bridge = !!t.bridge && t.bridge !== 'no';
+      if (bridge) line = densify(line, line.map((_, i) => i), el.id).line;
       addPolyline(line, 3, (pts, elev) => ({
         id: el.id, kind: t.railway, w: 4, pts, ...(elev ? { elev } : {}),
         ...(bridge ? { bridge: true } : {}),

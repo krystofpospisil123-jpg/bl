@@ -17,7 +17,7 @@ export interface PropSpot {
 
 /** Larger hand-made structures attached to landmark buildings. */
 export interface Extra {
-  kind: 'clockTower' | 'bastion' | 'portal' | 'gable' | 'panel' | 'canopy';
+  kind: 'clockTower' | 'bastion' | 'portal' | 'gable' | 'panel' | 'canopy' | 'arch';
   x: number;
   z: number;
   /** Direction the feature faces (rad, 0 = +z). */
@@ -28,6 +28,10 @@ export interface Extra {
   /** Panel/canopy height (m) and colour. */
   height?: number;
   colour?: number;
+  /** Arch bridge: the bridge road (OSM id) and the far end of the arch (x, z is the near end). */
+  road?: number;
+  x2?: number;
+  z2?: number;
 }
 
 export interface Scene {
@@ -258,7 +262,30 @@ function wanklovoNamesti(): Scene {
   return { areas: [{ id: -1003, kind: 'plaza', rings: [ring] }], props, trees, extras: [] };
 }
 
-const SCENES: Scene[] = [treeBedPark(), namestiRepubliky(), zamek(), wanklovoNamesti(), kauflandPark(), lidlPark()];
+/**
+ * Bridge from the roundabout on Fügnerova over the Svitava and the railway (3D map and street
+ * photos): a white steel tied arch with two ribs braced at the top and crossing hangers.
+ * Penny (white two-storey store, red entrance), JYSK hall and the tall yellow tower block nearby.
+ */
+function fugnerovaBridge(): Scene {
+  // Bridge axis from the industrial side (-133, 860) towards the roundabout (-61, 735).
+  const ax = -133, az = 860, bx = -61, bz = 735;
+  const len = Math.hypot(bx - ax, bz - az);
+  const at = (d: number) => ({ x: ax + ((bx - ax) * d) / len, z: az + ((bz - az) * d) / len });
+  const a = at(50), b = at(120);
+  const extras: Extra[] = [
+    { kind: 'arch', x: a.x, z: a.z, x2: b.x, z2: b.z, yaw: 0, road: 964244290, height: 14, size: 7, colour: 0xe4e7ea },
+    // Penny: red entrance canopy on the corner facing Fügnerova.
+    { kind: 'canopy', x: 49.4, z: 699.5, yaw: -1.2, size: 11, height: 3.2, colour: 0xc3262b },
+    { kind: 'panel', x: 49.3, z: 699.4, yaw: -1.2, base: 0.2, size: 11, height: 3.3, colour: 0xc3262b },
+  ];
+  const pylons: Pylon[] = [
+    { x: 40, z: 686.5, yaw: 0.42, text: 'Penny', generic: 'Supermarket', height: 7, board: 2.6, frame: '#8d9296' },
+  ];
+  return { areas: [], props: [], trees: [], extras, pylons };
+}
+
+const SCENES: Scene[] = [fugnerovaBridge(), treeBedPark(), namestiRepubliky(), zamek(), wanklovoNamesti(), kauflandPark(), lidlPark()];
 
 function ringBox(r: number[]) {
   let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;

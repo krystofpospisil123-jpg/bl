@@ -95,7 +95,8 @@ src/
 - **Výšky budov:** `height` nebo `building:levels` z OSM (`tagged: true`). Jinak odhad podle typu
   a půdorysné plochy. Základ budovy leží na nejnižším bodě terénu pod půdorysem.
 - **Silnice a vodní toky** jsou v každé dlaždici, které se dotýkají, takže se na okrajích neusekávají.
-  Mosty mají výšku mostovky (`elev`) interpolovanou mezi konci mostu.
+  Mosty mají výšku mostovky (`elev`) interpolovanou mezi konci mostu; nad tratí se zvednou na 7 m
+  a nad řekou na 4 m (rampy nejvýš 6 %). Body mostovky jsou po 5 m, aby profil mohl stoupat.
 - **Stromy:** jednotlivé stromy z OSM a procedurálně rozmístěné stromy v lesích, parcích a sadech
   (deterministicky, mimo silnice, budovy a vodu).
 
@@ -262,6 +263,9 @@ případný externí asset se uvede sem i s licencí.
   - naproti řada obchodů s oranžovým a tmavým obkladem, průběžnou markýzou a pylonem se jmény nájemců
   - šipky a přerušované čáry v uličkách, vysoké šedé lampy se dvěma rameny, mladé stromky
   - Cedule mají jen obyčejný text bez log a firemních barev (N přepne na obecné názvy).
+- **Most z Fügnerovy přes Svitavu a trať**: bílý ocelový obloukový most se dvěma žebry, ztužením
+  nahoře a křížícími se závěsy. Okolí: Penny (bílá patrová budova s červeným vchodem a pylonem),
+  hala JYSK s červenou sedlovou střechou a vysoký žlutý panelový dům.
 - **Parkoviště** mají namalované bílé čáry stání a auta stojí v nich; uličky zmapované jako
   obslužné cesty zůstávají volné.
 - **Rámy oken, parapety a dveře** zůstávají bílé a nepřebírají barvu fasády (maska obarvení

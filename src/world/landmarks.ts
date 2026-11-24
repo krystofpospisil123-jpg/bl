@@ -54,6 +54,13 @@ export const LANDMARKS: Record<number, LandmarkStyle> = {
   1280153528: { h: 7.5, colour: '#d5d8da', facade: FACADE.supermarket, groundFacade: FACADE.glass, signFacing: Math.PI / 2, label: 'Lidl', use: 'shop:supermarket', sign: true },
   253796332: { h: 7, colour: '#e4e6e7', facade: FACADE.supermarket, groundFacade: FACADE.glass, signFacing: Math.PI / 2 },
   1088075514: { h: 7, colour: '#e9ebec', facade: FACADE.supermarket, groundFacade: FACADE.supermarket, signFacing: Math.PI / 2 },
+  // --- Fügnerova / Svitavská (street photos and 3D map)
+  // Penny: white two-storey building, glazed ground floor, red entrance (world/scenes.ts).
+  254004784: { h: 7.5, colour: '#f0f0ee', roof: 'flat', facade: FACADE.plaster, groundFacade: FACADE.glass, signFacing: Math.PI },
+  // Tall yellow tower block behind it (twelve floors).
+  254004783: { h: 38, colour: '#e2c36c', roof: 'flat', facade: FACADE.panel, groundFacade: FACADE.panel },
+  // JYSK: grey-blue hall with a red gabled roof, entrance facing the car park and Svitavská.
+  253974411: { h: 7, colour: '#6f7f8a', roofColour: '#b0392d', roof: 'gabled', facade: FACADE.supermarket, groundFacade: FACADE.glass, signFacing: Math.PI / 2 },
   // Městský úřad (town hall)
   // (resolved by use=amenity:townhall below, no id override needed)
 };
