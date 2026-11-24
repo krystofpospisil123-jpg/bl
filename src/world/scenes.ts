@@ -65,7 +65,17 @@ function namestiRepubliky(): Scene {
   const half = 10;
   /** Point at distance t along the axis and s across it. */
   const at = (t: number, s: number) => ({ x: start.x + ux * t + vx * s, z: start.z + uz * t + vz * s });
-  const corners = [at(0, -half), at(len, -half), at(len, half), at(0, half)];
+  // The street (OSM "náměstí Republiky", 7 m wide) is not exactly perpendicular to the axis, so the
+  // square's street edge and its bollards follow the street: a line 2 m beyond the kerb.
+  const road = { x: -27.7, z: 150.9, dx: -0.342, dz: -0.94 };
+  const nx = road.dz * -1, nz = road.dx; // normal pointing from the street towards the square
+  const edge = { x: road.x + nx * 5.5, z: road.z + nz * 5.5 };
+  /** Axis distance at which the line at offset s across meets the street edge. */
+  const tEdge = (s2: number) => {
+    const px = start.x + vx * s2 - edge.x, pz = start.z + vz * s2 - edge.z;
+    return -(px * nx + pz * nz) / (ux * nx + uz * nz);
+  };
+  const corners = [at(tEdge(-half), -half), at(len, -half), at(len, half), at(tEdge(half), half)];
   const square = corners.flatMap((c) => [c.x, c.z]);
   const props: PropSpot[] = [];
   const trees: number[] = [];
@@ -82,8 +92,12 @@ function namestiRepubliky(): Scene {
     props.push({ kind: 'bench', ...at(t + 5, 8.8), yaw: Math.atan2(-vx, -vz) });
   }
   for (const [t, s2] of [[15, -8.8], [33, 8.8], [52, -8.8]]) props.push({ kind: 'bin', ...at(t, s2), yaw: 0 });
-  // Bollards across the end that meets the street.
-  for (let s2 = -half + 0.5; s2 <= half - 0.5; s2 += 2.4) props.push({ kind: 'bollard', ...at(-0.8, s2), yaw: 0 });
+  // Bollards in a straight row along the street edge.
+  const b0 = corners[0], b1 = corners[3];
+  const blen = Math.hypot(b1.x - b0.x, b1.z - b0.z);
+  for (let d = 0.6; d <= blen - 0.6; d += 2.4) {
+    props.push({ kind: 'bollard', x: b0.x + ((b1.x - b0.x) * d) / blen - nx * 0.6, z: b0.z + ((b1.z - b0.z) * d) / blen - nz * 0.6, yaw: 0 });
+  }
   // Rows of trees between the square and the parking on both sides.
   for (let t = 5; t < len; t += 12) {
     const a = at(t, -half - 1.8), b = at(t + 6, half + 1.8);
