@@ -95,8 +95,8 @@ src/
 - **Výšky budov:** `height` nebo `building:levels` z OSM (`tagged: true`). Jinak odhad podle typu
   a půdorysné plochy. Základ budovy leží na nejnižším bodě terénu pod půdorysem.
 - **Silnice a vodní toky** jsou v každé dlaždici, které se dotýkají, takže se na okrajích neusekávají.
-  Mosty mají výšku mostovky (`elev`) interpolovanou mezi konci mostu; nad tratí se zvednou na 7 m
-  a nad řekou na 4 m (rampy nejvýš 6 %). Body mostovky jsou po 5 m, aby profil mohl stoupat.
+  Mosty mají výšku mostovky (`elev`) interpolovanou mezi konci mostu; nad tratí se zvednou na 10 m
+  a nad řekou na 5 m (rampy nejvýš 10 %). Na koncích mostovka plynule navazuje na silnici bez schodu. Body mostovky jsou po 5 m, aby profil mohl stoupat.
 - **Stromy:** jednotlivé stromy z OSM a procedurálně rozmístěné stromy v lesích, parcích a sadech
   (deterministicky, mimo silnice, budovy a vodu).
 

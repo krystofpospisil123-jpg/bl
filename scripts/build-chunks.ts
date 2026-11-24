@@ -230,7 +230,7 @@ function densify(line: Vec2[], nodes: number[], wayId: number, step = 5): { line
   return { line: outL, nodes: outN };
 }
 
-/** Lines a bridge must clear: railways (7 m for overhead wires) and rivers/streams (4 m). */
+/** Lines a bridge must clear: railways (10 m, room for trains and overhead wires) and rivers/streams (5 m). */
 const clearanceLines: { line: Vec2[]; clear: number }[] = [];
 
 function segCross(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number | null {
@@ -243,8 +243,9 @@ function segCross(a: Vec2, b: Vec2, c: Vec2, d: Vec2): number | null {
 }
 
 /**
- * Deck elevation for bridges: linear between the terrain at both ends, never below terrain + 1 m,
- * and raised over railways and rivers it crosses, with ramps of at most 6 % towards the ends.
+ * Deck elevation for bridges: linear between the terrain at both ends, at least 1 m above the
+ * terrain in between (reached gradually, so the deck meets the road at the ends without a step),
+ * and raised over railways and rivers it crosses, with ramps of at most 10 % towards the ends.
  */
 function bridgeElevations(line: Vec2[]): number[] {
   const d = [0];
@@ -262,10 +263,12 @@ function bridgeElevations(line: Vec2[]): number[] {
       }
     }
   }
+  const grade = 0.1;
   return line.map((p, i) => {
-    let e = Math.max(h0 + ((h1 - h0) * d[i]) / total, elevation(p[0], p[1]) + 1);
+    const fromEnd = Math.min(d[i], total - d[i]);
+    let e = Math.max(h0 + ((h1 - h0) * d[i]) / total, elevation(p[0], p[1]) + Math.min(1, grade * fromEnd));
     // Only lift the deck where both ends leave room for a ramp (short footbridges stay flat).
-    for (const pk of peaks) e = Math.max(e, Math.min(pk.h - 0.06 * Math.abs(d[i] - pk.at), h0 + 0.06 * d[i], h1 + 0.06 * (total - d[i])));
+    for (const pk of peaks) e = Math.max(e, Math.min(pk.h - grade * Math.abs(d[i] - pk.at), h0 + grade * d[i], h1 + grade * (total - d[i])));
     return e;
   });
 }
@@ -391,7 +394,7 @@ async function main() {
   for (const el of osm.elements) {
     const t = el.tags ?? {};
     if (el.type !== 'way' || !el.geometry || t.bridge || t.tunnel) continue;
-    const clear = t.railway === 'rail' ? 7 : t.waterway === 'river' || t.waterway === 'stream' || t.waterway === 'canal' ? 4 : 0;
+    const clear = t.railway === 'rail' ? 10 : t.waterway === 'river' || t.waterway === 'stream' || t.waterway === 'canal' ? 5 : 0;
     if (clear) clearanceLines.push({ line: el.geometry.filter((p): p is OsmGeomPoint => !!p).map(toMap), clear });
   }
 
