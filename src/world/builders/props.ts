@@ -17,6 +17,24 @@ function coloured(g: THREE.BufferGeometry, hex: number): THREE.BufferGeometry {
 }
 
 let lampGeo: THREE.BufferGeometry | null = null;
+let modernGeo: THREE.BufferGeometry | null = null;
+
+/** Centre of town: the red curved-arm lamps are used within this radius, modern grey LED lamps outside. */
+const RED_LAMPS = { x: -40, z: 120, r: 750 };
+
+/** Modern grey pole with a short straight arm and a flat LED head. */
+function modernLampGeometry(): THREE.BufferGeometry {
+  if (modernGeo) return modernGeo;
+  const grey = 0x8d9296;
+  modernGeo = mergeGeometries([
+    coloured(new THREE.CylinderGeometry(0.06, 0.1, 8, 8).translate(0, 4, 0), grey),
+    coloured(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 6).rotateX(Math.PI / 2 - 0.15).translate(0, 8.05, 0.68), grey),
+    coloured(new THREE.BoxGeometry(0.28, 0.08, 0.7).translate(0, 8.12, 1.45), 0x5d6266),
+    coloured(new THREE.BoxGeometry(0.22, 0.02, 0.6).translate(0, 8.07, 1.45), 0xf4f7ff),
+  ])!;
+  modernGeo.computeVertexNormals();
+  return modernGeo;
+}
 
 /** Lamp post facing +Z (the arm reaches over the street). */
 function lampGeometry(): THREE.BufferGeometry {
@@ -83,15 +101,22 @@ export function buildLamps(data: ChunkData, rect: { minX: number; minZ: number; 
   }
   const lamps: LampSpot[] = [];
   if (!spots.length) return { mesh: null, lamps };
-  const mesh = new THREE.InstancedMesh(lampGeometry(), material, spots.length);
+  const mesh = new THREE.Group();
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
-  spots.forEach((s, i) => {
-    const y = heights.sample(s.x, s.z) - 0.1;
-    m.compose(new THREE.Vector3(s.x, y, s.z), q.setFromAxisAngle(up, s.yaw), one);
-    mesh.setMatrixAt(i, m);
-    lamps.push({ x: s.x + Math.sin(s.yaw) * 1.45, y: y + 6.95, z: s.z + Math.cos(s.yaw) * 1.45 });
-  });
-  mesh.castShadow = true;
-  mesh.computeBoundingSphere();
+  const red = spots.filter((s) => Math.hypot(s.x - RED_LAMPS.x, s.z - RED_LAMPS.z) < RED_LAMPS.r);
+  const modern = spots.filter((s) => !red.includes(s));
+  for (const [list, geo, headY, reach] of [[red, lampGeometry(), 6.95, 1.45], [modern, modernLampGeometry(), 8.05, 1.45]] as const) {
+    if (!list.length) continue;
+    const inst = new THREE.InstancedMesh(geo, material, list.length);
+    list.forEach((s, i) => {
+      const y = heights.sample(s.x, s.z) - 0.1;
+      m.compose(new THREE.Vector3(s.x, y, s.z), q.setFromAxisAngle(up, s.yaw), one);
+      inst.setMatrixAt(i, m);
+      lamps.push({ x: s.x + Math.sin(s.yaw) * reach, y: y + headY, z: s.z + Math.cos(s.yaw) * reach });
+    });
+    inst.castShadow = true;
+    inst.computeBoundingSphere();
+    mesh.add(inst);
+  }
   return { mesh, lamps };
 }

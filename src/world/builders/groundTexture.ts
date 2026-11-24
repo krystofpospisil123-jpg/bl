@@ -118,7 +118,8 @@ export function paintGround(
     g.stroke(linePath(r.pts));
   }
   for (const r of roads) {
-    g.strokeStyle = ROAD_FILL[r.kind] ?? '#5a5d61';
+    g.strokeStyle = r.surface === 'sett' || r.surface === 'cobblestone' || r.surface === 'unhewn_cobblestone' ? '#7a756e'
+      : r.surface === 'paving_stones' ? '#8e8a84' : ROAD_FILL[r.kind] ?? '#5a5d61';
     g.lineWidth = Math.max(r.w, 2 * px);
     if (r.kind === 'steps') {
       g.lineCap = 'butt';
@@ -128,6 +129,9 @@ export function paintGround(
     g.setLineDash([]);
     g.lineCap = 'round';
   }
+  // Zebra crossings where footpaths cross streets (too small to see on coarse textures).
+  if (s >= 0.9) paintCrossings(g, roads);
+
   // Centre and edge lines on main roads (only when the texture is detailed enough).
   if (s >= 1) {
     g.strokeStyle = 'rgba(235,235,225,0.85)';
@@ -147,6 +151,59 @@ export function paintGround(
   }
 
   return c;
+}
+
+const CROSSABLE = new Set(['primary', 'secondary', 'tertiary', 'unclassified', 'residential', 'primary_link', 'secondary_link', 'tertiary_link']);
+const WALKWAYS = new Set(['footway', 'path', 'pedestrian', 'steps', 'cycleway']);
+
+function segIntersect(ax: number, az: number, bx: number, bz: number, cx: number, cz: number, dx: number, dz: number): [number, number] | null {
+  const r1x = bx - ax, r1z = bz - az, r2x = dx - cx, r2z = dz - cz;
+  const den = r1x * r2z - r1z * r2x;
+  if (Math.abs(den) < 1e-9) return null;
+  const t = ((cx - ax) * r2z - (cz - az) * r2x) / den;
+  const u = ((cx - ax) * r1z - (cz - az) * r1x) / den;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? [t, u] : null;
+}
+
+/** White stripes parallel to the traffic, across the full road width. */
+function bbox(pts: number[]) {
+  let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+  for (let i = 0; i < pts.length; i += 2) {
+    minX = Math.min(minX, pts[i]); maxX = Math.max(maxX, pts[i]);
+    minZ = Math.min(minZ, pts[i + 1]); maxZ = Math.max(maxZ, pts[i + 1]);
+  }
+  return { minX, minZ, maxX, maxZ };
+}
+
+function paintCrossings(g: CanvasRenderingContext2D, roads: Polyline[]) {
+  const done: [number, number][] = [];
+  const walks = roads.filter((r) => WALKWAYS.has(r.kind)).map((r) => ({ r, b: bbox(r.pts) }));
+  for (const road of roads) {
+    if (!CROSSABLE.has(road.kind) || road.w < 5) continue;
+    const p = road.pts;
+    const rb = bbox(p);
+    for (const { r: walk, b } of walks) {
+      if (b.maxX < rb.minX || b.minX > rb.maxX || b.maxZ < rb.minZ || b.minZ > rb.maxZ) continue;
+      const q = walk.pts;
+      for (let i = 0; i + 3 < p.length; i += 2) {
+        for (let j = 0; j + 3 < q.length; j += 2) {
+          const hit = segIntersect(p[i], p[i + 1], p[i + 2], p[i + 3], q[j], q[j + 1], q[j + 2], q[j + 3]);
+          if (!hit) continue;
+          const x = p[i] + (p[i + 2] - p[i]) * hit[0], z = p[i + 1] + (p[i + 3] - p[i + 1]) * hit[0];
+          if (done.some(([ox, oz]) => Math.hypot(ox - x, oz - z) < 8)) continue;
+          done.push([x, z]);
+          const ang = Math.atan2(p[i + 3] - p[i + 1], p[i + 2] - p[i]);
+          g.save();
+          g.translate(x, z);
+          g.rotate(ang);
+          g.fillStyle = 'rgba(240,240,236,0.92)';
+          // Local frame: +x along the road, +y across it.
+          for (let t = -road.w / 2 + 0.5; t <= road.w / 2 - 0.5; t += 1.0) g.fillRect(-1.6, t - 0.25, 3.2, 0.5);
+          g.restore();
+        }
+      }
+    }
+  }
 }
 
 /** Strokes a line parallel to the polyline at a lateral offset (simple miter-less offset). */

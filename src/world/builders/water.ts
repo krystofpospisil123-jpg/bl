@@ -60,10 +60,11 @@ export function buildWaterGeometry(data: ChunkData, rect: Rect, heights: HeightF
   return g;
 }
 
-/** Bridge decks: group 0 = road surface, group 1 = concrete sides and parapets. */
+/** Bridge decks: group 0 = road surface, group 1 = concrete beams and underside, group 2 = railings. */
 export function buildBridgeGeometry(data: ChunkData, rect: Rect): THREE.BufferGeometry | null {
   const top: number[] = [];
   const side: number[] = [];
+  const rail: number[] = [];
   const add = (pl: Polyline, w: number) => {
     const e = pl.elev!;
     walk(pl, rect, 6, (ax, az, bx, bz, t0, t1, seg) => {
@@ -82,12 +83,20 @@ export function buildBridgeGeometry(data: ChunkData, rect: Rect): THREE.BufferGe
       pushOriented(side, [L[0], ya - d, L[1]], [R[0], ya - d, R[1]], [R[2], yb - d, R[3]], down);
       // Sides from underside up to the parapet top (0.9 m above the deck).
       for (const [s, sign] of [[L, 1], [R, -1]] as const) {
-        const a0 = [s[0], ya - d, s[1]], b0 = [s[2], yb - d, s[3]], a1 = [s[0], ya + 0.9, s[1]], b1 = [s[2], yb + 0.9, s[3]];
         const want = [nx * sign, 0, nz * sign];
+        const back = [-want[0], 0, -want[2]];
+        // Concrete edge beam from the underside up to just above the deck...
+        const a0 = [s[0], ya - d, s[1]], b0 = [s[2], yb - d, s[3]], a1 = [s[0], ya + 0.2, s[1]], b1 = [s[2], yb + 0.2, s[3]];
         pushOriented(side, a0, b0, b1, want);
         pushOriented(side, a0, b1, a1, want);
-        pushOriented(side, a0, b1, b0, [-want[0], 0, -want[2]]);
-        pushOriented(side, a0, a1, b1, [-want[0], 0, -want[2]]);
+        pushOriented(side, a0, b1, b0, back);
+        pushOriented(side, a0, a1, b1, back);
+        // ...and a steel railing panel on top (painted blue, like Blansko's bridges over the Svitava).
+        const r0 = [s[0], ya + 0.2, s[1]], r1 = [s[2], yb + 0.2, s[3]], t0 = [s[0], ya + 1.1, s[1]], t1 = [s[2], yb + 1.1, s[3]];
+        pushOriented(rail, r0, r1, t1, want);
+        pushOriented(rail, r0, t1, t0, want);
+        pushOriented(rail, r0, t1, r1, back);
+        pushOriented(rail, r0, t0, t1, back);
       }
     });
   };
@@ -95,9 +104,10 @@ export function buildBridgeGeometry(data: ChunkData, rect: Rect): THREE.BufferGe
   for (const r of data.rails) if (r.bridge && r.elev) add(r, 4.5);
   if (!top.length) return null;
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute([...top, ...side], 3));
+  g.setAttribute('position', new THREE.Float32BufferAttribute([...top, ...side, ...rail], 3));
   g.addGroup(0, top.length / 3, 0);
   g.addGroup(top.length / 3, side.length / 3, 1);
+  g.addGroup((top.length + side.length) / 3, rail.length / 3, 2);
   g.computeVertexNormals();
   return g;
 }

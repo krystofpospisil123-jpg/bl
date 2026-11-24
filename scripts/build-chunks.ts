@@ -309,6 +309,9 @@ class ObstacleIndex {
   }
 }
 
+/** Chance of a street tree every 11 m on each side of these roads (Blansko's tree-lined streets). */
+const STREET_TREE_ROADS: Record<string, number> = { secondary: 0.6, tertiary: 0.55, unclassified: 0.35, residential: 0.3 };
+
 const TREE_RULES: Record<string, { spacing: number; keep: number; conifer: number; hMin: number; hMax: number }> = {
   forest: { spacing: 6.5, keep: 0.85, conifer: 0.45, hMin: 12, hMax: 24 },
   scrub: { spacing: 7, keep: 0.6, conifer: 0.1, hMin: 3, hMax: 6 },
@@ -334,6 +337,7 @@ async function main() {
   const treeRows: Vec2[][] = [];
   const allPois: Poi[] = [];
   const graphWays: GraphWay[] = [];
+  const streetTreeRoads: { id: number; line: Vec2[]; w: number; chance: number }[] = [];
   const stats = { buildings: 0, estimated: 0, roads: 0, rails: 0, waterways: 0, water: 0, areas: 0, trees: 0 };
 
   for (const el of osm.elements) {
@@ -406,11 +410,13 @@ async function main() {
       const layer = parseInt(t.layer ?? '', 10);
       const tunnel = t.tunnel === 'yes' || t.tunnel === 'culvert';
       const bridge = !!t.bridge && t.bridge !== 'no';
+      if (!tunnel && !bridge && STREET_TREE_ROADS[t.highway]) streetTreeRoads.push({ id: el.id, line, w, chance: STREET_TREE_ROADS[t.highway] });
       if (el.nodes && el.nodes.length === line.length && !tunnel) {
         graphWays.push({ id: el.id, tags: t, nodes: el.nodes, pts: line, elev: bridge ? bridgeElevations(line).map((e) => e + 0.1) : undefined });
       }
       addPolyline(line, w / 2 + 1, (pts, elev) => ({
         id: el.id, kind: t.highway, w, pts, ...(elev ? { elev } : {}),
+        ...(['sett', 'cobblestone', 'unhewn_cobblestone', 'paving_stones'].includes(t.surface) ? { surface: t.surface } : {}),
         ...(t.name ? { name: t.name } : {}),
         ...(bridge ? { bridge: true } : {}),
         ...(tunnel ? { tunnel: true } : {}),
@@ -533,6 +539,43 @@ async function main() {
     }
     stats.trees += added;
     console.log(`Added ${added} trees detected on the orthophoto`);
+  }
+
+  // --- Street trees on the verges of main and residential roads.
+  {
+    const cell = 5;
+    const taken = new Set<string>();
+    const key = (x: number, y: number) => `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
+    for (const row of chunks) for (const c of row) for (let i = 0; i < c.trees.length; i += 4) taken.add(key(c.trees[i], -c.trees[i + 1]));
+    let added = 0;
+    for (const r of streetTreeRoads) {
+      for (const side of [-1, 1]) {
+        let acc = 5.5;
+        for (let i = 0; i + 1 < r.line.length; i++) {
+          const [a, b] = [r.line[i], r.line[i + 1]];
+          const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          if (len < 0.01) continue;
+          const dx = (b[0] - a[0]) / len, dy = (b[1] - a[1]) / len;
+          while (acc < len) {
+            const n = Math.round(acc * 10) + i * 1000;
+            if (hash01(r.id, n, side + 30) < r.chance) {
+              const off = r.w / 2 + 3;
+              const p: Vec2 = [a[0] + dx * acc - dy * off * side, a[1] + dy * acc + dx * off * side];
+              const c = chunkAt(p[0], p[1]);
+              if (c && !taken.has(key(p[0], p[1])) && !obstacles.blocked(p)) {
+                c.trees.push(r1(p[0]), r1(-p[1]), r1(10 + 6 * hash01(r.id, n, 31)), 0);
+                taken.add(key(p[0], p[1]));
+                added++;
+              }
+            }
+            acc += 11;
+          }
+          acc -= len;
+        }
+      }
+    }
+    stats.trees += added;
+    console.log(`Added ${added} street trees`);
   }
 
   for (const row of treeRows) {

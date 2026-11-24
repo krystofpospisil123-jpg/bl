@@ -85,6 +85,8 @@ export interface Polyline {
   layer?: number;
   oneway?: boolean;
   pts: number[];
+  /** Paved surface other than asphalt (sett, cobblestone, paving_stones). */
+  surface?: string;
   /** Bridges only: deck elevation (m a.s.l.) for each point. */
   elev?: number[];
 }

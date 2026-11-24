@@ -232,7 +232,7 @@ export class ChunkManager {
       }
       const brGeo = buildBridgeGeometry(data.data, st.rect);
       if (brGeo) {
-        const mesh = new THREE.Mesh(brGeo, [this.mats.bridgeDeck, this.mats.bridge]);
+        const mesh = new THREE.Mesh(brGeo, [this.mats.bridgeDeck, this.mats.bridge, this.mats.bridgeRail]);
         mesh.castShadow = mesh.receiveShadow = true;
         st.group.add(mesh);
         st.disposables.push(brGeo);
@@ -243,7 +243,7 @@ export class ChunkManager {
       const lamps = buildLamps(data.data, st.rect, this.heights, this.mats.props);
       if (lamps.mesh) {
         st.group.add(lamps.mesh);
-        st.disposables.push(lamps.mesh);
+        for (const c of lamps.mesh.children) st.disposables.push(c as THREE.InstancedMesh);
       }
       st.lamps = lamps.lamps;
       const props = buildStreetProps(data.data, st.rect, this.heights, scene.props, this.mats);

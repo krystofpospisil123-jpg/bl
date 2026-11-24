@@ -95,10 +95,18 @@ export function applyGroundDetail(mat: THREE.MeshStandardMaterial) {
         float fade = clamp(1.0 - max(pw.x, pw.y) * 1.5, 0.0, 1.0);
         float joint = 1.0 - smoothstep(0.0, 0.08 + pw.x, min(pf.x, 1.0 - pf.x)) * smoothstep(0.0, 0.12 + pw.y, min(pf.y, 1.0 - pf.y));
         float tint = fract(sin(dot(floor(pv), vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-        diffuseColor.rgb *= 1.0 - paved * fade * (0.3 * joint - 0.08 * tint);`,
+        diffuseColor.rgb *= 1.0 - paved * fade * (0.3 * joint - 0.08 * tint);
+        // Worn asphalt: darker repair patches and thin cracks on dark grey surfaces.
+        float asphalt = (1.0 - smoothstep(0.05, 0.1, lum)) * (1.0 - smoothstep(0.015, 0.03, sat))
+          * step(base.g, base.b + 0.006); // asphalt is neutral to slightly blue; grass is greener
+        float patchN = texture2D(detailMap, vWorldXZ / 41.0 + 0.37).b;
+        float patches = smoothstep(0.62, 0.66, patchN);
+        float crackN = texture2D(detailMap, vWorldXZ / 9.0 + 0.11).r;
+        float cracks = (1.0 - smoothstep(0.0, 0.012 + fwidth(crackN), abs(crackN - 0.5))) * fade;
+        diffuseColor.rgb *= 1.0 - asphalt * (0.18 * patches + 0.35 * cracks);`,
       );
   };
-  mat.customProgramCacheKey = () => 'ground-detail-v2';
+  mat.customProgramCacheKey = () => 'ground-detail-v4';
 }
 
 export class Materials {
@@ -109,6 +117,7 @@ export class Materials {
   readonly water: THREE.MeshStandardMaterial;
   readonly bridge = new THREE.MeshStandardMaterial({ color: 0x9a958e, roughness: 0.85 });
   readonly bridgeDeck = new THREE.MeshStandardMaterial({ color: 0x4a4a4c, roughness: 0.75 });
+  readonly bridgeRail = new THREE.MeshStandardMaterial({ color: 0x3f78c4, roughness: 0.45, metalness: 0.5, side: THREE.DoubleSide });
   readonly overview = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
   readonly props = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.15 });
   readonly parkedCars = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 });

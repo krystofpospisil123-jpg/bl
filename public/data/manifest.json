@@ -1,7 +1,7 @@
 {
  "version": 1,
  "name": "Blansko: Open World",
- "generated": "2026-11-23T19:13:00.456Z",
+ "generated": "2026-11-24T10:59:21.630Z",
  "origin": {
   "lat": 49.3628,
   "lon": 16.6448
@@ -74,7 +74,7 @@
    "counts": {
     "buildings": 2,
     "roads": 10,
-    "trees": 31
+    "trees": 60
    }
   },
   {
@@ -85,7 +85,7 @@
    "counts": {
     "buildings": 15,
     "roads": 16,
-    "trees": 26
+    "trees": 39
    }
   },
   {
@@ -96,7 +96,7 @@
    "counts": {
     "buildings": 80,
     "roads": 26,
-    "trees": 84
+    "trees": 102
    }
   },
   {
@@ -107,7 +107,7 @@
    "counts": {
     "buildings": 146,
     "roads": 42,
-    "trees": 105
+    "trees": 120
    }
   },
   {
@@ -118,7 +118,7 @@
    "counts": {
     "buildings": 31,
     "roads": 18,
-    "trees": 170
+    "trees": 206
    }
   },
   {
@@ -129,7 +129,7 @@
    "counts": {
     "buildings": 0,
     "roads": 4,
-    "trees": 1222
+    "trees": 1224
    }
   },
   {
@@ -206,7 +206,7 @@
    "counts": {
     "buildings": 4,
     "roads": 14,
-    "trees": 88
+    "trees": 92
    }
   },
   {
@@ -217,7 +217,7 @@
    "counts": {
     "buildings": 11,
     "roads": 21,
-    "trees": 6
+    "trees": 17
    }
   },
   {
@@ -228,7 +228,7 @@
    "counts": {
     "buildings": 95,
     "roads": 25,
-    "trees": 71
+    "trees": 84
    }
   },
   {
@@ -239,7 +239,7 @@
    "counts": {
     "buildings": 64,
     "roads": 61,
-    "trees": 32
+    "trees": 56
    }
   },
   {
@@ -250,7 +250,7 @@
    "counts": {
     "buildings": 34,
     "roads": 29,
-    "trees": 349
+    "trees": 368
    }
   },
   {
@@ -272,7 +272,7 @@
    "counts": {
     "buildings": 0,
     "roads": 5,
-    "trees": 1209
+    "trees": 1220
    }
   },
   {
@@ -283,7 +283,7 @@
    "counts": {
     "buildings": 0,
     "roads": 4,
-    "trees": 1223
+    "trees": 1239
    }
   },
   {
@@ -338,7 +338,7 @@
    "counts": {
     "buildings": 13,
     "roads": 41,
-    "trees": 63
+    "trees": 79
    }
   },
   {
@@ -349,7 +349,7 @@
    "counts": {
     "buildings": 19,
     "roads": 30,
-    "trees": 25
+    "trees": 26
    }
   },
   {
@@ -360,7 +360,7 @@
    "counts": {
     "buildings": 61,
     "roads": 43,
-    "trees": 65
+    "trees": 89
    }
   },
   {
@@ -371,7 +371,7 @@
    "counts": {
     "buildings": 177,
     "roads": 29,
-    "trees": 234
+    "trees": 254
    }
   },
   {
@@ -382,7 +382,7 @@
    "counts": {
     "buildings": 99,
     "roads": 25,
-    "trees": 330
+    "trees": 363
    }
   },
   {
@@ -393,7 +393,7 @@
    "counts": {
     "buildings": 20,
     "roads": 11,
-    "trees": 1099
+    "trees": 1101
    }
   },
   {
@@ -404,7 +404,7 @@
    "counts": {
     "buildings": 0,
     "roads": 5,
-    "trees": 1210
+    "trees": 1231
    }
   },
   {
@@ -470,7 +470,7 @@
    "counts": {
     "buildings": 3,
     "roads": 20,
-    "trees": 51
+    "trees": 79
    }
   },
   {
@@ -481,7 +481,7 @@
    "counts": {
     "buildings": 164,
     "roads": 48,
-    "trees": 60
+    "trees": 98
    }
   },
   {
@@ -492,7 +492,7 @@
    "counts": {
     "buildings": 147,
     "roads": 24,
-    "trees": 40
+    "trees": 91
    }
   },
   {
@@ -503,7 +503,7 @@
    "counts": {
     "buildings": 55,
     "roads": 116,
-    "trees": 94
+    "trees": 124
    }
   },
   {
@@ -514,7 +514,7 @@
    "counts": {
     "buildings": 11,
     "roads": 52,
-    "trees": 353
+    "trees": 364
    }
   },
   {
@@ -525,7 +525,7 @@
    "counts": {
     "buildings": 102,
     "roads": 52,
-    "trees": 380
+    "trees": 395
    }
   },
   {
@@ -536,7 +536,7 @@
    "counts": {
     "buildings": 2,
     "roads": 28,
-    "trees": 881
+    "trees": 890
    }
   },
   {
@@ -602,7 +602,7 @@
    "counts": {
     "buildings": 12,
     "roads": 17,
-    "trees": 159
+    "trees": 184
    }
   },
   {
@@ -613,7 +613,7 @@
    "counts": {
     "buildings": 83,
     "roads": 34,
-    "trees": 54
+    "trees": 97
    }
   },
   {
@@ -624,7 +624,7 @@
    "counts": {
     "buildings": 107,
     "roads": 45,
-    "trees": 74
+    "trees": 118
    }
   },
   {
@@ -635,7 +635,7 @@
    "counts": {
     "buildings": 29,
     "roads": 104,
-    "trees": 108
+    "trees": 131
    }
   },
   {
@@ -646,7 +646,7 @@
    "counts": {
     "buildings": 44,
     "roads": 83,
-    "trees": 62
+    "trees": 80
    }
   },
   {
@@ -657,7 +657,7 @@
    "counts": {
     "buildings": 41,
     "roads": 33,
-    "trees": 177
+    "trees": 191
    }
   },
   {
@@ -734,7 +734,7 @@
    "counts": {
     "buildings": 9,
     "roads": 53,
-    "trees": 49
+    "trees": 80
    }
   },
   {
@@ -745,7 +745,7 @@
    "counts": {
     "buildings": 49,
     "roads": 72,
-    "trees": 55
+    "trees": 109
    }
   },
   {
@@ -756,7 +756,7 @@
    "counts": {
     "buildings": 80,
     "roads": 53,
-    "trees": 218
+    "trees": 245
    }
   },
   {
@@ -767,7 +767,7 @@
    "counts": {
     "buildings": 99,
     "roads": 41,
-    "trees": 115
+    "trees": 133
    }
   },
   {
@@ -778,7 +778,7 @@
    "counts": {
     "buildings": 43,
     "roads": 57,
-    "trees": 223
+    "trees": 242
    }
   },
   {
@@ -789,7 +789,7 @@
    "counts": {
     "buildings": 50,
     "roads": 12,
-    "trees": 769
+    "trees": 784
    }
   },
   {
@@ -855,7 +855,7 @@
    "counts": {
     "buildings": 90,
     "roads": 15,
-    "trees": 159
+    "trees": 185
    }
   },
   {
@@ -866,7 +866,7 @@
    "counts": {
     "buildings": 134,
     "roads": 46,
-    "trees": 72
+    "trees": 76
    }
   },
   {
@@ -877,7 +877,7 @@
    "counts": {
     "buildings": 70,
     "roads": 106,
-    "trees": 11
+    "trees": 46
    }
   },
   {
@@ -888,7 +888,7 @@
    "counts": {
     "buildings": 63,
     "roads": 70,
-    "trees": 59
+    "trees": 84
    }
   },
   {
@@ -899,7 +899,7 @@
    "counts": {
     "buildings": 96,
     "roads": 20,
-    "trees": 114
+    "trees": 160
    }
   },
   {
@@ -910,7 +910,7 @@
    "counts": {
     "buildings": 48,
     "roads": 38,
-    "trees": 60
+    "trees": 82
    }
   },
   {
@@ -921,7 +921,7 @@
    "counts": {
     "buildings": 44,
     "roads": 19,
-    "trees": 338
+    "trees": 370
    }
   },
   {
@@ -932,7 +932,7 @@
    "counts": {
     "buildings": 13,
     "roads": 10,
-    "trees": 1123
+    "trees": 1127
    }
   },
   {
@@ -943,7 +943,7 @@
    "counts": {
     "buildings": 0,
     "roads": 15,
-    "trees": 1163
+    "trees": 1167
    }
   },
   {
@@ -987,7 +987,7 @@
    "counts": {
     "buildings": 47,
     "roads": 26,
-    "trees": 151
+    "trees": 171
    }
   },
   {
@@ -998,7 +998,7 @@
    "counts": {
     "buildings": 59,
     "roads": 47,
-    "trees": 67
+    "trees": 97
    }
   },
   {
@@ -1009,7 +1009,7 @@
    "counts": {
     "buildings": 53,
     "roads": 68,
-    "trees": 56
+    "trees": 68
    }
   },
   {
@@ -1020,7 +1020,7 @@
    "counts": {
     "buildings": 70,
     "roads": 56,
-    "trees": 41
+    "trees": 88
    }
   },
   {
@@ -1031,7 +1031,7 @@
    "counts": {
     "buildings": 123,
     "roads": 26,
-    "trees": 72
+    "trees": 119
    }
   },
   {
@@ -1042,7 +1042,7 @@
    "counts": {
     "buildings": 85,
     "roads": 33,
-    "trees": 64
+    "trees": 102
    }
   },
   {
@@ -1053,7 +1053,7 @@
    "counts": {
     "buildings": 80,
     "roads": 22,
-    "trees": 128
+    "trees": 191
    }
   },
   {
@@ -1064,7 +1064,7 @@
    "counts": {
     "buildings": 125,
     "roads": 33,
-    "trees": 180
+    "trees": 229
    }
   },
   {
@@ -1075,7 +1075,7 @@
    "counts": {
     "buildings": 64,
     "roads": 20,
-    "trees": 571
+    "trees": 601
    }
   },
   {
@@ -1086,7 +1086,7 @@
    "counts": {
     "buildings": 23,
     "roads": 6,
-    "trees": 541
+    "trees": 546
    }
   },
   {
@@ -1119,7 +1119,7 @@
    "counts": {
     "buildings": 53,
     "roads": 17,
-    "trees": 186
+    "trees": 222
    }
   },
   {
@@ -1130,7 +1130,7 @@
    "counts": {
     "buildings": 83,
     "roads": 11,
-    "trees": 59
+    "trees": 84
    }
   },
   {
@@ -1141,7 +1141,7 @@
    "counts": {
     "buildings": 15,
     "roads": 44,
-    "trees": 48
+    "trees": 68
    }
   },
   {
@@ -1152,7 +1152,7 @@
    "counts": {
     "buildings": 89,
     "roads": 49,
-    "trees": 56
+    "trees": 77
    }
   },
   {
@@ -1163,7 +1163,7 @@
    "counts": {
     "buildings": 111,
     "roads": 30,
-    "trees": 52
+    "trees": 122
    }
   },
   {
@@ -1174,7 +1174,7 @@
    "counts": {
     "buildings": 98,
     "roads": 25,
-    "trees": 66
+    "trees": 125
    }
   },
   {
@@ -1185,7 +1185,7 @@
    "counts": {
     "buildings": 190,
     "roads": 36,
-    "trees": 98
+    "trees": 138
    }
   },
   {
@@ -1196,7 +1196,7 @@
    "counts": {
     "buildings": 74,
     "roads": 15,
-    "trees": 222
+    "trees": 269
    }
   },
   {
@@ -1251,7 +1251,7 @@
    "counts": {
     "buildings": 31,
     "roads": 8,
-    "trees": 393
+    "trees": 396
    }
   },
   {
@@ -1262,7 +1262,7 @@
    "counts": {
     "buildings": 37,
     "roads": 44,
-    "trees": 108
+    "trees": 139
    }
   },
   {
@@ -1273,7 +1273,7 @@
    "counts": {
     "buildings": 15,
     "roads": 25,
-    "trees": 57
+    "trees": 65
    }
   },
   {
@@ -1284,7 +1284,7 @@
    "counts": {
     "buildings": 87,
     "roads": 59,
-    "trees": 94
+    "trees": 123
    }
   },
   {
@@ -1295,7 +1295,7 @@
    "counts": {
     "buildings": 123,
     "roads": 48,
-    "trees": 59
+    "trees": 94
    }
   },
   {
@@ -1306,7 +1306,7 @@
    "counts": {
     "buildings": 62,
     "roads": 37,
-    "trees": 55
+    "trees": 91
    }
   },
   {
@@ -1317,7 +1317,7 @@
    "counts": {
     "buildings": 32,
     "roads": 21,
-    "trees": 305
+    "trees": 325
    }
   },
   {
@@ -1350,7 +1350,7 @@
    "counts": {
     "buildings": 8,
     "roads": 8,
-    "trees": 604
+    "trees": 624
    }
   },
   {
@@ -1394,7 +1394,7 @@
    "counts": {
     "buildings": 14,
     "roads": 3,
-    "trees": 545
+    "trees": 546
    }
   },
   {
@@ -1405,7 +1405,7 @@
    "counts": {
     "buildings": 15,
     "roads": 18,
-    "trees": 317
+    "trees": 351
    }
   },
   {
@@ -1416,7 +1416,7 @@
    "counts": {
     "buildings": 19,
     "roads": 70,
-    "trees": 336
+    "trees": 344
    }
   },
   {
@@ -1427,7 +1427,7 @@
    "counts": {
     "buildings": 43,
     "roads": 70,
-    "trees": 54
+    "trees": 92
    }
   },
   {
@@ -1438,7 +1438,7 @@
    "counts": {
     "buildings": 101,
     "roads": 31,
-    "trees": 39
+    "trees": 89
    }
   },
   {
@@ -1449,7 +1449,7 @@
    "counts": {
     "buildings": 14,
     "roads": 35,
-    "trees": 194
+    "trees": 216
    }
   },
   {
@@ -1460,7 +1460,7 @@
    "counts": {
     "buildings": 1,
     "roads": 7,
-    "trees": 1092
+    "trees": 1102
    }
   },
   {
@@ -1471,7 +1471,7 @@
    "counts": {
     "buildings": 4,
     "roads": 7,
-    "trees": 806
+    "trees": 825
    }
   },
   {
@@ -1482,7 +1482,7 @@
    "counts": {
     "buildings": 0,
     "roads": 3,
-    "trees": 1162
+    "trees": 1171
    }
   },
   {
@@ -1526,7 +1526,7 @@
    "counts": {
     "buildings": 3,
     "roads": 2,
-    "trees": 561
+    "trees": 570
    }
   },
   {
@@ -1537,7 +1537,7 @@
    "counts": {
     "buildings": 4,
     "roads": 7,
-    "trees": 382
+    "trees": 411
    }
   },
   {
@@ -1548,7 +1548,7 @@
    "counts": {
     "buildings": 4,
     "roads": 9,
-    "trees": 561
+    "trees": 564
    }
   },
   {
@@ -1559,7 +1559,7 @@
    "counts": {
     "buildings": 7,
     "roads": 20,
-    "trees": 318
+    "trees": 339
    }
   },
   {
@@ -1570,7 +1570,7 @@
    "counts": {
     "buildings": 101,
     "roads": 43,
-    "trees": 223
+    "trees": 277
    }
   },
   {
@@ -1581,7 +1581,7 @@
    "counts": {
     "buildings": 10,
     "roads": 23,
-    "trees": 577
+    "trees": 613
    }
   },
   {
@@ -1592,7 +1592,7 @@
    "counts": {
     "buildings": 2,
     "roads": 6,
-    "trees": 1020
+    "trees": 1040
    }
   },
   {

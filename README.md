@@ -105,6 +105,7 @@ src/
 | --- | --- | --- |
 | © přispěvatelé OpenStreetMap | ODbL 1.0 | budovy, silnice, voda, plochy, koleje, POI |
 | ČÚZK – DMR 5G | CC BY 4.0 | výškový model terénu |
+| Mapillary (autoři wegavision, jakuje, pivnik, tkk, stensoft) | CC BY-SA 4.0 | jen vizuální předloha (snímky ve hře nejsou) |
 | ČÚZK – Ortofoto | CC BY 4.0 | barvy střech, rozmazaný podklad terénu (2,5 m) |
 
 Atribuce se zobrazuje ve hře vpravo dole. Vygenerovaná data v `public/data/` jsou odvozená
@@ -257,3 +258,18 @@ případný externí asset se uvede sem i s licencí.
   stažení dat, až bude Overpass dostupný.
 - **Ladění:** `npx tsx scripts/dev/ortho-crop.ts x0 z0 x1 z1 out.jpg` vyřízne ortofoto
   s mřížkou pro umisťování scén.
+
+## Podle snímků z Mapillary
+
+Zhruba 45 snímků z ulic Blanska (2021–2023, Mapillary, CC BY-SA 4.0) posloužilo jen jako
+vizuální předloha. Do hry ani do repozitáře se nedostaly. Podle nich vzniklo:
+
+- **Zebry** všude, kde pěší cesta z OSM kříží ulici.
+- **Opotřebený asfalt:** záplaty a praskliny v shaderu terénu.
+- **Stromořadí** podél hlavních a obytných ulic (`STREET_TREE_ROADS` v build-chunks).
+- **Lampy:** červené se zahnutým ramenem v centru, moderní šedé LED na okrajích a v průmyslu.
+- **Mosty** s modrým ocelovým zábradlím.
+- **Kočičí hlavy a dlažba** u silnic se `surface=sett/cobblestone/paving_stones`.
+- **Barvy domů:** pastelové barvy opravených domů (mátová, růžová, oranžová).
+
+Token k Mapillary API je uložený jen v nastavení prostředí (síťové tajemství), ne v kódu.
