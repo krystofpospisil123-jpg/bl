@@ -124,6 +124,31 @@ export interface ChunkData {
   /** Flat [x, z, height, type, ...]; type 0 = deciduous, 1 = conifer. */
   trees: number[];
   pois: Poi[];
+  /** Hand-placed road markings from world/scenes.ts: flat [x, z, yaw, kind, ...] (see MarkKind). */
+  marks?: number[];
+  /** Free-standing sign pylons from world/scenes.ts. */
+  pylons?: Pylon[];
+}
+
+/** Painted ground markings: arrows (pointing along yaw) and dashes of an aisle centre line. */
+export const MarkKind = { arrow: 0, arrowRight: 1, arrowLeft: 2, dash: 3 } as const;
+
+/** Tall free-standing shop sign (totem) next to a car park. */
+export interface Pylon {
+  x: number;
+  z: number;
+  /** Direction the sign face looks (rad, 0 = +z). */
+  yaw: number;
+  /** Real name and the neutral one used when real names are off. */
+  text: string;
+  generic: string;
+  /** Total height and the board size (m). */
+  height: number;
+  board: number;
+  /** Pole/frame colour. */
+  frame?: string;
+  /** Smaller tenant panels stacked under the main board: [real, generic] names. */
+  tenants?: [string, string][];
 }
 
 /** Edge between two junctions. `pts` is flat [x, y, z, ...] including both end nodes. */

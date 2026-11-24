@@ -36,6 +36,25 @@ function modernLampGeometry(): THREE.BufferGeometry {
   return modernGeo;
 }
 
+let doubleGeo: THREE.BufferGeometry | null = null;
+
+/** Tall car-park lamp: grey pole with two arms (along local ±z), each with a flat LED head. */
+function doubleLampGeometry(): THREE.BufferGeometry {
+  if (doubleGeo) return doubleGeo;
+  const grey = 0x9a9fa3;
+  const parts = [coloured(new THREE.CylinderGeometry(0.07, 0.13, 11, 8).translate(0, 5.5, 0), grey)];
+  for (const sd of [-1, 1]) {
+    parts.push(
+      coloured(new THREE.CylinderGeometry(0.045, 0.045, 1.5, 6).rotateX((Math.PI / 2 - 0.2) * sd).translate(0, 11.1, sd * 0.72), grey),
+      coloured(new THREE.BoxGeometry(0.3, 0.08, 0.75).translate(0, 11.25, sd * 1.6), 0x5d6266),
+      coloured(new THREE.BoxGeometry(0.24, 0.02, 0.65).translate(0, 11.2, sd * 1.6), 0xf4f7ff),
+    );
+  }
+  doubleGeo = mergeGeometries(parts)!;
+  doubleGeo.computeVertexNormals();
+  return doubleGeo;
+}
+
 /** Lamp post facing +Z (the arm reaches over the street). */
 function lampGeometry(): THREE.BufferGeometry {
   if (lampGeo) return lampGeo;
@@ -72,7 +91,11 @@ export interface LampSpot {
   z: number;
 }
 
-export function buildLamps(data: ChunkData, rect: { minX: number; minZ: number; maxX: number; maxZ: number }, heights: HeightField, material: THREE.Material) {
+export function buildLamps(
+  data: ChunkData, rect: { minX: number; minZ: number; maxX: number; maxZ: number }, heights: HeightField, material: THREE.Material,
+  /** Hand-placed double-arm car-park lamps, flat [x, z, yaw]. */
+  carPark: number[] = [],
+) {
   const spots: { x: number; z: number; yaw: number }[] = [];
   const seen = new Set<number>();
   for (const r of data.roads) {
@@ -100,12 +123,14 @@ export function buildLamps(data: ChunkData, rect: { minX: number; minZ: number; 
     }
   }
   const lamps: LampSpot[] = [];
-  if (!spots.length) return { mesh: null, lamps };
+  const doubles: { x: number; z: number; yaw: number }[] = [];
+  for (let i = 0; i < carPark.length; i += 3) doubles.push({ x: carPark[i], z: carPark[i + 1], yaw: carPark[i + 2] });
+  if (!spots.length && !doubles.length) return { mesh: null, lamps };
   const mesh = new THREE.Group();
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
   const red = spots.filter((s) => Math.hypot(s.x - RED_LAMPS.x, s.z - RED_LAMPS.z) < RED_LAMPS.r);
   const modern = spots.filter((s) => !red.includes(s));
-  for (const [list, geo, headY, reach] of [[red, lampGeometry(), 6.95, 1.45], [modern, modernLampGeometry(), 8.05, 1.45]] as const) {
+  for (const [list, geo, headY, reach] of [[red, lampGeometry(), 6.95, 1.45], [modern, modernLampGeometry(), 8.05, 1.45], [doubles, doubleLampGeometry(), 11.2, 1.6]] as const) {
     if (!list.length) continue;
     const inst = new THREE.InstancedMesh(geo, material, list.length);
     list.forEach((s, i) => {
@@ -113,6 +138,7 @@ export function buildLamps(data: ChunkData, rect: { minX: number; minZ: number; 
       m.compose(new THREE.Vector3(s.x, y, s.z), q.setFromAxisAngle(up, s.yaw), one);
       inst.setMatrixAt(i, m);
       lamps.push({ x: s.x + Math.sin(s.yaw) * reach, y: y + headY, z: s.z + Math.cos(s.yaw) * reach });
+      if (geo === doubleGeo) lamps.push({ x: s.x - Math.sin(s.yaw) * reach, y: y + headY, z: s.z - Math.cos(s.yaw) * reach });
     });
     inst.castShadow = true;
     inst.computeBoundingSphere();

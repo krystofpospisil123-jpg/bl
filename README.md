@@ -254,6 +254,16 @@ případný externí asset se uvede sem i s licencí.
   - okrouhlá kamenná bašta
   - kamenný portál brány
   - Prvky jsou umístěné podle obrysu z OSM (`src/world/builders/landmarkExtras.ts`).
+- **Wanklovo náměstí** (pěší ulice od náměstí Republiky na jihozápad): dlažba, dvě řady malých
+  kulatých stromů uprostřed, lavičky a koše (podle Street View a 3D mapy).
+- **Kaufland a Lidl (Na Řadech / Poříčí)** podle fotografií z parkoviště:
+  - tmavě šedá hala s markýzou a vysokou čtvercovou cedulí (pylonem) u vchodu
+  - dlouhá bílá hala s modrou částí na východní straně parkoviště
+  - naproti řada obchodů s oranžovým a tmavým obkladem, průběžnou markýzou a pylonem se jmény nájemců
+  - šipky a přerušované čáry v uličkách, vysoké šedé lampy se dvěma rameny, mladé stromky
+  - Cedule mají jen obyčejný text bez log a firemních barev (N přepne na obecné názvy).
+- **Parkoviště** mají namalované bílé čáry stání a auta stojí v nich; uličky zmapované jako
+  obslužné cesty zůstávají volné.
 - **Rámy oken, parapety a dveře** zůstávají bílé a nepřebírají barvu fasády (maska obarvení
   v modrém kanálu atlasu drsnosti).
 - **Po celém městě:**

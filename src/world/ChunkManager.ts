@@ -152,13 +152,15 @@ export class ChunkManager {
     };
   }
 
+  private groundAt = (x: number, z: number) => this.heights.sample(x, z);
+
   /** Rebuilds all name signs (after switching real/generic names). */
   rebuildSigns() {
     for (const st of this.states.values()) {
       if (!st.group || !st.data || !st.signs) continue;
       st.group.remove(st.signs.group);
       st.signs.dispose();
-      st.signs = buildSigns(st.data.data);
+      st.signs = buildSigns(st.data.data, this.groundAt);
       st.signs.group.visible = st.lod <= 1;
       st.group.add(st.signs.group);
     }
@@ -215,6 +217,8 @@ export class ChunkManager {
       const scene = sceneFor(st.rect);
       data.data.areas.push(...scene.areas);
       data.data.trees.push(...scene.trees);
+      if (scene.marks.length) data.data.marks = scene.marks;
+      if (scene.pylons.length) data.data.pylons = scene.pylons;
       const bGeo = buildBuildingsGeometry(data.data.buildings);
       if (bGeo) {
         const mesh = new THREE.Mesh(bGeo, [this.mats.walls, this.mats.roofs, this.mats.flatRoofs]);
@@ -239,9 +243,9 @@ export class ChunkManager {
         st.disposables.push(brGeo);
         st.collisionMeshes.push(brGeo.attributes.position.array as Float32Array);
       }
-      st.signs = buildSigns(data.data);
+      st.signs = buildSigns(data.data, this.groundAt);
       st.group.add(st.signs.group);
-      const lamps = buildLamps(data.data, st.rect, this.heights, this.mats.props);
+      const lamps = buildLamps(data.data, st.rect, this.heights, this.mats.props, scene.lamps);
       if (lamps.mesh) {
         st.group.add(lamps.mesh);
         for (const c of lamps.mesh.children) st.disposables.push(c as THREE.InstancedMesh);

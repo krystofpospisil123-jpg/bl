@@ -1,7 +1,8 @@
 // Paints the ground cover of one chunk (land use, water, rails, roads) into a canvas
 // that is draped over the terrain mesh. Roads are therefore always glued to the terrain.
 // Runs inside a Web Worker (OffscreenCanvas) as well as on the main thread.
-import type { ChunkData, Polyline } from '../format.ts';
+import { MarkKind, type ChunkData, type Polyline } from '../format.ts';
+import { parkingSlots } from '../parking.ts';
 import { createCanvas, makeNoiseCanvas, type AnyCanvas } from '../../render/noise.ts';
 
 const BASE = '#6f8f4a'; // meadow
@@ -76,6 +77,9 @@ export function paintGround(
     g.globalAlpha = 1;
   }
 
+  // Parking bays: white lines either side of each slot (under the aisles painted later).
+  if (s >= 0.9) paintParkingBays(g, data);
+
   // --- Water
   g.fillStyle = '#35545b';
   g.strokeStyle = '#35545b';
@@ -149,8 +153,54 @@ export function paintGround(
     }
     g.lineCap = 'round';
   }
+  if (s >= 0.9 && data.marks?.length) paintMarks(g, data.marks);
 
   return c;
+}
+
+function paintParkingBays(g: CanvasRenderingContext2D, data: ChunkData) {
+  g.fillStyle = 'rgba(236,236,230,0.85)';
+  for (const a of data.areas) {
+    if (a.kind !== 'parking') continue;
+    for (const sl of parkingSlots(a.rings)) {
+      g.save();
+      g.translate(sl.x, sl.z);
+      g.rotate(-sl.yaw); // local +y = car direction
+      for (const side of [-1.25, 1.25]) g.fillRect(side - 0.06, -2.5, 0.12, 5);
+      g.restore();
+    }
+  }
+}
+
+/** Arrow shapes in a local frame pointing to +y (metres). */
+function arrowPath(kind: number): Path2D {
+  const p = new Path2D();
+  // Shaft with a head at the far end.
+  p.rect(-0.15, -2.4, 0.3, 3.2);
+  p.moveTo(-0.6, 0.8); p.lineTo(0, 2.4); p.lineTo(0.6, 0.8); p.closePath();
+  if (kind === MarkKind.arrowRight || kind === MarkKind.arrowLeft) {
+    const d = kind === MarkKind.arrowRight ? -1 : 1; // canvas x flips with the yaw rotation
+    p.moveTo(0, -0.9); p.lineTo(d * 1.1, -0.2); p.lineTo(d * 1.1, -0.55); p.lineTo(0, -1.3); p.closePath();
+    p.moveTo(d * 1.6, 0.1); p.lineTo(d * 0.95, -0.85); p.lineTo(d * 0.75, 0.25); p.closePath();
+  }
+  return p;
+}
+
+function paintMarks(g: CanvasRenderingContext2D, marks: number[]) {
+  g.fillStyle = 'rgba(240,240,236,0.9)';
+  const shapes = new Map<number, Path2D>();
+  for (let i = 0; i < marks.length; i += 4) {
+    const [x, z, yaw, kind] = [marks[i], marks[i + 1], marks[i + 2], marks[i + 3]];
+    g.save();
+    g.translate(x, z);
+    g.rotate(-yaw);
+    if (kind === MarkKind.dash) g.fillRect(-0.07, -1.25, 0.14, 2.5);
+    else {
+      if (!shapes.has(kind)) shapes.set(kind, arrowPath(kind));
+      g.fill(shapes.get(kind)!);
+    }
+    g.restore();
+  }
 }
 
 const CROSSABLE = new Set(['primary', 'secondary', 'tertiary', 'unclassified', 'residential', 'primary_link', 'secondary_link', 'tertiary_link']);

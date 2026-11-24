@@ -153,6 +153,7 @@ export interface BuildingStyle {
   ground: number;
   tower?: Tower;
   sign: boolean;
+  signFacing?: number;
 }
 
 /** Resolves the look of a building from OSM data, its purpose and landmark overrides. */
@@ -185,7 +186,7 @@ export function resolveStyle(b: Building): BuildingStyle {
   const pitched = shape && shape !== 'flat';
   const roof = cssColor(lm.roofColour) ?? cssColor(b.roofColour) ?? photoRoof(b.roofPhoto)
     ?? new THREE.Color(pitched || HOUSE.has(b.kind) ? pick(PITCHED_ROOF_COLORS, b.id, 2) : pick(FLAT_ROOF_COLORS, b.id, 3));
-  return { h, top, wall, roof, roofShape: shape, facade, ground, tower: lm.tower, sign: !!lm.sign };
+  return { h, top, wall, roof, roofShape: shape, facade, ground, tower: lm.tower, sign: !!lm.sign, signFacing: lm.signFacing };
 }
 
 export function buildBuildingsGeometry(buildings: Building[]): THREE.BufferGeometry | null {

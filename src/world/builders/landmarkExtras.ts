@@ -103,6 +103,20 @@ function gable(width: number): THREE.BufferGeometry {
   return mergeGeometries(parts)!;
 }
 
+/** Coloured cladding panel on a wall: local +z faces out, the panel sits from y = 0 up. */
+function panel(width: number, height: number, colour: number): THREE.BufferGeometry {
+  return col(new THREE.BoxGeometry(width, height, 0.25).translate(0, height / 2, 0.12), colour);
+}
+
+/** Flat entrance canopy sticking out of a wall, with two slim posts at the front. */
+function canopy(width: number, height: number, colour: number): THREE.BufferGeometry {
+  const depth = 3.2;
+  return mergeGeometries([
+    col(new THREE.BoxGeometry(width, 0.45, depth).translate(0, height + 0.22, depth / 2), colour),
+    ...[-1, 1].map((sd) => col(new THREE.CylinderGeometry(0.1, 0.1, height, 8).translate(sd * (width / 2 - 0.4), height / 2, depth - 0.3), 0x8d9296)),
+  ])!;
+}
+
 export function buildLandmarkExtras(extras: Extra[], heights: HeightField, material: THREE.Material) {
   const group = new THREE.Group();
   const boxes: number[] = [];
@@ -114,6 +128,8 @@ export function buildLandmarkExtras(extras: Extra[], heights: HeightField, mater
       case 'bastion': geo = bastion(e.size ?? 5); break;
       case 'portal': geo = portal(); break;
       case 'gable': geo = gable(e.size ?? 12); break;
+      case 'panel': geo = panel(e.size ?? 4, e.height ?? 3, e.colour ?? 0xffffff); break;
+      case 'canopy': geo = canopy(e.size ?? 8, e.height ?? 3.2, e.colour ?? 0x3a3d40); break;
     }
     geo.computeVertexNormals();
     const ground = heights.sample(e.x, e.z);

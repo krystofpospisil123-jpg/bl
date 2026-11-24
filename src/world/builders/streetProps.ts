@@ -8,6 +8,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { ChunkData } from '../format.ts';
 import type { HeightField } from '../HeightField.ts';
 import type { PropKind, PropSpot } from '../scenes.ts';
+import { inPolygon, parkingSlots } from '../parking.ts';
 import { bakeCarGeometries, CAR_COLORS } from '../../vehicle/CarModel.ts';
 
 type Rect = { minX: number; minZ: number; maxX: number; maxZ: number };
@@ -85,55 +86,9 @@ export interface ChunkProps {
   dispose(): void;
 }
 
-function pointInRing(x: number, z: number, r: number[]): boolean {
-  let inside = false;
-  for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) {
-    const xi = r[i], zi = r[i + 1], xj = r[j], zj = r[j + 1];
-    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
-  }
-  return inside;
-}
-const inPolygon = (x: number, z: number, rings: number[][]) => pointInRing(x, z, rings[0]) && !rings.slice(1).some((h) => pointInRing(x, z, h));
-
 function hash(a: number, b: number) {
   const h = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
   return h - Math.floor(h);
-}
-
-/** Perpendicular parking slots (2.5 x 5 m) aligned with the area's longest edge. */
-function parkingSlots(rings: number[][], out: { x: number; z: number; yaw: number }[]) {
-  const r = rings[0];
-  let best = 0, ux = 1, uz = 0;
-  for (let i = 0; i < r.length; i += 2) {
-    const j = (i + 2) % r.length;
-    const l = Math.hypot(r[j] - r[i], r[j + 1] - r[i + 1]);
-    if (l > best) { best = l; ux = (r[j] - r[i]) / l; uz = (r[j + 1] - r[i + 1]) / l; }
-  }
-  const vx = -uz, vz = ux;
-  let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
-  for (let i = 0; i < r.length; i += 2) {
-    const u = r[i] * ux + r[i + 1] * uz, v = r[i] * vx + r[i + 1] * vz;
-    minU = Math.min(minU, u); maxU = Math.max(maxU, u); minV = Math.min(minV, v); maxV = Math.max(maxV, v);
-  }
-  // Rows: two rows of cars back to back, then a 6 m aisle.
-  const pattern = [{ d: 5, face: 1 }, { d: 5, face: -1 }, { d: 6, face: 0 }];
-  let v = minV, k = 0;
-  while (v < maxV && out.length < 400) {
-    const p = pattern[k++ % 3];
-    if (p.face !== 0) {
-      const vc = v + p.d / 2;
-      for (let u = minU + 1.25; u < maxU; u += 2.5) {
-        const fits = [[-1.1, -2.3], [1.1, -2.3], [-1.1, 2.3], [1.1, 2.3]].every(([du, dv]) => {
-          const x = (u + du) * ux + (vc + dv) * vx, z = (u + du) * uz + (vc + dv) * vz;
-          return inPolygon(x, z, rings);
-        });
-        if (!fits) continue;
-        const x = u * ux + vc * vx, z = u * uz + vc * vz;
-        out.push({ x, z, yaw: Math.atan2(vx * p.face, vz * p.face) });
-      }
-    }
-    v += p.d;
-  }
 }
 
 export function buildStreetProps(data: ChunkData, rect: Rect, heights: HeightField, scene: PropSpot[], mats: PropMaterials): ChunkProps {
@@ -171,30 +126,15 @@ export function buildStreetProps(data: ChunkData, rect: Rect, heights: HeightFie
     }
   }
 
-  // Parked cars in parking areas.
-  const cars: { x: number; z: number; yaw: number }[] = [];
-  const plazas = data.areas.filter((a) => a.kind === 'plaza').map((a) => a.rings);
-  for (const a of data.areas) {
-    if (a.kind !== 'parking') continue;
-    const slots: { x: number; z: number; yaw: number }[] = [];
-    parkingSlots(a.rings, slots);
-    for (const s of slots) {
-      if (!inChunk(s.x, s.z) || hash(s.x, s.z) >= 0.72) continue;
-      // OSM may still map old parking where a square has since been built.
-      if (plazas.some((pl) => inPolygon(s.x, s.z, pl))) continue;
-      cars.push(s);
-    }
-  }
-
   // Shrubs along residential buildings, kept off roads.
   const roadSegs: number[] = [];
-  for (const rd of data.roads) for (let i = 0; i + 3 < rd.pts.length; i += 2) roadSegs.push(rd.pts[i], rd.pts[i + 1], rd.pts[i + 2], rd.pts[i + 3], rd.w / 2 + 1.2);
-  const nearRoad = (x: number, z: number) => {
+  for (const rd of data.roads) for (let i = 0; i + 3 < rd.pts.length; i += 2) roadSegs.push(rd.pts[i], rd.pts[i + 1], rd.pts[i + 2], rd.pts[i + 3], rd.w / 2);
+  const nearRoad = (x: number, z: number, extra = 1.2) => {
     for (let k = 0; k < roadSegs.length; k += 5) {
       const ax = roadSegs[k], az = roadSegs[k + 1], bx = roadSegs[k + 2], bz = roadSegs[k + 3];
       const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz || 1;
       const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / l2));
-      if (Math.hypot(ax + dx * t - x, az + dz * t - z) < roadSegs[k + 4]) return true;
+      if (Math.hypot(ax + dx * t - x, az + dz * t - z) < roadSegs[k + 4] + extra) return true;
     }
     return false;
   };
@@ -215,6 +155,23 @@ export function buildStreetProps(data: ChunkData, rect: Rect, heights: HeightFie
         if (!inChunk(x, z) || nearRoad(x, z)) continue;
         spots.shrub.push({ x, z, yaw: hash(d, i) * 6.28, s: 0.7 + hash(i, d) * 0.6 });
       }
+    }
+  }
+
+  // Parked cars in parking areas.
+  const cars: { x: number; z: number; yaw: number }[] = [];
+  const plazas = data.areas.filter((a) => a.kind === 'plaza').map((a) => a.rings);
+  for (const a of data.areas) {
+    if (a.kind !== 'parking') continue;
+    const slots: { x: number; z: number; yaw: number }[] = [];
+    parkingSlots(a.rings, slots);
+    for (const s of slots) {
+      if (!inChunk(s.x, s.z) || hash(s.x, s.z) >= 0.72) continue;
+      // OSM may still map old parking where a square has since been built.
+      if (plazas.some((pl) => inPolygon(s.x, s.z, pl))) continue;
+      // Aisles mapped as service roads cross many lots: keep them free.
+      if (nearRoad(s.x, s.z, 1.6)) continue;
+      cars.push(s);
     }
   }
 

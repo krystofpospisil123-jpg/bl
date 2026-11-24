@@ -24,6 +24,11 @@ export interface LandmarkStyle {
   tower?: Tower;
   /** Show the sign even for uses that normally have none. */
   sign?: boolean;
+  /** Put the sign on the facade facing this direction (rad, 0 = +z) instead of the one nearest a road. */
+  signFacing?: number;
+  /** Sign text and purpose overrides (e.g. when OSM links the wrong shop to a hall). */
+  label?: string;
+  use?: string;
 }
 
 export const LANDMARKS: Record<number, LandmarkStyle> = {
@@ -38,6 +43,17 @@ export const LANDMARKS: Record<number, LandmarkStyle> = {
   253861203: { h: 9, colour: '#6b4c34', roofColour: '#4a3a2c', roof: 'gabled', facade: FACADE.ornate, groundFacade: FACADE.ornate, tower: { size: 3.5, height: 12, roofHeight: 6, end: 0 } },
   // Stará vodárenská věž (old water tower).
   957022795: { h: 24, colour: '#c98f6a', roofColour: '#5a4a40', roof: 'pyramidal', facade: FACADE.oldtown, groundFacade: FACADE.oldtown, sign: true },
+  // --- Shopping area on Na Řadech / Poříčí (from street photos; signs are plain text only).
+  // Kaufland: dark grey hall, entrance facing the car park in the south. Pylon in world/scenes.ts.
+  253791835: { h: 9, colour: '#5b6064', facade: FACADE.supermarket, groundFacade: FACADE.supermarket, signFacing: 0 },
+  // Long white retail hall east of the car park (blue section added in world/scenes.ts), facing west.
+  253792182: { h: 7.5, colour: '#eceeef', facade: FACADE.supermarket, groundFacade: FACADE.supermarket, signFacing: -Math.PI / 2 },
+  372508663: { h: 7, colour: '#eceeef', facade: FACADE.supermarket, groundFacade: FACADE.supermarket, signFacing: -Math.PI / 2 },
+  // West side of Poříčí: new retail row (grey cladding, glazed ground floor), facing east.
+  // OSM links the shoe shop (southern end, orange panels) to it; the supermarket fills the rest.
+  1280153528: { h: 7.5, colour: '#d5d8da', facade: FACADE.supermarket, groundFacade: FACADE.glass, signFacing: Math.PI / 2, label: 'Lidl', use: 'shop:supermarket', sign: true },
+  253796332: { h: 7, colour: '#e4e6e7', facade: FACADE.supermarket, groundFacade: FACADE.glass, signFacing: Math.PI / 2 },
+  1088075514: { h: 7, colour: '#e9ebec', facade: FACADE.supermarket, groundFacade: FACADE.supermarket, signFacing: Math.PI / 2 },
   // Městský úřad (town hall)
   // (resolved by use=amenity:townhall below, no id override needed)
 };
@@ -64,7 +80,7 @@ export function genericName(use: string): string {
   const map: Record<string, string> = {
     'shop:supermarket': 'Supermarket', 'shop:convenience': 'Potraviny', 'shop:department_store': 'Obchodní dům',
     'shop:bakery': 'Pekárna', 'shop:butcher': 'Řeznictví', 'shop:chemist': 'Drogerie', 'shop:wine': 'Vinotéka',
-    'shop:alcohol': 'Nápoje', 'shop:clothes': 'Oděvy', 'shop:optician': 'Optika', 'shop:bicycle': 'Kola',
+    'shop:alcohol': 'Nápoje', 'shop:clothes': 'Oděvy', 'shop:shoes': 'Obuv', 'shop:optician': 'Optika', 'shop:bicycle': 'Kola',
     'shop:car': 'Autosalon', 'shop:florist': 'Květiny', 'shop:pastry': 'Cukrárna', 'shop:confectionery': 'Cukrárna',
     'amenity:cafe': 'Kavárna', 'amenity:restaurant': 'Restaurace', 'amenity:pub': 'Hospoda', 'amenity:fast_food': 'Bistro',
     'amenity:pharmacy': 'Lékárna', 'amenity:bank': 'Banka', 'amenity:fuel': 'Čerpací stanice', 'amenity:cinema': 'Kino',

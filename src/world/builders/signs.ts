@@ -2,8 +2,8 @@
 // that faces the nearest street, with the name rendered to a canvas texture. Names are
 // plain text without logos; real names can be swapped for generic ones (see config).
 import * as THREE from 'three';
-import type { ChunkData, Building } from '../format.ts';
-import { SIGN_USES, genericName } from '../landmarks.ts';
+import type { ChunkData, Building, Pylon } from '../format.ts';
+import { LANDMARKS, SIGN_USES, genericName } from '../landmarks.ts';
 import { resolveStyle } from './buildings.ts';
 import { settings } from '../../config.ts';
 
@@ -54,14 +54,16 @@ function signTexture(text: string, theme: SignTheme, aspect: number): THREE.Canv
 }
 
 export function signText(b: Building): string | null {
-  if (!b.label || !b.use || !SIGN_USES.test(b.use)) return null;
-  const commercial = /^(shop:|amenity:(cafe|restaurant|pub|bar|fast_food|pharmacy|bank|fuel|biergarten))/.test(b.use);
-  if (commercial && !settings.realNames) return genericName(b.use) || null;
-  return b.label;
+  const lm = LANDMARKS[b.id];
+  const label = lm?.label ?? b.label, use = lm?.use ?? b.use;
+  if (!label || !use || !SIGN_USES.test(use)) return null;
+  const commercial = /^(shop:|amenity:(cafe|restaurant|pub|bar|fast_food|pharmacy|bank|fuel|biergarten))/.test(use);
+  if (commercial && !settings.realNames) return genericName(use) || null;
+  return label;
 }
 
 /** Wall edge facing the nearest road: returns its endpoints and outward normal. */
-function wallTowardRoad(b: Building, data: ChunkData) {
+function wallTowardRoad(b: Building, data: ChunkData, facing?: number) {
   const r = b.rings[0];
   let ccwArea = 0;
   for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) ccwArea += r[j] * r[i + 1] - r[i] * r[j + 1];
@@ -87,24 +89,79 @@ function wallTowardRoad(b: Building, data: ChunkData) {
         dRoad = Math.min(dRoad, Math.hypot(vx, vz));
       }
     }
-    const score = -dRoad + Math.min(len, 20) * 0.3;
+    // A landmark may name the facade (direction it faces): pick the longest wall facing that way.
+    const score = facing !== undefined
+      ? (nx * Math.sin(facing) + nz * Math.cos(facing) > 0.9 ? len : -Infinity)
+      : -dRoad + Math.min(len, 20) * 0.3;
     if (score > bestScore) { bestScore = score; best = { ax, az, bx, bz, nx, nz, len }; }
   }
   return best;
 }
 
 const boardMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.6 });
+const PYLON_THEME: SignTheme = { bg: '#f6f6f4', fg: '#22262a' };
 
-export function buildSigns(data: ChunkData): { group: THREE.Group; dispose: () => void } {
+/** Free-standing pylon: two posts in a frame, the main board on top, tenant panels below. */
+function buildPylon(p: Pylon, ground: number, disposables: { dispose(): void }[]): THREE.Group {
+  const g = new THREE.Group();
+  const frameMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(p.frame ?? '#8d9296'), roughness: 0.5, metalness: 0.3 });
+  const w = p.board, depth = 0.5;
+  const tenants = p.tenants ?? [];
+  const panelH = 0.9;
+  const frameGeo = new THREE.BoxGeometry(w + 0.4, p.height, depth);
+  // Hollow-looking frame: a slim column per side and a cap, the boards fill the top part.
+  const post = new THREE.BoxGeometry(0.35, p.height, depth);
+  for (const sd of [-1, 1]) {
+    const m = new THREE.Mesh(post, frameMat);
+    m.position.set(sd * (w / 2 + 0.02), p.height / 2, 0);
+    m.castShadow = true;
+    g.add(m);
+  }
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(w + 0.7, 0.3, depth + 0.1), frameMat);
+  cap.position.y = p.height + 0.15;
+  g.add(cap);
+  disposables.push(frameMat, frameGeo, post, cap.geometry);
+  frameGeo.dispose();
+  const real = settings.realNames;
+  const boards: { text: string; h: number; y: number; main: boolean }[] = [{ text: real ? p.text : p.generic, h: w, y: p.height - w / 2 - 0.15, main: true }];
+  let y = p.height - w - 0.3;
+  for (const [t, gen] of tenants) {
+    boards.push({ text: real ? t : gen, h: panelH, y: y - panelH / 2, main: false });
+    y -= panelH + 0.12;
+  }
+  for (const b of boards) {
+    const tex = signTexture(b.text, PYLON_THEME, b.main ? 1 : w / b.h);
+    const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.12 });
+    const geo = new THREE.BoxGeometry(w, b.h, depth - 0.05);
+    const box = new THREE.Mesh(geo, boardMat);
+    box.position.y = b.y;
+    const faceGeo = new THREE.PlaneGeometry(w - 0.05, b.h - 0.05);
+    for (const sd of [1, -1]) {
+      const f = new THREE.Mesh(faceGeo, face);
+      f.position.z = sd * (depth / 2 + 0.005);
+      f.rotation.y = sd > 0 ? 0 : Math.PI;
+      box.add(f);
+    }
+    box.castShadow = true;
+    g.add(box);
+    disposables.push(tex, face, geo, faceGeo);
+  }
+  g.position.set(p.x, ground - 0.2, p.z);
+  g.rotation.y = p.yaw;
+  return g;
+}
+
+export function buildSigns(data: ChunkData, groundAt?: (x: number, z: number) => number): { group: THREE.Group; dispose: () => void } {
   const group = new THREE.Group();
   const disposables: { dispose(): void }[] = [];
+  if (groundAt) for (const p of data.pylons ?? []) group.add(buildPylon(p, groundAt(p.x, p.z), disposables));
   for (const b of data.buildings) {
     const text = signText(b);
     if (!text) continue;
     const st = resolveStyle(b);
-    const wall = wallTowardRoad(b, data);
+    const wall = wallTowardRoad(b, data, st.signFacing);
     if (!wall) continue;
-    const theme = themeFor(b.use!);
+    const theme = themeFor(LANDMARKS[b.id]?.use ?? b.use!);
     const height = theme.big ? 1.6 : 0.85;
     const width = Math.min(wall.len * 0.8, Math.max(2.4, text.length * height * 0.55), theme.big ? 16 : 8);
     const tex = signTexture(text, theme, width / height);
