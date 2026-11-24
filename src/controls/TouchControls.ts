@@ -27,7 +27,7 @@ export class TouchControls {
   private center = { x: 0, y: 0 };
   private radius = 56;
 
-  constructor(private input: Input, private extra: { canEnterCar: () => boolean; canSteal: () => boolean; armed: () => boolean; nearBin: () => boolean }) {
+  constructor(private input: Input, private extra: { canEnterCar: () => boolean; canSteal: () => boolean; armed: () => boolean; nearBin: () => boolean; nearEntrance: () => boolean }) {
     this.root.id = 'touch';
     // --- Joystick (left)
     const zone = document.createElement('div');
@@ -48,6 +48,7 @@ export class TouchControls {
     const tap = (label: string, code: string, modes: Mode[], when?: () => boolean, cls = '') => this.add(pad, label, modes, { tap: code, when, cls });
     tap('Nastoupit', 'KeyF', ['foot'], () => this.extra.canEnterCar(), 'accent');
     tap('Ukrást auto', 'KeyF', ['foot'], () => this.extra.canSteal(), 'accent');
+    tap('Vstoupit', 'KeyF', ['foot'], () => this.extra.nearEntrance() && !this.extra.canEnterCar() && !this.extra.canSteal(), 'accent');
     tap('Prohledat', 'KeyF', ['foot'], () => this.extra.nearBin() && !this.extra.canEnterCar() && !this.extra.canSteal());
     tap('Zbraň', 'KeyQ', ['foot']);
     this.add(pad, 'Střílet', ['foot'], { hold: 'KeyE', when: () => this.extra.armed(), cls: 'big' });

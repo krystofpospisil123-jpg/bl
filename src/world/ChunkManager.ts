@@ -9,7 +9,7 @@ import { buildBuildingsGeometry } from './builders/buildings.ts';
 import { ChunkTrees } from './builders/trees.ts';
 import { buildWaterGeometry, buildBridgeGeometry } from './builders/water.ts';
 import type { PhysicsChunkSource } from '../physics/PhysicsWorld.ts';
-import { buildSigns } from './builders/signs.ts';
+import { buildSigns, storeEntrances, type StoreEntrance } from './builders/signs.ts';
 import { buildLamps, type LampSpot } from './builders/props.ts';
 import { buildStreetProps } from './builders/streetProps.ts';
 import { sceneFor } from './scenes.ts';
@@ -44,6 +44,7 @@ interface ChunkState {
   signs?: { group: THREE.Group; dispose: () => void };
   lamps: LampSpot[];
   bins?: THREE.Vector3[];
+  entrances?: (StoreEntrance & { y: number })[];
   /** Ground texture size currently shown / last requested from the worker. */
   texShown: number;
   /** Earliest time to retry loading after a failure. */
@@ -57,6 +58,11 @@ export interface ChunkStats {
   queued: number;
   lodCounts: number[];
 }
+
+const DOOR_GEO = new THREE.PlaneGeometry(2.2, 2.5);
+const DOOR_MAT = new THREE.MeshStandardMaterial({ color: 0xbfe3ff, emissive: 0xffe8b0, emissiveIntensity: 0.9, roughness: 0.1, metalness: 0.2 });
+const RING_GEO = new THREE.RingGeometry(1.0, 1.35, 32).rotateX(-Math.PI / 2);
+const RING_MAT = new THREE.MeshBasicMaterial({ color: 0x7fd4ff, transparent: true, opacity: 0.55, depthWrite: false });
 
 export class ChunkManager {
   /** Chunks closer than this (to the chunk's nearest edge) are kept loaded. */
@@ -167,6 +173,13 @@ export class ChunkManager {
     }
   }
 
+  /** Walk-in store entrances within `radius` of a point. */
+  entrancesNear(p: THREE.Vector3, radius: number): (StoreEntrance & { y: number })[] {
+    const out: (StoreEntrance & { y: number })[] = [];
+    for (const st of this.states.values()) for (const e of st.entrances ?? []) if (Math.hypot(e.x - p.x, e.z - p.z) < radius) out.push(e);
+    return out;
+  }
+
   /** Litter bins within `radius` of a point (searchable for money). */
   binsNear(p: THREE.Vector3, radius: number): THREE.Vector3[] {
     const out: THREE.Vector3[] = [];
@@ -252,6 +265,16 @@ export class ChunkManager {
         st.collisionMeshes.push(brGeo.attributes.position.array as Float32Array);
       }
       st.signs = buildSigns(data.data, this.groundAt);
+      // Walk-in stores: a lit glass door on the facade and a ring on the pavement.
+      st.entrances = storeEntrances(data.data).map((e) => ({ ...e, y: this.heights.sample(e.x, e.z) }));
+      for (const e of st.entrances) {
+        const door = new THREE.Mesh(DOOR_GEO, DOOR_MAT);
+        door.position.set(e.x - e.nx * 0.85, e.y + 1.25, e.z - e.nz * 0.85);
+        door.rotation.y = Math.atan2(e.nx, e.nz);
+        const ring = new THREE.Mesh(RING_GEO, RING_MAT);
+        ring.position.set(e.x, e.y + 0.07, e.z);
+        st.group.add(door, ring);
+      }
       st.group.add(st.signs.group);
       const lamps = buildLamps(data.data, st.rect, this.heights, this.mats.props, scene.lamps);
       if (lamps.mesh) {

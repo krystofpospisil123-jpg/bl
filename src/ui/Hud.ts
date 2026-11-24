@@ -88,7 +88,7 @@ export class Hud {
       this.shownMode = g.mode;
       this.help.innerHTML = HELP[g.mode].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
     }
-    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '') || (g.canSteal && !g.touch ? 'F – ukrást auto' : '') || (g.nearBin ? (g.touch ? 'Popelnice – tlačítko Prohledat' : 'F – prohledat popelnici') : '');
+    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '') || (g.canSteal && !g.touch ? 'F – ukrást auto' : '') || (g.nearEntrance ? (g.touch ? `${g.nearEntrance.name} – tlačítko Vstoupit` : `F – vstoupit: ${g.nearEntrance.name}`) : '') || (g.nearBin ? (g.touch ? 'Popelnice – tlačítko Prohledat' : 'F – prohledat popelnici') : '');
     if (this.prompt.textContent !== msg) this.prompt.textContent = msg;
     this.prompt.hidden = !msg;
     // Wanted stars (police chase), flashing while a police car sees you.

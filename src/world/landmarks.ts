@@ -60,7 +60,7 @@ export const LANDMARKS: Record<number, LandmarkStyle> = {
   // Tall yellow tower block behind it (twelve floors).
   254004783: { h: 38, colour: '#e2c36c', roof: 'flat', facade: FACADE.panel, groundFacade: FACADE.panel },
   // JYSK: grey-blue hall with a red gabled roof, entrance facing the car park and Svitavská.
-  253974411: { h: 7, colour: '#6f7f8a', roofColour: '#b0392d', roof: 'gabled', facade: FACADE.supermarket, groundFacade: FACADE.glass, signFacing: Math.PI / 2 },
+  253974411: { h: 7, colour: '#6f7f8a', roofColour: '#b0392d', roof: 'gabled', facade: FACADE.supermarket, groundFacade: FACADE.glass, signFacing: Math.PI / 2, use: 'shop:furniture' },
   // Městský úřad (town hall)
   // (resolved by use=amenity:townhall below, no id override needed)
 };

@@ -28,6 +28,8 @@ import { Arsenal, WEAPONS, formatKc } from '../combat/Arsenal.ts';
 import { Effects } from '../fx/Effects.ts';
 import { Pickups } from './Pickups.ts';
 import { Shops } from './Shops.ts';
+import { Interior } from './Interior.ts';
+import type { StoreEntrance } from '../world/builders/signs.ts';
 import { Minimap } from '../ui/Minimap.ts';
 import { assets } from '../assets/models.ts';
 import type RAPIER from '@dimforge/rapier3d-compat';
@@ -64,6 +66,9 @@ export class Game {
   readonly effects = new Effects();
   readonly pickups = new Pickups();
   shops?: Shops;
+  interior?: Interior;
+  /** The store the player is inside, if any. */
+  insideStore: (StoreEntrance & { y: number }) | null = null;
   /** Bins searched recently (key "x,z" -> time when they can be searched again). */
   private searchedBins = new Map<string, number>();
   /** Smoke from the bonnet of a badly damaged car. */
@@ -105,7 +110,7 @@ export class Game {
     if (mobile) {
       this.chunks.useMobileProfile();
       this.touch = new TouchControls(this.input, {
-        canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped, nearBin: () => !!this.nearBin,
+        canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped, nearBin: () => !!this.nearBin && !this.nearEntrance, nearEntrance: () => !!this.nearEntrance,
       });
     }
     this.scene.add(this.chunks.root);
@@ -179,9 +184,10 @@ export class Game {
         this.police?.report(0.5, 'wrecked a car');
       };
       this.police.onWrecked = wrecked;
-      this.shops = new Shops(graphs.walk, (x, z) => this.heights.sample(x, z), this.arsenal);
+      this.shops = new Shops(this.arsenal);
       this.shops.onMessage = (t) => this.say(t);
-      this.scene.add(this.shops.group, this.pickups.group);
+      this.interior = new Interior(p);
+      this.scene.add(this.interior.group, this.pickups.group);
       this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 110 : 180);
       this.scene.add(this.traffic.group, this.pedestrians.group, this.police.group, this.weapon.group);
       this.chase = new ChaseCamera(this.camera, this.mouse, (x, z) => this.heights.sample(x, z), (o, d, max) =>
@@ -218,7 +224,7 @@ export class Game {
 
   /** A traffic car close enough to steal (on foot, when not next to your own car). */
   get canSteal(): boolean {
-    return this.mode === 'foot' && !this.canEnterCar && !!this.player && !!this.traffic?.stealable(this.player.position);
+    return this.mode === 'foot' && !this.insideStore && !this.canEnterCar && !!this.player && !!this.traffic?.stealable(this.player.position);
   }
 
   /** True when the player can press F to get into the car. */
@@ -307,6 +313,33 @@ export class Game {
     this.pedestrians?.panicAround(t.position, 20);
     if (this.police?.units.some((u) => u.pos.distanceTo(t.position) < 60)) this.police.report(1, 'car theft');
     this.say('Ukradl jsi auto');
+  }
+
+  /** A store door within reach (on foot, outside). */
+  get nearEntrance(): (StoreEntrance & { y: number }) | null {
+    if (this.mode !== 'foot' || !this.player || this.insideStore) return null;
+    return this.chunks.entrancesNear(this.player.position, 1.8)[0] ?? null;
+  }
+
+  private enterStore(e: StoreEntrance & { y: number }) {
+    if (!this.interior || !this.player) return;
+    this.insideStore = e;
+    this.arsenal.current = null;
+    this.interior.setName(e.name);
+    this.player.teleport(this.interior.spawn.clone(), this.interior.spawnYaw);
+    this.chase?.setYaw(this.interior.spawnYaw);
+    this.say(`${e.name}: pult se zbraněmi je vzadu vpravo`, 4);
+  }
+
+  private leaveStore() {
+    const e = this.insideStore;
+    if (!e || !this.player) return;
+    this.insideStore = null;
+    this.shops?.close();
+    const x = e.x + e.nx * 1.6, z = e.z + e.nz * 1.6;
+    const yaw = Math.atan2(e.nx, e.nz);
+    this.player.teleport(new THREE.Vector3(x, this.heights.sample(x, z) + 0.1, z), yaw);
+    this.chase?.setYaw(yaw);
   }
 
   /** The nearest litter bin within reach (on foot). */
@@ -426,6 +459,7 @@ export class Game {
       if (this.mode === 'car') this.exitCar();
       else if (this.canEnterCar) this.enterCar();
       else if (this.mode === 'foot' && this.canSteal) this.steal();
+      else if (this.mode === 'foot' && this.nearEntrance) this.enterStore(this.nearEntrance);
       else if (this.mode === 'foot') this.searchBin();
     }
     if (k.justPressed('KeyR') && this.car && this.mode === 'car') this.car.reset(undefined, this.car.yaw);
@@ -496,7 +530,8 @@ export class Game {
     if (this.minimap && (this.mode === 'car' || this.mode === 'foot' || this.mode === 'fly')) {
       const yaw = this.mode === 'fly' ? this.fly.yaw + Math.PI : this.chase?.viewYaw ?? 0;
       this.minimap.update(this.focus, yaw, this.mode === 'foot' ? this.car?.position ?? null : null,
-        this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0, this.shops?.spots.map((s) => s.pos) ?? []);
+        this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0, this.chunks.entrancesNear(this.focus, 3000).map((e) => new THREE.Vector3(e.x, e.y, e.z)));
+      this.minimap.canvas.hidden = !!this.insideStore;
     }
     this.touch?.update(this.mode);
     this.input.endFrame();
@@ -527,7 +562,8 @@ export class Game {
     const moveInput = { x: mx, z: mz, sprint: walking && k.down('ShiftLeft', 'ShiftRight'), jump: walking && k.down('Space') };
 
     // Traffic and pedestrians move first so their kinematic bodies are placed for this step.
-    if (groundReady && this.traffic && this.pedestrians) {
+    // The town's AI pauses while the player is inside a store.
+    if (groundReady && this.traffic && this.pedestrians && !this.insideStore) {
       const focus = this.focus;
       const obstacles = [{ x: car.position.x, z: car.position.z, radius: 2.2 }, ...this.pedestrians.obstacles()];
       if (player.isActive) obstacles.push({ x: player.position.x, z: player.position.z, radius: 0.6 });
@@ -572,7 +608,11 @@ export class Game {
       this.sound.pickup();
       this.say(`+${formatKc(got)}`);
     }
-    this.shops?.update(player.position, walking, timeUniform.value);
+    // Inside a store: the gun counter opens the shop menu, the door ring takes you back out.
+    const inside = this.interior && this.insideStore;
+    if (inside && walking && this.interior!.near(player.position, this.interior!.counter, 1.4)) this.shops?.open(this.insideStore!.name);
+    else this.shops?.close();
+    if (inside && walking && this.interior!.near(player.position, this.interior!.exit, 1.0)) this.leaveStore();
     const dmg = car.model.damage;
     this.carSmoke.smoke = dmg > 0.45 ? Math.min(0.9, (dmg - 0.45) * 2) : 0;
     this.carSmoke.pos.set(0, 0.35, car.model.halfLength - 0.7).applyQuaternion(car.quaternion).add(car.position);

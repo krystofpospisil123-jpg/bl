@@ -151,6 +151,37 @@ function buildPylon(p: Pylon, ground: number, disposables: { dispose(): void }[]
   return g;
 }
 
+/** A shop the player can walk into: a door point in front of its main facade. */
+export interface StoreEntrance {
+  id: number;
+  name: string;
+  /** Door position on the pavement and the outward direction of the facade. */
+  x: number;
+  z: number;
+  nx: number;
+  nz: number;
+}
+
+const STORE_USES = /^shop:(supermarket|department_store|doityourself|furniture|mall)$/;
+/** Buildings tagged as stores that are not walk-in shops in the game. */
+const NOT_STORES = new Set([253796332]);
+
+/** Walk-in stores of a chunk (big shops: supermarkets, department and DIY stores). */
+export function storeEntrances(data: ChunkData): StoreEntrance[] {
+  const out: StoreEntrance[] = [];
+  for (const b of data.buildings) {
+    const use = LANDMARKS[b.id]?.use ?? b.use ?? '';
+    if (!STORE_USES.test(use) || NOT_STORES.has(b.id)) continue;
+    const name = LANDMARKS[b.id]?.label ?? b.label ?? genericName(use);
+    const st = resolveStyle(b);
+    const wall = wallTowardRoad(b, data, st.signFacing);
+    if (!wall) continue;
+    const mx = (wall.ax + wall.bx) / 2, mz = (wall.az + wall.bz) / 2;
+    out.push({ id: b.id, name, x: mx + wall.nx * 0.9, z: mz + wall.nz * 0.9, nx: wall.nx, nz: wall.nz });
+  }
+  return out;
+}
+
 export function buildSigns(data: ChunkData, groundAt?: (x: number, z: number) => number): { group: THREE.Group; dispose: () => void } {
   const group = new THREE.Group();
   const disposables: { dispose(): void }[] = [];

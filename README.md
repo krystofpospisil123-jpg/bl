@@ -158,7 +158,7 @@ postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blende
   auto). Hráčovo auto dostane jeho model i barvu a staré auto zůstane zaparkované na místě
   (nejvýš 4 odstavená auta, pak mizí nejstarší). Krádež poblíž policie = +1 hvězda.
 - **Minimapa** vlevo dole (na mobilu vpravo nahoře): silnice a chodníky, otáčí se podle kamery,
-  žlutá šipka = hráč, bílý čtverec = tvoje auto, žlutý čtverec se „Z“ = obchod se zbraněmi (vzdálené na okraji), modré tečky = policie (při honičce blikají
+  žlutá šipka = hráč, bílý čtverec = tvoje auto, žlutý čtverec se „Z“ = obchod, do kterého se dá vejít (vzdálené na okraji), modré tečky = policie (při honičce blikají
   červeně a modře, vzdálená auta se drží na okraji), S = sever.
 
 ## Peníze, obchody se zbraněmi, ničení aut, poškození
@@ -167,8 +167,13 @@ postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blende
   sebereš ho, když přes něj přejdeš nebo přejedeš. Popelnice (u náměstí a podél ulic) jde
   prohledat klávesou F: někdy peníze, někdy náboje, každá jednou za 2 minuty.
   Zatčení stojí pokutu 20 % peněz.
-- **Obchody se zbraněmi** (žlutý kruh se značkou ZBRANĚ: u náměstí Republiky, na parkovišti
-  Na Řadech a u Fügnerovy): stoupni si do kruhu a otevře se nabídka.
+- **Obchody:** do velkých obchodů (Kaufland, Lidl, Penny, Billa, Albert, Action, JYSK, Hruška…)
+  se dá vejít. Vchod poznáš podle svítících skleněných dveří pod nápisem obchodu a modrého kruhu
+  na chodníku; F (na mobilu Vstoupit) tě pustí dovnitř. Uvnitř je prodejna (regály se zbožím,
+  lednice, pokladny) a vzadu vpravo pult se zbraněmi: stoupni si k němu a otevře se nabídka.
+  Ven se jde modrým kruhem u dveří. Prodejna je jedna společná a stojí vysoko nad městem
+  (`src/game/Interior.ts`), nad pultem visí název obchodu, kterým jsi vešel. Venku se mezitím
+  provoz, chodci i policie zastaví.
   | Zbraň | Cena | Náboje |
   | --- | --- | --- |
   | Pistole | 800 Kč (na začátku ji máš) | 24 ks za 60 Kč |
