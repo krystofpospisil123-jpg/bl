@@ -476,3 +476,9 @@ for nm, src, loc in [('npc_armR', 'npc_arm', (-0.27, 0, 1.44)), ('npc_handR', 'n
     ob.location = loc
 summary['npc'] = parts
 result = summary
+
+# ---------------- Police car ----------------
+# Built in a second step from the estate (see the project history): white paint, blue band and a
+# yellow-green checker band on the sides, "POLICIE" lettering (Blender text converted to mesh)
+# on the front doors and tailgate, roof light bar with separate left/right lenses (materials
+# beaconL / beaconR, flashed by the game). Exported as car_police_hi / _lo / _wheel / _w*.

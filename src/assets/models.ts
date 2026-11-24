@@ -41,9 +41,16 @@ export interface PersonAsset {
   leg: THREE.BufferGeometry;
 }
 
-export const assets: { cars?: Record<CarType, CarAsset>; person?: PersonAsset } = {};
+/** Police car (estate with livery): like a CarAsset plus the two flashing light-bar halves. */
+export interface PoliceAsset extends CarAsset {
+  beaconL: THREE.BufferGeometry;
+  beaconR: THREE.BufferGeometry;
+}
+
+export const assets: { cars?: Record<CarType, CarAsset>; police?: PoliceAsset; person?: PersonAsset } = {};
 
 const ROUGHNESS: Record<string, number> = {
+  livery_blue: 0.4, livery_yellow: 0.4, livery_text: 0.4,
   glass: 0.04, chrome: 0.18, rim: 0.28, tyre: 0.92, trim: 0.6, headlight: 0.15, taillight: 0.3,
   plate: 0.5, plateblue: 0.5, indicator: 0.3, shoe: 0.7, hair: 0.9, eye: 0.3,
 };
@@ -144,8 +151,7 @@ export async function loadModels(buffer: ArrayBuffer): Promise<void> {
   const root = gltf.scene;
   root.updateMatrixWorld(true);
   const find = (name: string) => root.getObjectByName(name);
-  const cars = {} as Record<CarType, CarAsset>;
-  for (const t of CAR_TYPES) {
+  const loadCar = (t: string, extraSkip = (_m: string) => false): CarAsset => {
     const carRoot = find(`car_${t}`), hiNode = find(`car_${t}_hi`), loNode = find(`car_${t}_lo`), wheelNode = find(`car_${t}_wheel`);
     if (!carRoot || !hiNode || !loNode || !wheelNode) throw new Error(`Model auta ${t} chybí`);
     const inv = carRoot.matrixWorld.clone().invert();
@@ -161,10 +167,22 @@ export async function loadModels(buffer: ArrayBuffer): Promise<void> {
     const radius = wheelPos[0].y - CAR_GROUND;
     const wheelsAt = wheelPos.map((p) => p.clone().sub(new THREE.Vector3(0, CAR_GROUND, 0)));
     const isWheel = (mat: string, ctr: THREE.Vector3) => mat === 'tyre' || mat === 'rim' || (mat === 'trim' && wheelsAt.some((w) => w.distanceTo(ctr) < radius * 0.5));
-    const body = bake(hiNode, (mat, ctr) => mat === 'taillight' || isWheel(mat, ctr)).translate(0, CAR_GROUND, 0);
+    const body = bake(hiNode, (mat, ctr) => mat === 'taillight' || extraSkip(mat) || isWheel(mat, ctr)).translate(0, CAR_GROUND, 0);
     const tail = bake(hiNode, (mat) => mat !== 'taillight').translate(0, CAR_GROUND, 0);
     const wheel = bake(wheelNode);
-    cars[t] = { hi, lo, body, tail, wheel, wheelPos, halfLength: Math.max(-bb.min.z, bb.max.z), halfWidth: (bb.max.x - bb.min.x) / 2 - 0.1 };
+    return { hi, lo, body, tail, wheel, wheelPos, halfLength: Math.max(-bb.min.z, bb.max.z), halfWidth: (bb.max.x - bb.min.x) / 2 - 0.1 };
+  };
+  const cars = {} as Record<CarType, CarAsset>;
+  for (const t of CAR_TYPES) cars[t] = loadCar(t);
+  const policeNode = find('car_police_hi');
+  if (policeNode) {
+    const beacon = (m: string) => m === 'beaconL' || m === 'beaconR';
+    const p = loadCar('police', beacon);
+    assets.police = {
+      ...p,
+      beaconL: bake(policeNode, (m) => m !== 'beaconL').translate(0, CAR_GROUND, 0),
+      beaconR: bake(policeNode, (m) => m !== 'beaconR').translate(0, CAR_GROUND, 0),
+    };
   }
   const part = (name: string) => {
     const n = find(name);

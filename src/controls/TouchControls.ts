@@ -51,6 +51,7 @@ export class TouchControls {
     hold('Skok', 'Space', ['foot'], 'big');
     tap('Vystoupit', 'KeyF', ['car'], undefined, 'accent');
     tap('Na kola', 'KeyR', ['car']);
+    hold('Klakson', 'KeyK', ['car']);
     hold('Ruční brzda', 'Space', ['car'], 'big');
     hold('Nahoru', 'Space', ['fly']);
     hold('Dolů', 'KeyQ', ['fly']);
@@ -77,6 +78,7 @@ export class TouchControls {
     item('Provoz zap/vyp', 'KeyT');
     item('Názvy obchodů', 'KeyN');
     item('2D mapa', 'KeyM');
+    item('Zvuk zap/vyp', 'KeyU');
     menuBtn.addEventListener("click", () => this.toggleMenu(menuBtn, this.menu.hidden === true));
 
     this.root.append(zone, pad, menuBtn, this.menu);

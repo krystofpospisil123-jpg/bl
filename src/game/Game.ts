@@ -21,6 +21,8 @@ import { Graph } from '../traffic/Graph.ts';
 import { Traffic } from '../traffic/Traffic.ts';
 import { Pedestrians } from '../traffic/Pedestrians.ts';
 import { VIEWPOINTS } from './viewpoints.ts';
+import { Police } from '../police/Police.ts';
+import { Sound } from '../audio/Sound.ts';
 
 /** Car spawn on náměstí Republiky (on the street, heading along it). */
 const SPAWN = { x: -15.7, z: 184.2, yaw: -2.79 };
@@ -47,6 +49,8 @@ export class Game {
   player?: Player;
   traffic?: Traffic;
   pedestrians?: Pedestrians;
+  police?: Police;
+  readonly sound = new Sound(settings.muted);
   mode: Mode = 'loading';
   /** Mode to return to when leaving the free camera. */
   private playMode: 'foot' | 'car' = 'foot';
@@ -111,7 +115,19 @@ export class Game {
         this.traffic.maxCars = 12;
         this.pedestrians.maxPeds = 24;
       }
-      this.scene.add(this.traffic.group, this.pedestrians.group);
+      this.police = new Police(new Graph(graphs.drive, true), p, this.heights);
+      // Crimes raise the wanted level; police catching you ends the chase.
+      this.pedestrians.onHit = () => {
+        this.sound.thud();
+        this.police?.report(1, 'pedestrian');
+      };
+      this.traffic.onRam = () => this.police?.report(0.5, 'ramming');
+      this.police.onWanted = (level, reason) => {
+        if (reason === 'lost') this.say(level ? `Policie tě ztrácí: ${'★'.repeat(level)}` : 'Policie tě ztratila');
+        else this.say(`Hledanost ${'★'.repeat(level)}`);
+      };
+      this.police.onBusted = () => this.busted();
+      this.scene.add(this.traffic.group, this.pedestrians.group, this.police.group);
       this.chase = new ChaseCamera(this.camera, this.mouse, (x, z) => this.heights.sample(x, z), (o, d, max) =>
         p.castRay(o, d, max, this.mode === 'car' ? this.car?.body : this.player?.body),
       );
@@ -217,6 +233,20 @@ export class Game {
     this.setMode('foot');
   }
 
+  /** Caught by the police: start again on foot at náměstí Republiky, the car beside you. */
+  private busted() {
+    if (!this.car || !this.player) return;
+    const g = this.heights.sample(SPAWN.x, SPAWN.z);
+    this.car.reset(new THREE.Vector3(SPAWN.x, g + 1.2, SPAWN.z), SPAWN.yaw);
+    const door = new THREE.Vector3(2.2, 0, 0.3).applyAxisAngle(new THREE.Vector3(0, 1, 0), SPAWN.yaw);
+    const px = SPAWN.x + door.x, pz = SPAWN.z + door.z;
+    this.player.teleport(new THREE.Vector3(px, this.heights.sample(px, pz) + 0.1, pz), SPAWN.yaw);
+    this.player.setActive(true);
+    this.chase?.setYaw(SPAWN.yaw);
+    this.setMode('foot');
+    this.say('ZATČEN! Začínáš znovu na náměstí Republiky.', 5);
+  }
+
   /** From the free camera: put the player (and the car beside them) under the camera. */
   private landHere() {
     if (!this.player || !this.car) return;
@@ -269,6 +299,12 @@ export class Game {
       saveSettings();
       this.chunks.rebuildSigns();
       this.say(settings.realNames ? 'Skutečné názvy obchodů' : 'Obecné názvy obchodů');
+    }
+    if (k.justPressed('KeyU')) {
+      settings.muted = !settings.muted;
+      saveSettings();
+      this.sound.setMuted(settings.muted);
+      this.say(settings.muted ? 'Zvuk vypnut' : 'Zvuk zapnut');
     }
     if (k.justPressed('KeyT') && this.traffic && this.pedestrians) {
       this.traffic.enabled = this.pedestrians.enabled = !this.traffic.enabled;
@@ -350,6 +386,13 @@ export class Game {
       // A bug in the AI must never stop the whole game: log it and start the AI afresh.
       this.guard('traffic', () => this.traffic!.update(dt, focus, obstacles, pc), () => this.traffic!.reset());
       this.guard('pedestrians', () => this.pedestrians!.update(dt, focus, pc), () => this.pedestrians!.reset());
+      const police = this.police;
+      if (police) {
+        const target = driving
+          ? { position: car.position, speed: car.speed, inCar: true }
+          : { position: player.position, speed: player.speed, inCar: false };
+        this.guard('police', () => police.update(dt, target), () => police.clear());
+      }
     }
 
     // Only simulate while the ground around the player exists.
@@ -361,6 +404,15 @@ export class Game {
     }
     car.sync(dt);
     player.sync(dt);
+
+    // Sound: engine from throttle and speed, squeal from sideways slip.
+    const lv = car.body.linvel();
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(car.quaternion);
+    this.sound.update(dt, {
+      mode: this.mode, carSpeed: car.speed, throttle: carInput.throttle, slip: lv.x * right.x + lv.y * right.y + lv.z * right.z,
+      footSpeed: walking ? player.speed : 0, grounded: player.physics.grounded, horn: driving && k.down('KeyK'),
+      sirens: this.police?.sirens() ?? [], listener: this.camera,
+    });
 
     // Safety net: anything that fell through the world is put back on the terrain.
     const below = (p: THREE.Vector3) => p.y < this.heights.sample(p.x, p.z) - 10;
@@ -420,6 +472,7 @@ export class Game {
     const sign = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.12 });
     for (const mat of [m.walls, m.roofs, m.flatRoofs, m.water, m.bridge, m.bridgeDeck, m.bridgeRail, m.overview, sign]) samples.add(new THREE.Mesh(box, mat));
     for (const mat of [m.trees, m.props, m.jets, m.parkedCars]) samples.add(new THREE.InstancedMesh(box, mat, 1));
+    for (const mat of this.police?.warmMaterials ?? []) samples.add(new THREE.InstancedMesh(box, mat, 1), new THREE.Mesh(box, mat));
     samples.position.copy(this.camera.position).add(new THREE.Vector3(0, -50, 0));
     samples.traverse((o) => { o.castShadow = o.receiveShadow = true; });
     this.scene.add(samples);

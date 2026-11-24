@@ -18,6 +18,7 @@ const HELP: Record<Mode, [string, string][]> = {
     ['A / D', 'zatáčení'],
     ['Mezerník', 'ruční brzda'],
     ['R', 'postavit auto na kola'],
+    ['K', 'klakson'],
     ['F', 'vystoupit'],
     ['Myš', 'rozhlížení (klik zamkne myš)'],
     ['P', 'volná kamera'],
@@ -38,6 +39,8 @@ export class Hud {
   private help: HTMLElement;
   private speedo: HTMLElement;
   private prompt: HTMLElement;
+  private wanted: HTMLElement;
+  private shownWanted = '';
   private frames = 0;
   private acc = 0;
   private fps = 0;
@@ -49,7 +52,7 @@ export class Hud {
       <h1>Blansko: Open World <small>grafika a známá místa</small></h1>
       <div id="stats"></div>
       <details id="help" open><summary>Ovládání</summary><div class="keys"></div>
-        <div class="keys extra"><span>G</span><span>kvalita grafiky</span><span>N</span><span>skutečné / obecné názvy obchodů</span><span>T</span><span>provoz a chodci zap/vyp</span><span>O</span><span>stíny zap/vyp</span><span>M</span><span>2D mapa dat</span><span>H</span><span>skrýt nápovědu</span></div>
+        <div class="keys extra"><span>G</span><span>kvalita grafiky</span><span>N</span><span>skutečné / obecné názvy obchodů</span><span>T</span><span>provoz a chodci zap/vyp</span><span>O</span><span>stíny zap/vyp</span><span>M</span><span>2D mapa dat</span><span>U</span><span>zvuk zap/vyp</span><span>H</span><span>skrýt nápovědu</span></div>
       </details>`;
     this.stats = el.querySelector('#stats')!;
     this.help = el.querySelector('.keys')!;
@@ -57,7 +60,9 @@ export class Hud {
     this.speedo.id = 'speedo';
     this.prompt = document.createElement('div');
     this.prompt.id = 'prompt';
-    document.body.append(this.speedo, this.prompt);
+    this.wanted = document.createElement('div');
+    this.wanted.id = 'wanted';
+    document.body.append(this.speedo, this.prompt, this.wanted);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyM') location.hash = 'mapa';
       if (e.code === 'KeyH') {
@@ -76,6 +81,17 @@ export class Hud {
     const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '');
     if (this.prompt.textContent !== msg) this.prompt.textContent = msg;
     this.prompt.hidden = !msg;
+    // Wanted stars (police chase), flashing while a police car sees you.
+    const pol = g.police;
+    const level = pol?.wanted ?? 0;
+    const arrest = pol && pol.arrest > 0.2 ? `<span class="arrest">Zatýkání ${Math.min(100, (pol.arrest / pol.arrestTime) * 100).toFixed(0)} %</span>` : '';
+    const html = level ? `${'★'.repeat(level)}<span class="off">${'★'.repeat(5 - level)}</span>${arrest}` : '';
+    if (html !== this.shownWanted) {
+      this.shownWanted = html;
+      this.wanted.innerHTML = html;
+    }
+    this.wanted.hidden = !level;
+    this.wanted.classList.toggle('flash', !!pol?.seen && level > 0);
     const driving = g.mode === 'car' && g.car;
     this.speedo.hidden = !driving;
     if (driving) {

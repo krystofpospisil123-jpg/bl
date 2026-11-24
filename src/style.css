@@ -47,3 +47,9 @@ body.touch #prompt { bottom: auto; top: calc(64px + env(safe-area-inset-top, 0px
 body.touch #attribution { font-size: 9px; }
 body.touch #hud h1 { display: none; }
 body.touch #hud { padding: 4px 8px; }
+#wanted { position: fixed; top: calc(14px + env(safe-area-inset-top, 0px)); right: calc(16px + env(safe-area-inset-right, 0px)); font-size: 30px; letter-spacing: 2px; color: #f4c430; text-shadow: 0 0 6px rgba(0, 0, 0, 0.8), 0 1px 2px #000; pointer-events: none; }
+#wanted .off { color: rgba(255, 255, 255, 0.25); }
+#wanted.flash { animation: wanted-flash 0.5s steps(2) infinite; }
+#wanted .arrest { display: block; font-size: 13px; letter-spacing: 0; text-align: right; color: #fff; }
+@keyframes wanted-flash { 50% { color: #5b8cff; } }
+@media (pointer: coarse) { #wanted { top: calc(54px + env(safe-area-inset-top, 0px)); font-size: 24px; } }

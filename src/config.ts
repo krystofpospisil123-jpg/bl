@@ -5,13 +5,15 @@ export interface Settings {
   /** Show real shop names from OpenStreetMap (true) or generic Czech names (false). */
   realNames: boolean;
   quality: Quality;
+  /** Game sound off. */
+  muted: boolean;
 }
 
 const KEY = 'blansko-settings-v1';
 
 function load(): Settings {
   const coarse = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
-  const defaults: Settings = { realNames: true, quality: coarse ? 'low' : 'high' };
+  const defaults: Settings = { realNames: true, quality: coarse ? 'low' : 'high', muted: false };
   try {
     const raw = localStorage.getItem(KEY);
     return raw ? { ...defaults, ...JSON.parse(raw) } : defaults;

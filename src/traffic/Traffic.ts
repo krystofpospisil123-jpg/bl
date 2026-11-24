@@ -48,6 +48,8 @@ export class Traffic {
   readonly group = new THREE.Group();
   readonly cars: AiCar[] = [];
   enabled = true;
+  /** Called when the player crashes into a car that was not already stopped by a crash. */
+  onRam?: () => void;
   /** Population limit (lower on phones); at most MAX_CARS. */
   maxCars = MAX_CARS;
   /** One instanced mesh per car model, or the procedural paint/detail pair as a fallback. */
@@ -148,7 +150,11 @@ export class Traffic {
   /** Called when the player crashes into AI cars: they stop for a while. */
   private checkPlayerHits(playerCar?: { position: THREE.Vector3; speed: number }) {
     if (!playerCar || Math.abs(playerCar.speed) < 3) return;
-    for (const c of this.cars) if (c.pos.distanceTo(playerCar.position) < 4.6) c.stunnedFor = 4;
+    for (const c of this.cars) {
+      if (c.pos.distanceTo(playerCar.position) >= 4.6) continue;
+      if (c.stunnedFor === 0) this.onRam?.();
+      c.stunnedFor = 4;
+    }
   }
 
   update(dt: number, focus: THREE.Vector3, obstacles: Obstacle[], playerCar?: { position: THREE.Vector3; speed: number }) {

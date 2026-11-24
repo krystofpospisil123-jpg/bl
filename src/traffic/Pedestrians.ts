@@ -55,6 +55,8 @@ export class Pedestrians {
   readonly group = new THREE.Group();
   readonly peds: Ped[] = [];
   enabled = true;
+  /** Called when the player's car knocks someone over. */
+  onHit?: () => void;
   /** Population limit (lower on phones); at most MAX_PEDS. */
   maxPeds = MAX_PEDS;
   private meshes: Record<'torso' | 'head' | 'armL' | 'armR' | 'legL' | 'legR', THREE.InstancedMesh> & { handL?: THREE.InstancedMesh; handR?: THREE.InstancedMesh };
@@ -154,6 +156,7 @@ export class Pedestrians {
         if (along > -2.2 && along < 2.4 && lateral < 1.2) {
           // Hit: knocked over in the car's direction.
           p.down = 4;
+          this.onHit?.();
           p.fall.copy(carFwd).multiplyScalar(playerCar.speed * 0.5);
           continue;
         }

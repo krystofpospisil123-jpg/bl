@@ -133,6 +133,28 @@ postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blende
   Díly jsou oddělené, aby chůze a barvy oblečení fungovaly jako dřív.
 - Když se modely nenačtou, hra použije původní jednoduché tvary.
 
+## Policie
+
+- Policejní auto je kombi z Blenderu v bílé barvě s modrým pruhem, reflexním žlutozeleným
+  šachovnicovým pruhem, nápisem POLICIE na dveřích i vzadu a modrým majákem na střeše
+  (levá a pravá polovina se střídavě rozsvěcí).
+- **Hledanost (1–5 hvězd vpravo nahoře):** sražený chodec +1, náraz do policejního auta +1,
+  náraz do jiného auta +½, jízda nad 75 km/h kolem hlídky +1.
+- Bez hledanosti jezdí po městě jedna hlídka. S hledaností vyjede tolik aut, kolik je hvězd
+  (nejvýš 4); hledají cestu po silniční síti (A*), zblízka jedou přímo na hráče a narážejí do něj.
+  Čím víc hvězd, tím rychleji jezdí.
+- Když tě policie neuvidí 14 s (s každou hvězdou o 4 s déle), hvězda ubude.
+- Když u tebe policejní auto stojí a ty skoro stojíš 2,5 s, jsi **zatčen**: hledanost se zruší
+  a začínáš znovu pěšky na náměstí Republiky.
+
+## Zvuky
+
+Všechny zvuky se syntetizují přímo v prohlížeči (Web Audio), žádné nahrávky se nepoužívají:
+motor s řazením rychlostí, pískání pneumatik ve smyku, nárazy, klakson (K), policejní sirény
+(hlasitost podle vzdálenosti, stereo podle směru), kroky a tichý ruch města.
+Zvuk se zapne po prvním stisku klávesy nebo dotyku (pravidlo prohlížečů), vypíná se klávesou U
+nebo v menu na mobilu.
+
 ## Plán
 
 1. ✅ Setup a data
