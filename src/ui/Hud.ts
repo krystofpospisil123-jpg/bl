@@ -9,7 +9,9 @@ const HELP: Record<Mode, [string, string][]> = {
     ['W A S D', 'chůze (směr podle kamery)'],
     ['Shift', 'sprint'],
     ['Mezerník', 'skok'],
-    ['F', 'nastoupit do auta (stůj u něj)'],
+    ['F', 'nastoupit do auta / ukrást auto z provozu'],
+    ['Q', 'pistole vytáhnout / schovat'],
+    ['Myš / E', 'střelba (s vytaženou pistolí)'],
     ['Myš', 'rozhlížení (klik zamkne myš)'],
     ['P', 'volná kamera'],
   ],
@@ -78,7 +80,7 @@ export class Hud {
       this.shownMode = g.mode;
       this.help.innerHTML = HELP[g.mode].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
     }
-    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '');
+    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '') || (g.canSteal && !g.touch ? 'F – ukrást auto' : '');
     if (this.prompt.textContent !== msg) this.prompt.textContent = msg;
     this.prompt.hidden = !msg;
     // Wanted stars (police chase), flashing while a police car sees you.

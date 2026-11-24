@@ -152,6 +152,13 @@ export class Sound {
     this.burst(Math.min(0.6, strength / 20), 3500, 0.12);
   }
 
+  /** Pistol shot: a sharp crack and a lower boom. */
+  gunshot() {
+    if (!this.ctx) return;
+    this.burst(0.9, 6000, 0.09);
+    this.burst(0.7, 700, 0.3);
+  }
+
   /** Dull thud when a pedestrian is hit. */
   thud() {
     if (this.ctx) this.burst(0.7, 400, 0.25);

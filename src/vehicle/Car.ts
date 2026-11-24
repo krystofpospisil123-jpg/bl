@@ -2,11 +2,14 @@
 import * as THREE from 'three';
 import type { PhysicsWorld } from '../physics/PhysicsWorld.ts';
 import { CarPhysics, CAR_SPEC, type CarInput } from './CarPhysics.ts';
-import { CarModel } from './CarModel.ts';
+import { CarModel, CAR_COLORS } from './CarModel.ts';
+import type { CarType } from '../assets/models.ts';
 
 export class Car {
   readonly physics: CarPhysics;
-  readonly model: CarModel;
+  model: CarModel;
+  /** Current body colour and model (for leaving the old car behind after a theft). */
+  look: { color: number; type: CarType } = { color: CAR_COLORS[0], type: 'liftback' };
   readonly position = new THREE.Vector3();
   readonly quaternion = new THREE.Quaternion();
   yaw = 0;
@@ -15,6 +18,7 @@ export class Car {
   constructor(phys: PhysicsWorld, pos: THREE.Vector3, yaw: number, color?: number) {
     this.physics = new CarPhysics(phys.R, phys.world, pos, yaw);
     this.model = new CarModel(color);
+    if (color !== undefined) this.look.color = color;
     this.sync();
   }
 
@@ -61,6 +65,16 @@ export class Car {
       this.wheelSpin[i] += (this.speed / CAR_SPEC.wheelRadius) * dt;
       w.rotation.set(this.wheelSpin[i], v.wheelSteering(i) ?? 0, 0, 'YXZ');
     }
+  }
+
+  /** Swaps the look (after stealing another car); physics stay the same. */
+  setLook(color: number, type: CarType) {
+    const parent = this.model.root.parent;
+    parent?.remove(this.model.root);
+    this.model = new CarModel(color, type);
+    this.look = { color, type };
+    parent?.add(this.model.root);
+    this.sync();
   }
 
   reset(pos?: THREE.Vector3, yaw?: number) {

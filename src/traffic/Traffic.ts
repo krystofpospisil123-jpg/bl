@@ -22,7 +22,7 @@ export interface Obstacle {
   radius: number;
 }
 
-interface AiCar {
+export interface AiCar {
   id: number;
   lane: Lane;
   s: number;
@@ -133,6 +133,29 @@ export class Traffic {
       this.cars.push(car);
       return;
     }
+  }
+
+  /** The nearest car within reach that the player could steal (slow enough to open the door). */
+  stealable(pos: THREE.Vector3, reach = 4.2): AiCar | undefined {
+    let best: AiCar | undefined, bd = reach;
+    for (const c of this.cars) {
+      const d = Math.hypot(c.pos.x - pos.x, c.pos.z - pos.z);
+      if (d < bd && c.speed < 6) { bd = d; best = c; }
+    }
+    return best;
+  }
+
+  /** Takes a car out of the traffic (stolen by the player); returns its pose and look. */
+  take(c: AiCar): { position: THREE.Vector3; yaw: number; color: number; type: CarType } {
+    const out = { position: c.pos.clone(), yaw: c.yaw, color: c.color.getHex(), type: c.type };
+    this.remove(c);
+    return out;
+  }
+
+  /** A car hit by gunfire stops for a while (the driver ducks). */
+  shoot(c: AiCar) {
+    c.stunnedFor = 6;
+    c.speed *= 0.3;
   }
 
   /** Removes all cars (used to recover from errors); new ones spawn gradually. */

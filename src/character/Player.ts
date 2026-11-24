@@ -9,6 +9,8 @@ export class Player {
   readonly model = new CharacterModel();
   readonly position = new THREE.Vector3(); // feet
   yaw = 0;
+  /** While aiming the player faces this way (the camera direction) instead of where they walk. */
+  aimYaw: number | null = null;
   private active = true;
 
   constructor(phys: PhysicsWorld, feet: THREE.Vector3, yaw = 0) {
@@ -52,7 +54,11 @@ export class Player {
     this.position.set(f.x, f.y, f.z);
     const v = this.physics.velocity;
     const sp = Math.hypot(v.x, v.z);
-    if (sp > 0.3) {
+    if (this.aimYaw !== null) {
+      let d = this.aimYaw - this.yaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.yaw += d * (1 - Math.exp(-dt * 20));
+    } else if (sp > 0.3) {
       // Turn smoothly toward the movement direction.
       const target = Math.atan2(v.x, v.z);
       let d = target - this.yaw;

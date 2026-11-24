@@ -31,9 +31,19 @@ export class CharacterModel {
   private armR = new THREE.Group();
   private head = new THREE.Group();
   private phase = 0;
+  /** Holding the pistol out in front (right arm raised). */
+  aiming = false;
+  private gun: THREE.Mesh;
 
   constructor(o: Outfit = DEFAULT_OUTFIT) {
     this.root.add(this.body);
+    // Pistol in the right hand, shown only while aiming.
+    this.gun = new THREE.Mesh(
+      new THREE.BoxGeometry(0.045, 0.22, 0.1).translate(0, -0.72, 0.04), // barrel along the arm
+      new THREE.MeshStandardMaterial({ color: 0x1c1d1f, roughness: 0.4, metalness: 0.6 }),
+    );
+    this.gun.visible = false;
+    this.armR.add(this.gun);
     if (assets.person) {
       this.shinL = new THREE.Group();
       this.shinR = new THREE.Group();
@@ -107,6 +117,12 @@ export class CharacterModel {
     }
   }
 
+  /** World position of the pistol's muzzle. */
+  muzzle(): THREE.Vector3 {
+    this.root.updateMatrixWorld(true);
+    return new THREE.Vector3(0, -0.84, 0.06).applyMatrix4(this.armR.matrixWorld);
+  }
+
   /**
    * @param speed horizontal speed (m/s)
    * @param grounded whether the feet touch the ground
@@ -139,5 +155,7 @@ export class CharacterModel {
     this.body.rotation.x = Math.min(0.18, speed * 0.025);
     // Idle breathing
     if (speed < 0.2) this.armL.rotation.z = 0.06 + Math.sin(performance.now() / 700) * 0.02;
+    this.gun.visible = this.aiming;
+    if (this.aiming) this.armR.rotation.set(-Math.PI / 2 + 0.08, 0, 0);
   }
 }

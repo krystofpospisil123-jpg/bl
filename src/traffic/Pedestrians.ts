@@ -30,6 +30,8 @@ interface Ped {
   legs: THREE.Color;
   skin: THREE.Color;
   fresh: boolean;
+  /** Seconds left running away in panic (after gunshots). */
+  panic: number;
 }
 
 const tmp = { x: 0, y: 0, z: 0, dx: 0, dz: 0 };
@@ -110,7 +112,7 @@ export class Pedestrians {
         lane: Math.random() < 0.5 ? lane : { edge: ei, dir: -1 }, s, speed: 1.1 + Math.random() * 0.6,
         side: Math.random() < 0.5 ? -1 : 1, sideways: 0, phase: Math.random() * 10,
         pos: new THREE.Vector3(), yaw: 0, down: 0, fall: new THREE.Vector3(),
-        top: new THREE.Color(pick(TOPS)), legs: new THREE.Color(pick(LEGS)), skin: new THREE.Color(pick(SKINS)), fresh: true,
+        top: new THREE.Color(pick(TOPS)), legs: new THREE.Color(pick(LEGS)), skin: new THREE.Color(pick(SKINS)), fresh: true, panic: 0,
       });
       return;
     }
@@ -119,6 +121,19 @@ export class Pedestrians {
   /** Removes all pedestrians (used to recover from errors); new ones spawn gradually. */
   reset() {
     this.peds.length = 0;
+  }
+
+  /** Knocks a pedestrian over (shot or hit) and makes people around them run. */
+  knockDown(p: Ped, dir: THREE.Vector3) {
+    if (p.down > 0) return;
+    p.down = 6;
+    p.fall.copy(dir).setY(0).normalize().multiplyScalar(1.5);
+    this.panicAround(p.pos, 30);
+  }
+
+  /** Everyone within `radius` runs away for a while. */
+  panicAround(pos: THREE.Vector3, radius: number) {
+    for (const o of this.peds) if (o.pos.distanceTo(pos) < radius) o.panic = 8 + Math.random() * 4;
   }
 
   /** Points AI cars should stop for. */
@@ -169,7 +184,9 @@ export class Pedestrians {
       }
       p.sideways *= Math.exp(-dt * 0.5);
 
-      p.s += p.speed * dt;
+      p.panic = Math.max(0, p.panic - dt);
+      const speed = p.panic > 0 ? 4.2 : p.speed;
+      p.s += speed * dt;
       const len = g.length(p.lane.edge);
       if (p.s >= len) {
         const opts = g.next(p.lane);
@@ -194,7 +211,7 @@ export class Pedestrians {
         d = Math.atan2(Math.sin(d), Math.cos(d));
         p.yaw += d * k;
       }
-      p.phase += p.speed * dt * Math.PI * 1.1;
+      p.phase += (p.panic > 0 ? 4.2 : p.speed) * dt * Math.PI * 1.1;
     }
     this.render();
   }

@@ -23,6 +23,10 @@ import { Pedestrians } from '../traffic/Pedestrians.ts';
 import { VIEWPOINTS } from './viewpoints.ts';
 import { Police } from '../police/Police.ts';
 import { Sound } from '../audio/Sound.ts';
+import { Weapon } from '../combat/Weapon.ts';
+import { Minimap } from '../ui/Minimap.ts';
+import { assets } from '../assets/models.ts';
+import type RAPIER from '@dimforge/rapier3d-compat';
 
 /** Car spawn on náměstí Republiky (on the street, heading along it). */
 const SPAWN = { x: -15.7, z: 184.2, yaw: -2.79 };
@@ -51,6 +55,12 @@ export class Game {
   pedestrians?: Pedestrians;
   police?: Police;
   readonly sound = new Sound(settings.muted);
+  readonly weapon = new Weapon();
+  minimap?: Minimap;
+  /** Cars the player left behind after stealing another one (static, with a collider). */
+  private leftCars: { mesh: THREE.Object3D; collider: RAPIER.Collider }[] = [];
+  private mouseFire = false;
+  private crosshair = document.createElement('div');
   mode: Mode = 'loading';
   /** Mode to return to when leaving the free camera. */
   private playMode: 'foot' | 'car' = 'foot';
@@ -82,13 +92,25 @@ export class Game {
     const mobile = isTouchDevice();
     if (mobile) {
       this.chunks.useMobileProfile();
-      this.touch = new TouchControls(this.input, { canEnterCar: () => this.canEnterCar });
+      this.touch = new TouchControls(this.input, {
+        canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped,
+      });
     }
     this.scene.add(this.chunks.root);
     this.mouse = new MouseLook(canvas);
     this.fly = new FlyCamera(this.camera, this.input, this.mouse, canvas, (x, z) => this.heights.sample(x, z));
     this.fly.enabled = false;
     this.hud = new Hud(this);
+    // Shooting: left mouse button while the mouse is captured (the first click captures it).
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && this.mouse.locked) this.mouseFire = true;
+    });
+    window.addEventListener('mouseup', (e) => {
+      if (e.button === 0) this.mouseFire = false;
+    });
+    this.crosshair.id = 'crosshair';
+    this.crosshair.hidden = true;
+    document.body.append(this.crosshair);
 
     this.camera.position.set(SPAWN.x + 30, 330, SPAWN.z + 30);
     // Chunks wait for the aerial photo so every ground texture is painted with it.
@@ -121,13 +143,16 @@ export class Game {
         this.sound.thud();
         this.police?.report(1, 'pedestrian');
       };
-      this.traffic.onRam = () => this.police?.report(0.5, 'ramming');
+      this.traffic.onRam = () => this.police?.report(0.25, 'ramming');
       this.police.onWanted = (level, reason) => {
         if (reason === 'lost') this.say(level ? `Policie tě ztrácí: ${'★'.repeat(level)}` : 'Policie tě ztratila');
         else this.say(`Hledanost ${'★'.repeat(level)}`);
       };
       this.police.onBusted = () => this.busted();
-      this.scene.add(this.traffic.group, this.pedestrians.group, this.police.group);
+      this.weapon.onCrime = (amount, reason) => this.police?.report(amount, reason);
+      this.weapon.onShot = () => this.sound.gunshot();
+      this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 110 : 180);
+      this.scene.add(this.traffic.group, this.pedestrians.group, this.police.group, this.weapon.group);
       this.chase = new ChaseCamera(this.camera, this.mouse, (x, z) => this.heights.sample(x, z), (o, d, max) =>
         p.castRay(o, d, max, this.mode === 'car' ? this.car?.body : this.player?.body),
       );
@@ -158,6 +183,11 @@ export class Game {
     if (this.mode === 'car' && this.car) return this.car.position;
     if (this.mode === 'foot' && this.player) return this.player.position;
     return this.camera.position;
+  }
+
+  /** A traffic car close enough to steal (on foot, when not next to your own car). */
+  get canSteal(): boolean {
+    return this.mode === 'foot' && !this.canEnterCar && !!this.player && !!this.traffic?.stealable(this.player.position);
   }
 
   /** True when the player can press F to get into the car. */
@@ -233,6 +263,47 @@ export class Game {
     this.setMode('foot');
   }
 
+  /** Takes the traffic car next to the player; the old car stays parked where it was. */
+  private steal() {
+    const c = this.traffic?.stealable(this.player!.position);
+    if (!c || !this.car || !this.physics || !this.traffic) return;
+    this.leaveCarBehind();
+    const t = this.traffic.take(c);
+    this.car.setLook(t.color, t.type);
+    this.car.reset(t.position.clone().add(new THREE.Vector3(0, 0.2, 0)), t.yaw);
+    this.enterCar();
+    this.chase?.setYaw(t.yaw);
+    this.pedestrians?.panicAround(t.position, 20);
+    if (this.police?.units.some((u) => u.pos.distanceTo(t.position) < 60)) this.police.report(1, 'car theft');
+    this.say('Ukradl jsi auto');
+  }
+
+  /** Leaves a static copy of the current car (with a collider) where it stands. */
+  private leaveCarBehind() {
+    const car = this.car!, phys = this.physics!;
+    const a = assets.cars?.[car.look.type];
+    if (!a) return;
+    const mesh = new THREE.InstancedMesh(a.hi, this.mats.parkedCars, 1);
+    mesh.setMatrixAt(0, new THREE.Matrix4().compose(car.position, car.quaternion, new THREE.Vector3(1, 1, 1)));
+    mesh.setColorAt(0, new THREE.Color(car.look.color));
+    mesh.computeBoundingSphere();
+    mesh.castShadow = mesh.receiveShadow = true;
+    this.scene.add(mesh);
+    const q = car.quaternion;
+    const collider = phys.world.createCollider(
+      phys.R.ColliderDesc.cuboid(0.9, 0.45, a.halfLength - 0.05)
+        .setTranslation(car.position.x, car.position.y + 0.1, car.position.z)
+        .setRotation({ x: q.x, y: q.y, z: q.z, w: q.w }),
+    );
+    this.leftCars.push({ mesh, collider });
+    if (this.leftCars.length > 4) {
+      const old = this.leftCars.shift()!;
+      this.scene.remove(old.mesh);
+      (old.mesh as THREE.InstancedMesh).dispose();
+      phys.world.removeCollider(old.collider, false);
+    }
+  }
+
   /** Caught by the police: start again on foot at náměstí Republiky, the car beside you. */
   private busted() {
     if (!this.car || !this.player) return;
@@ -288,6 +359,7 @@ export class Game {
     if (k.justPressed('KeyF')) {
       if (this.mode === 'car') this.exitCar();
       else if (this.canEnterCar) this.enterCar();
+      else if (this.mode === 'foot') this.steal();
     }
     if (k.justPressed('KeyR') && this.car && this.mode === 'car') this.car.reset(undefined, this.car.yaw);
     if (k.justPressed('KeyG')) {
@@ -299,6 +371,10 @@ export class Game {
       saveSettings();
       this.chunks.rebuildSigns();
       this.say(settings.realNames ? 'Skutečné názvy obchodů' : 'Obecné názvy obchodů');
+    }
+    if (k.justPressed('KeyQ') && this.mode === 'foot') {
+      this.weapon.equipped = !this.weapon.equipped;
+      this.say(this.weapon.equipped ? 'Pistole: střílej levým tlačítkem myši nebo E' : 'Pistole schovaná');
     }
     if (k.justPressed('KeyU')) {
       settings.muted = !settings.muted;
@@ -349,6 +425,11 @@ export class Game {
     }
     this.pipeline.render(dt);
     this.hud.update(dt);
+    if (this.minimap && (this.mode === 'car' || this.mode === 'foot' || this.mode === 'fly')) {
+      const yaw = this.mode === 'fly' ? this.fly.yaw + Math.PI : this.chase?.viewYaw ?? 0;
+      this.minimap.update(this.focus, yaw, this.mode === 'foot' ? this.car?.position ?? null : null,
+        this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0);
+    }
     this.touch?.update(this.mode);
     this.input.endFrame();
   }
@@ -404,6 +485,17 @@ export class Game {
     }
     car.sync(dt);
     player.sync(dt);
+
+    // Pistol: aim along the camera while on foot with the weapon out.
+    const aiming = walking && this.weapon.equipped;
+    player.aimYaw = aiming && this.chase ? this.chase.viewYaw : null;
+    player.model.aiming = aiming;
+    this.crosshair.hidden = !aiming;
+    if (!walking) this.weapon.equipped = false;
+    this.weapon.update(dt, aiming && (this.mouseFire || k.down('KeyE')), {
+      camera: this.camera, muzzle: aiming ? player.model.muzzle() : player.position, playerFeet: player.position,
+      phys: this.physics!, exclude: player.body, pedestrians: this.pedestrians, traffic: this.traffic, police: this.police,
+    });
 
     // Sound: engine from throttle and speed, squeal from sideways slip.
     const lv = car.body.linvel();

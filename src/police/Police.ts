@@ -12,9 +12,9 @@ import { CAR_SPEC } from '../vehicle/CarPhysics.ts';
 const RIDE_HEIGHT = 0.74;
 const SPAWN_MIN = 90, SPAWN_MAX = 170, DESPAWN = 420;
 /** How far police can see the player. */
-const SIGHT = 75;
+const SIGHT = 60;
 /** Chase speed (m/s) per wanted level. */
-const CHASE_SPEED = [0, 19, 22, 25, 28, 31];
+const CHASE_SPEED = [0, 15, 17, 20, 23, 26];
 
 type UnitMode = 'patrol' | 'chase' | 'leave';
 
@@ -54,7 +54,7 @@ export class Police {
   seen = false;
   /** Seconds the police have been close to a stopped player (arrest at ARREST_TIME). */
   arrest = 0;
-  readonly arrestTime = 2.5;
+  readonly arrestTime = 4;
   onBusted?: () => void;
   onWanted?: (level: number, reason: string) => void;
   /** Materials to compile during the loading screen (avoids a stutter at the first police car). */
@@ -105,7 +105,7 @@ export class Police {
     }
     const tp = target.position;
     // --- Population: one patrol car without a wanted level, more police the higher it is.
-    const want = this.wanted === 0 ? 1 : Math.min(4, this.wanted);
+    const want = this.wanted === 0 ? 1 : Math.min(3, Math.ceil(this.wanted * 0.6));
     for (const u of [...this.units]) {
       // A chasing car that ended up far away (one-way streets) is replaced by a closer one.
       if (u.pos.distanceTo(tp) > DESPAWN || (u.mode === 'chase' && u.pos.distanceTo(tp) > 220)) this.remove(u);
@@ -114,7 +114,7 @@ export class Police {
     this.spawnTimer -= dt;
     if (active.length < want && this.spawnTimer <= 0) {
       this.spawn(tp);
-      this.spawnTimer = this.wanted ? 2.5 : 8;
+      this.spawnTimer = this.wanted ? 6 : 12;
     }
     for (const u of active) u.mode = this.wanted > 0 ? 'chase' : 'patrol';
     if (this.wanted === 0) {
@@ -126,7 +126,7 @@ export class Police {
     this.seen = this.units.some((u) => u.mode === 'chase' && u.pos.distanceTo(tp) < SIGHT);
     if (this.wanted > 0) {
       this.lostFor = this.seen ? 0 : this.lostFor + dt;
-      if (this.lostFor > 10 + this.wanted * 4) {
+      if (this.lostFor > 6 + this.wanted * 3) {
         this.wanted--;
         this.heat = this.wanted;
         this.lostFor = 0;
@@ -149,7 +149,7 @@ export class Police {
         if (d < 4.6 && Math.abs(target.speed) > 5) {
           this.report(1, 'ramming the police');
           u.hitCooldown = 3;
-        } else if (this.wanted === 0 && d < 30 && Math.abs(target.speed) > 21) {
+        } else if (this.wanted === 0 && d < 25 && Math.abs(target.speed) > 28) {
           this.report(1, 'speeding');
           u.hitCooldown = 3;
         }
@@ -184,10 +184,10 @@ export class Police {
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       const turn = 1.6 * dt * Math.min(1, Math.abs(u.speed) / 4 + 0.3);
       u.yaw += THREE.MathUtils.clamp(dy, -turn, turn);
-      const stopAt = target.inCar ? 0 : 5; // on foot they stop next to you
+      const stopAt = target.inCar ? 3 : 5; // they pull up next to you rather than ram at full speed
       // Braking curve: on foot they stop beside you, in a car they keep pushing.
       const room = Math.max(0, d - stopAt - 1);
-      const desired = Math.min(maxSpeed, Math.sqrt(2 * 9 * room) + (target.inCar ? 6 : 0)) * (Math.abs(dy) > 1.2 ? 0.4 : 1);
+      const desired = Math.min(maxSpeed, Math.sqrt(2 * 9 * room) + (target.inCar ? 2 : 0)) * (Math.abs(dy) > 1.2 ? 0.4 : 1);
       u.speed += THREE.MathUtils.clamp(desired - u.speed, -14 * dt, 7 * dt);
       u.pos.x += Math.sin(u.yaw) * u.speed * dt;
       u.pos.z += Math.cos(u.yaw) * u.speed * dt;
