@@ -241,8 +241,9 @@ případný externí asset se uvede sem i s licencí.
 ## Náměstí Republiky a městské detaily
 
 - **Náměstí Republiky** (u startu) je postavené podle fotografií z ulice dodaných hráčem (sloužily
-  jen jako vzor). Je to dlouhá dlážděná plocha mezi dvěma pruhy parkovišť, od ulice s kočičími
-  hlavami a sloupky po žlutou budovu s pilastry (OSM 919690221). Na ploše jsou dvě pole fontán
+  jen jako vzor). Je to dlouhá dlážděná plocha mezi dvěma pruhy parkovišť, která vede od ulice se zebrou
+  a sloupky (jihozápad) rovně ke žluté budově s pilastry (budova Komerční banky, OSM 253861544).
+  Osa je asi o 28° natočená vůči mřížce mapy a byla odvozená z hráčova screenshotu se šipkami. Na ploše jsou dvě pole fontán
   ze země, dvě řady kvetoucích pyramid, lavičky a stromořadí. Ortofoto i OSM jsou starší než
   přestavba náměstí, proto jsou tam pořád parkoviště a auta se na ploše náměstí negenerují.
   Sousední park se čtyřmi kruhovými záhony a stromy zůstal (`src/world/scenes.ts`).

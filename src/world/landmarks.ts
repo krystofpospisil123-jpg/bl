@@ -30,8 +30,8 @@ export const LANDMARKS: Record<number, LandmarkStyle> = {
   // Zámek Blansko (château): white walls, ochre window surrounds, red roof; the clock tower,
   // bastion, gate portal and gable are added by world/scenes.ts.
   3401183: { h: 14, colour: '#f4f2ec', roofColour: '#b04a30', roof: 'hipped', facade: FACADE.castle, groundFacade: FACADE.castle, sign: true },
-  // Yellow public building closing náměstí Republiky: white pilasters, red hipped roof.
-  919690221: { h: 14, colour: '#e9be55', roofColour: '#a9462e', roof: 'hipped', facade: FACADE.civic, groundFacade: FACADE.civic },
+  // Yellow building with white pilasters closing náměstí Republiky (Komerční banka), red hipped roof.
+  253861544: { h: 13, colour: '#e9be55', roofColour: '#a9462e', roof: 'hipped', facade: FACADE.civic, groundFacade: FACADE.civic, sign: true },
   // Kostel sv. Martina (Staré Blansko): church with a west tower.
   102952951: { h: 11, colour: '#efe8d8', roofColour: '#6a4434', roof: 'gabled', facade: FACADE.ornate, groundFacade: FACADE.ornate, tower: { size: 5.5, height: 24, roofHeight: 9, end: 0 } },
   // Dřevěný kostel sv. Paraskivy: dark wooden church with a small tower.

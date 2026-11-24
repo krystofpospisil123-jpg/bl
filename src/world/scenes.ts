@@ -52,33 +52,42 @@ function treeBedPark(): Scene {
 }
 
 /**
- * Náměstí Republiky: a long paved square between two parking strips, from the cobbled street
- * (west, with bollards) to the yellow building with pilasters (east). Floor fountains on the
- * axis, two rows of flower pyramids, benches along both sides and a row of trees each side.
+ * Náměstí Republiky: a long paved square between two parking strips. Its axis runs from the
+ * street with the zebra crossing (south-west) straight to the yellow building with pilasters
+ * (the Komerční banka building, OSM 253861544) in the north-east, at about 28 degrees to the
+ * map grid. Floor fountains on the axis, two rows of flower pyramids, benches, tree rows.
  */
 function namestiRepubliky(): Scene {
-  const x0 = -30, x1 = 72, z0 = 117, z1 = 139, zc = (z0 + z1) / 2;
-  const square = [x0, z0, x1, z0, x1, z1, x0, z1];
+  const start = { x: -25, z: 147 }, end = { x: 30, z: 118 };
+  const len = Math.hypot(end.x - start.x, end.z - start.z);
+  const ux = (end.x - start.x) / len, uz = (end.z - start.z) / len; // along the axis
+  const vx = -uz, vz = ux; // across (to the south-east side)
+  const half = 10;
+  /** Point at distance t along the axis and s across it. */
+  const at = (t: number, s: number) => ({ x: start.x + ux * t + vx * s, z: start.z + uz * t + vz * s });
+  const corners = [at(0, -half), at(len, -half), at(len, half), at(0, half)];
+  const square = corners.flatMap((c) => [c.x, c.z]);
   const props: PropSpot[] = [];
   const trees: number[] = [];
   // Two fields of floor fountain jets on the axis.
-  for (const fx of [4, 30]) for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) {
-    props.push({ kind: 'jet', x: fx + i * 1.5, z: zc - 1.5 + j * 1.5, yaw: 0 });
+  for (const t0 of [20, 38]) for (let i = 0; i < 4; i++) for (let j = 0; j < 3; j++) {
+    const p = at(t0 + i * 1.5, -1.5 + j * 1.5);
+    props.push({ kind: 'jet', ...p, yaw: 0 });
   }
   // Flower pyramids in two rows either side of the axis.
-  for (const x of [-12, 14, 40, 62]) for (const z of [z0 + 3.5, z1 - 3.5]) props.push({ kind: 'pyramid', x, z, yaw: 0 });
-  // Benches along both long edges, facing the middle (between the pyramids).
-  for (let x = -22; x <= 66; x += 13) {
-    props.push({ kind: 'bench', x, z: z0 + 1.3, yaw: 0 });
-    props.push({ kind: 'bench', x: x + 6, z: z1 - 1.3, yaw: Math.PI });
+  for (const t of [9, 29, 47, 58]) for (const s2 of [-6.5, 6.5]) props.push({ kind: 'pyramid', ...at(t, s2), yaw: 0 });
+  // Benches along both long edges, facing the middle.
+  for (let t = 4; t < len - 3; t += 11) {
+    props.push({ kind: 'bench', ...at(t, -8.8), yaw: Math.atan2(vx, vz) });
+    props.push({ kind: 'bench', ...at(t + 5, 8.8), yaw: Math.atan2(-vx, -vz) });
   }
-  for (const [x, z] of [[-4, z0 + 1.3], [24, z1 - 1.3], [50, z0 + 1.3]]) props.push({ kind: 'bin', x, z, yaw: 0 });
-  // Bollards where the square meets the cobbled street.
-  for (let z = z0 + 0.5; z <= z1 - 0.5; z += 2.4) props.push({ kind: 'bollard', x: x0 - 0.8, z, yaw: 0 });
+  for (const [t, s2] of [[15, -8.8], [33, 8.8], [52, -8.8]]) props.push({ kind: 'bin', ...at(t, s2), yaw: 0 });
+  // Bollards across the end that meets the street.
+  for (let s2 = -half + 0.5; s2 <= half - 0.5; s2 += 2.4) props.push({ kind: 'bollard', ...at(-0.8, s2), yaw: 0 });
   // Rows of trees between the square and the parking on both sides.
-  for (let x = -24; x <= 66; x += 12) {
-    trees.push(x, z0 - 1.8, 9 + (x % 3), 0);
-    trees.push(x + 6, z1 + 1.8, 9 + ((x + 1) % 3), 0);
+  for (let t = 5; t < len; t += 12) {
+    const a = at(t, -half - 1.8), b = at(t + 6, half + 1.8);
+    trees.push(a.x, a.z, 9 + (t % 3), 0, b.x, b.z, 9 + ((t + 1) % 3), 0);
   }
   return { areas: [{ id: -1002, kind: 'plaza', rings: [square] }], props, trees, extras: [] };
 }
