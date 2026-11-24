@@ -158,7 +158,7 @@ postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blende
   auto). Hráčovo auto dostane jeho model i barvu a staré auto zůstane zaparkované na místě
   (nejvýš 4 odstavená auta, pak mizí nejstarší). Krádež poblíž policie = +1 hvězda.
 - **Minimapa** vlevo dole (na mobilu vpravo nahoře): silnice a chodníky, otáčí se podle kamery,
-  žlutá šipka = hráč, bílý čtverec = tvoje auto, modré tečky = policie (při honičce blikají
+  žlutá šipka = hráč, bílý čtverec = tvoje auto, žlutý čtverec se „Z“ = obchod se zbraněmi (vzdálené na okraji), modré tečky = policie (při honičce blikají
   červeně a modře, vzdálená auta se drží na okraji), S = sever.
 
 ## Peníze, obchody se zbraněmi, ničení aut, poškození

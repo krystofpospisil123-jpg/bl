@@ -496,7 +496,7 @@ export class Game {
     if (this.minimap && (this.mode === 'car' || this.mode === 'foot' || this.mode === 'fly')) {
       const yaw = this.mode === 'fly' ? this.fly.yaw + Math.PI : this.chase?.viewYaw ?? 0;
       this.minimap.update(this.focus, yaw, this.mode === 'foot' ? this.car?.position ?? null : null,
-        this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0);
+        this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0, this.shops?.spots.map((s) => s.pos) ?? []);
     }
     this.touch?.update(this.mode);
     this.input.endFrame();

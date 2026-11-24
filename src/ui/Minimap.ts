@@ -46,7 +46,7 @@ export class Minimap {
 
   update(
     player: THREE.Vector3, viewYaw: number,
-    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number,
+    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, shops: THREE.Vector3[] = [],
   ) {
     if (this.frame++ % 2) return; // every other frame is plenty
     const c = this.canvas.getContext('2d')!;
@@ -73,6 +73,26 @@ export class Minimap {
       c.strokeStyle = '#222';
       c.lineWidth = 2;
       c.strokeRect(x - 5, y - 5, 10, 10);
+    }
+    // Gun shops: yellow squares with a dark "Z"; far ones stay at the rim so you can head there.
+    for (const p of shops) {
+      let [x, y] = toMap(p);
+      const d = Math.hypot(x, y), maxD = R - 12;
+      if (d > maxD) { x *= maxD / d; y *= maxD / d; }
+      c.save();
+      c.translate(x, y);
+      c.rotate(-rot);
+      c.fillStyle = '#f1c232';
+      c.strokeStyle = '#000';
+      c.lineWidth = 2;
+      c.fillRect(-9, -9, 18, 18);
+      c.strokeRect(-9, -9, 18, 18);
+      c.fillStyle = '#111';
+      c.font = 'bold 14px system-ui, sans-serif';
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText('Z', 0, 1);
+      c.restore();
     }
     const blink = Math.floor(performance.now() / 250) % 2 === 0;
     for (const p of police) {
