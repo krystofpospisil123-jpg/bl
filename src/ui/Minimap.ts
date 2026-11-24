@@ -7,18 +7,30 @@ import type { RoadGraphs } from '../world/format.ts';
 const BASE = 2048;
 /** Metres shown from the centre to the edge of the minimap. */
 const RANGE = 170;
+/** Range of the enlarged map (M or a tap on the minimap). */
+const BIG_RANGE = 650;
+
+export interface MapMark {
+  pos: THREE.Vector3;
+  label: string;
+  color: string;
+}
 
 export class Minimap {
   readonly canvas = document.createElement('canvas');
   private base: HTMLCanvasElement;
   private scale: number;
   private frame = 0;
+  /** Enlarged, north-up map in the middle of the screen. */
+  expanded = false;
 
-  constructor(graphs: RoadGraphs, private half: number, size: number) {
+  constructor(graphs: RoadGraphs, private half: number, private size: number) {
     this.canvas.id = 'minimap';
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    this.canvas.width = this.canvas.height = Math.round(size * dpr);
-    this.canvas.style.width = this.canvas.style.height = `${size}px`;
+    this.resize();
+    this.canvas.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.toggle();
+    });
     this.scale = BASE / (2 * half);
     this.base = document.createElement('canvas');
     this.base.width = this.base.height = BASE;
@@ -44,14 +56,29 @@ export class Minimap {
     document.body.append(this.canvas);
   }
 
+  toggle() {
+    this.expanded = !this.expanded;
+    this.canvas.classList.toggle('big', this.expanded);
+    this.resize();
+  }
+
+  private resize() {
+    const size = this.expanded ? Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.84) : this.size;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.canvas.width = this.canvas.height = Math.round(size * dpr);
+    this.canvas.style.width = this.canvas.style.height = `${size}px`;
+    this.frame = 0;
+  }
+
   update(
     player: THREE.Vector3, viewYaw: number,
-    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, shops: THREE.Vector3[] = [],
+    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, marks: MapMark[] = [],
   ) {
     if (this.frame++ % 2) return; // every other frame is plenty
     const c = this.canvas.getContext('2d')!;
     const W = this.canvas.width, R = W / 2;
-    const k = (R / RANGE); // canvas px per metre
+    const k = (R / (this.expanded ? BIG_RANGE : RANGE)); // canvas px per metre
+    const ui = W / (this.expanded ? 420 : 180); // marker scale
     c.save();
     c.clearRect(0, 0, W, W);
     c.beginPath();
@@ -60,7 +87,10 @@ export class Minimap {
     c.fillStyle = '#3c4733';
     c.fillRect(0, 0, W, W);
     // Rotate so the camera's forward direction (sin yaw, cos yaw) in map space points up.
-    const rot = -Math.PI / 2 - Math.atan2(Math.cos(viewYaw), Math.sin(viewYaw));
+    // Small map: rotates with the camera. Big map: north up, the arrow turns instead.
+    const heading = Math.atan2(Math.cos(viewYaw), Math.sin(viewYaw));
+    const rot = this.expanded ? 0 : -Math.PI / 2 - heading;
+    const arrow = this.expanded ? heading + Math.PI / 2 : 0;
     c.translate(R, R);
     c.rotate(rot);
     const toMap = (p: THREE.Vector3) => [(p.x - player.x) * k, (p.z - player.z) * k];
@@ -69,20 +99,21 @@ export class Minimap {
     if (car) {
       const [x, y] = toMap(car);
       c.fillStyle = '#ffffff';
-      c.fillRect(x - 5, y - 5, 10, 10);
+      c.fillRect(x - 5 * ui, y - 5 * ui, 10 * ui, 10 * ui);
       c.strokeStyle = '#222';
       c.lineWidth = 2;
-      c.strokeRect(x - 5, y - 5, 10, 10);
+      c.strokeRect(x - 5 * ui, y - 5 * ui, 10 * ui, 10 * ui);
     }
-    // Gun shops: yellow squares with a dark "Z"; far ones stay at the rim so you can head there.
-    for (const p of shops) {
-      let [x, y] = toMap(p);
-      const d = Math.hypot(x, y), maxD = R - 12;
+    // Places (gun shops, garages): labelled squares; far ones stay at the rim.
+    for (const m of marks) {
+      let [x, y] = toMap(m.pos);
+      const d = Math.hypot(x, y), maxD = R - 12 * ui;
       if (d > maxD) { x *= maxD / d; y *= maxD / d; }
       c.save();
       c.translate(x, y);
       c.rotate(-rot);
-      c.fillStyle = '#f1c232';
+      c.scale(ui, ui);
+      c.fillStyle = m.color;
       c.strokeStyle = '#000';
       c.lineWidth = 2;
       c.fillRect(-9, -9, 18, 18);
@@ -91,7 +122,7 @@ export class Minimap {
       c.font = 'bold 14px system-ui, sans-serif';
       c.textAlign = 'center';
       c.textBaseline = 'middle';
-      c.fillText('Z', 0, 1);
+      c.fillText(m.label, 0, 1);
       c.restore();
     }
     const blink = Math.floor(performance.now() / 250) % 2 === 0;
@@ -101,7 +132,7 @@ export class Minimap {
       if (d > maxD) { x *= maxD / d; y *= maxD / d; } // keep chasing cars at the edge
       c.fillStyle = wanted > 0 ? (blink ? '#ff3b3b' : '#3b6bff') : '#3b6bff';
       c.beginPath();
-      c.arc(x, y, 6, 0, Math.PI * 2);
+      c.arc(x, y, 6 * ui, 0, Math.PI * 2);
       c.fill();
     }
     // North mark ("S" = sever) on the rim.
@@ -115,7 +146,10 @@ export class Minimap {
     c.textAlign = 'center';
     c.textBaseline = 'middle';
     c.fillText('S', north[0], north[1]);
-    // Player arrow (always pointing up = camera direction).
+    // Player arrow (points the way the camera looks).
+    c.save();
+    c.rotate(arrow);
+    c.scale(ui, ui);
     c.fillStyle = '#ffd23a';
     c.strokeStyle = '#000';
     c.lineWidth = 2;
@@ -127,6 +161,7 @@ export class Minimap {
     c.closePath();
     c.fill();
     c.stroke();
+    c.restore();
     // Rim
     c.beginPath();
     c.arc(0, 0, R - 2, 0, Math.PI * 2);

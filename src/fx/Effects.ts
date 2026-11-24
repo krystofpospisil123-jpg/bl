@@ -100,6 +100,11 @@ export class Effects {
     for (const x of this.sources) if (x === s) this.sources.delete(x);
   }
 
+  /** Small burst of flame (exhaust backfire). */
+  puff(p: THREE.Vector3) {
+    for (let i = 0; i < 8; i++) this.fire.emit(p, 0.15, 1.5, 0.25);
+  }
+
   explosion(p: THREE.Vector3) {
     for (let i = 0; i < 60; i++) this.fire.emit(p, 1.5, 7, 0.9);
     for (let i = 0; i < 40; i++) this.smoke.emit(p, 2, 3, 3.5);

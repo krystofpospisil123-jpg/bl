@@ -70,3 +70,51 @@ body.touch #hud { padding: 4px 8px; }
 #shop .row button[disabled] { opacity: 0.35; cursor: default; }
 #shop .hint { font-size: 12px; opacity: 0.7; margin: 8px 0 0; }
 @media (pointer: coarse) { #money { top: calc(80px + env(safe-area-inset-top, 0px)); font-size: 18px; } #minimap { top: calc(112px + env(safe-area-inset-top, 0px)); } #ammo { bottom: auto; top: calc(232px + env(safe-area-inset-top, 0px)); } }
+#minimap { pointer-events: auto; cursor: pointer; }
+#minimap.big { left: 50% !important; top: 50% !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%); z-index: 15; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45); }
+#garage { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); width: min(400px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; background: rgba(18, 22, 28, 0.94); border: 2px solid #ff9a2e; border-radius: 14px; padding: 12px 16px; color: #fff; z-index: 20; }
+#garage h2 { margin: 0 0 4px; color: #ff9a2e; font-size: 20px; }
+#garage h3 { margin: 10px 0 4px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; }
+#garage .line { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 14px; }
+#garage .sws { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; max-width: 60%; }
+#garage .sw { width: 24px; height: 24px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.3); cursor: pointer; padding: 0; color: #fff; font-size: 12px; }
+#garage .sw.off { background: #333; }
+#garage .sw.on { border-color: #ff9a2e; box-shadow: 0 0 0 2px #ff9a2e; }
+#garage button:not(.sw) { padding: 7px 10px; border-radius: 8px; border: 0; background: #3a3f46; color: #fff; font-weight: 600; cursor: pointer; }
+#garage button.on:not(.sw) { background: #ff9a2e; color: #111; }
+#garage .opt { display: block; width: 100%; margin: 4px 0; text-align: left; }
+#garage .hint { font-size: 12px; opacity: 0.7; margin: 8px 0 0; }
+/* --- Loading screen and main menu */
+#start { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; color: #fff;
+  background: radial-gradient(ellipse at 30% 20%, rgba(255, 170, 60, 0.28), transparent 55%),
+    radial-gradient(ellipse at 80% 90%, rgba(40, 110, 255, 0.3), transparent 55%),
+    linear-gradient(160deg, rgba(10, 14, 22, 0.97), rgba(14, 22, 36, 0.93)); transition: background 0.8s; }
+#start.ready { background: radial-gradient(ellipse at 30% 20%, rgba(255, 170, 60, 0.2), transparent 55%), linear-gradient(160deg, rgba(10, 14, 22, 0.72), rgba(14, 22, 36, 0.55)); }
+#start .panel { width: min(440px, calc(100vw - 40px)); text-align: center; }
+#start .logo { display: flex; flex-direction: column; line-height: 0.92; margin-bottom: 26px; transform: skewX(-6deg); }
+#start .logo .l1 { font-size: clamp(54px, 13vw, 92px); font-weight: 900; letter-spacing: 2px;
+  background: linear-gradient(180deg, #fff 0%, #ffd47a 55%, #ff8a2e 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 4px 0 #000) drop-shadow(0 0 24px rgba(255, 140, 40, 0.45)); }
+#start .logo .l2 { font-size: clamp(18px, 4.5vw, 26px); font-weight: 800; letter-spacing: 12px; color: #9cc7ff; text-shadow: 0 2px 0 #000; }
+#start .loading .track { height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.12); overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); }
+#start .loading .fill { height: 100%; width: 0; background: linear-gradient(90deg, #ff8a2e, #ffd47a); border-radius: 6px; transition: width 0.3s; box-shadow: 0 0 12px rgba(255, 160, 60, 0.7); }
+#start .loading .label { margin-top: 10px; font-size: 14px; opacity: 0.85; }
+#start.ready .loading { display: none; }
+#start .body { display: flex; flex-direction: column; gap: 10px; }
+#start .body button { padding: 13px 18px; font-size: 17px; font-weight: 800; letter-spacing: 1px; border-radius: 10px; border: 2px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 26, 36, 0.82); color: #fff; cursor: pointer; text-transform: uppercase; transition: transform 0.1s, background 0.15s; }
+#start .body button:hover { transform: translateX(4px); background: rgba(40, 52, 70, 0.9); border-color: #ffd47a; }
+#start .body button.primary { background: linear-gradient(180deg, #ffb347, #ff7a1a); color: #1a1006; border-color: #ffd47a; font-size: 22px; }
+#start .body button.ghost { background: transparent; }
+#start .body button.on { border-color: #ffd47a; color: #ffd47a; }
+#start .body h3 { margin: 8px 0 0; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; }
+#start .body .row { display: flex; gap: 8px; }
+#start .body .row button { flex: 1; font-size: 14px; padding: 10px; }
+#start .body .text { text-align: left; line-height: 1.5; font-size: 15px; opacity: 0.9; }
+#start .body .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: left; font-size: 14px; }
+#start .body .keys span:nth-child(odd) { font-weight: 800; color: #ffd47a; }
+#start .tip { margin-top: 22px; font-size: 13px; opacity: 0.7; min-height: 2.6em; }
+#start .credits { position: absolute; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; text-align: center; font-size: 11px; opacity: 0.55; }
+#start[hidden] { display: none; }
+#start .logo .l1 { padding: 0 0.12em; }
+body.menu-open #hud, body.menu-open #minimap, body.menu-open #money, body.menu-open #wanted, body.menu-open #touch, body.menu-open #prompt { visibility: hidden; }

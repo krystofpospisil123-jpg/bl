@@ -4,6 +4,7 @@ import type { PhysicsWorld } from '../physics/PhysicsWorld.ts';
 import { CarPhysics, CAR_SPEC, type CarInput } from './CarPhysics.ts';
 import { CarModel, CAR_COLORS } from './CarModel.ts';
 import type { CarType } from '../assets/models.ts';
+import { ENGINE, stockTuning, type Tuning } from './Tuning.ts';
 
 export class Car {
   readonly physics: CarPhysics;
@@ -12,6 +13,8 @@ export class Car {
   onCrash?: (strength: number) => void;
   private prevVel = new THREE.Vector3();
   private crashCooldown = 0;
+  /** Tuning parts fitted to this car (reset when you take another car). */
+  tuning: Tuning = stockTuning();
   /** Current body colour and model (for leaving the old car behind after a theft). */
   look: { color: number; type: CarType } = { color: CAR_COLORS[0], type: 'liftback' };
   readonly position = new THREE.Vector3();
@@ -99,6 +102,16 @@ export class Car {
       this.onCrash?.(strength);
     }
     this.prevVel.copy(vel);
+  }
+
+  /** Rebuilds the look with the fitted tuning parts and sets the engine power. */
+  applyTuning() {
+    const t = this.tuning, m = this.model;
+    m.setRimColor(t.rims);
+    m.setSpoiler(t.spoiler ? this.look.color : null);
+    m.setLowered(t.lowered);
+    m.setNeon(t.neon);
+    this.physics.power = ENGINE[t.engine].power;
   }
 
   /** Swaps the look (after stealing another car); physics stay the same. */

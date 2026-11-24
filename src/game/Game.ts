@@ -29,8 +29,11 @@ import { Effects } from '../fx/Effects.ts';
 import { Pickups } from './Pickups.ts';
 import { Shops } from './Shops.ts';
 import { Interior } from './Interior.ts';
+import { Garage } from './Garage.ts';
+import { stockTuning } from '../vehicle/Tuning.ts';
+import { StartMenu } from '../ui/StartMenu.ts';
 import type { StoreEntrance } from '../world/builders/signs.ts';
-import { Minimap } from '../ui/Minimap.ts';
+import { Minimap, type MapMark } from '../ui/Minimap.ts';
 import { assets } from '../assets/models.ts';
 import type RAPIER from '@dimforge/rapier3d-compat';
 
@@ -67,6 +70,13 @@ export class Game {
   readonly pickups = new Pickups();
   shops?: Shops;
   interior?: Interior;
+  readonly garage = new Garage(this.arsenal);
+  private lastThrottle = 0;
+  /** Paused from the menu (Esc): the world stops, rendering goes on. */
+  paused = false;
+  private ready = false;
+  private modelsReady = false;
+  menu?: StartMenu;
   /** The store the player is inside, if any. */
   insideStore: (StoreEntrance & { y: number }) | null = null;
   /** Bins searched recently (key "x,z" -> time when they can be searched again). */
@@ -126,6 +136,7 @@ export class Game {
       if (e.button === 0) this.mouseFire = false;
     });
     this.scene.add(this.effects.group);
+    this.menu = new StartMenu(this);
     this.crosshair.id = 'crosshair';
     this.crosshair.hidden = true;
     document.body.append(this.crosshair);
@@ -135,7 +146,7 @@ export class Game {
     // Car and pedestrian models are needed before the first chunks (parked cars) and traffic.
     const models = world.loadModelsFile().then((buf) => loadModels(buf)).catch((err) => {
       console.error('Modely aut a postav se nenačetly, používám jednoduché tvary', err);
-    });
+    }).finally(() => (this.modelsReady = true));
     Promise.all([world.loadGroundPhoto().catch(() => null), models]).then(([photo]) => {
       if (photo) this.chunks.painter.setPhoto(photo.bitmap, photo.step, photo.half);
       this.chunks.paused = false;
@@ -186,6 +197,7 @@ export class Game {
       this.police.onWrecked = wrecked;
       this.shops = new Shops(this.arsenal);
       this.shops.onMessage = (t) => this.say(t);
+      this.garage.onMessage = (t) => this.say(t);
       this.interior = new Interior(p);
       this.scene.add(this.interior.group, this.pickups.group);
       this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 110 : 180);
@@ -307,12 +319,52 @@ export class Game {
     this.leaveCarBehind();
     const t = this.traffic.take(c);
     this.car.setLook(t.color, t.type);
+    this.car.tuning = stockTuning(); // a stolen car comes without your tuning
+    this.car.applyTuning();
     this.car.reset(t.position.clone().add(new THREE.Vector3(0, 0.2, 0)), t.yaw);
     this.enterCar();
     this.chase?.setYaw(t.yaw);
     this.pedestrians?.panicAround(t.position, 20);
     if (this.police?.units.some((u) => u.pos.distanceTo(t.position) < 60)) this.police.report(1, 'car theft');
     this.say('Ukradl jsi auto');
+  }
+
+  /** Loading progress for the start screen. */
+  loadProgress(): { value: number; text: string; ready: boolean } {
+    const near = Math.min(1, this.chunks.stats().lodCounts[0] / 6);
+    const steps: [boolean | number, string][] = [
+      [this.modelsReady, 'Načítám auta a postavy…'],
+      [!this.chunks.paused, 'Načítám letecké snímky…'],
+      [!!this.physics, 'Připravuji fyziku a silnice…'],
+      [near, 'Stavím město kolem tebe…'],
+      [!!this.car, 'Připravuji hráče…'],
+      [this.ready, 'Připravuji grafiku…'],
+    ];
+    let value = 0;
+    let text = 'Hotovo';
+    for (const [done, label] of steps) {
+      const v = typeof done === 'number' ? done : done ? 1 : 0;
+      value += v / steps.length;
+      if (v < 1 && text === 'Hotovo') text = label;
+    }
+    return { value, text, ready: this.ready };
+  }
+
+  /** Play pressed in the menu. */
+  start() {
+    if (this.mode === 'loading' && this.ready) this.setMode('foot');
+  }
+
+  /** Places on the map: gun shops (Z) and tuning garages (G). */
+  private mapMarks(): MapMark[] {
+    const marks: MapMark[] = this.chunks.entrancesNear(this.focus, 3000).map((e) => ({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'Z', color: '#f1c232' }));
+    for (const e of this.chunks.entrancesNear(this.focus, 3000, 'garage')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'G', color: '#ff9a2e' });
+    return marks;
+  }
+
+  /** A tuning garage close by (to show a hint while driving up to it). */
+  get nearGarage(): boolean {
+    return !!this.car && !this.garage.isOpen && this.chunks.entrancesNear(this.car.position, 14, 'garage').length > 0;
   }
 
   /** A store door within reach (on foot, outside). */
@@ -414,6 +466,7 @@ export class Game {
     this.arsenal.money -= fine;
     this.arsenal.current = null;
     this.car.setLook(this.car.look.color, this.car.look.type);
+    this.car.applyTuning();
     this.say(`ZATČEN! Pokuta ${formatKc(fine)}. Začínáš znovu na náměstí Republiky.`, 5);
   }
 
@@ -447,7 +500,7 @@ export class Game {
     const k = this.input;
     VIEWPOINTS.forEach((v, i) => k.justPressed(v.key) && this.goTo(i));
     if (k.justPressed('KeyO')) this.env.sun.castShadow = !this.env.sun.castShadow;
-    if (k.justPressed('KeyM')) location.hash = 'mapa';
+    if (k.justPressed('KeyM') && !k.down('ShiftLeft', 'ShiftRight')) this.minimap?.toggle();
     if (k.justPressed('KeyP') && this.car) {
       if (this.mode === 'fly') this.landHere();
       else if (this.mode !== 'loading') {
@@ -502,7 +555,7 @@ export class Game {
       // Colliders follow the player; the parked car keeps its own ground while nearby.
       const ready = this.physics.updateStreaming(focus.x, focus.z, (cx, cz) => this.chunks.physicsSource(cx, cz));
       if (!this.car && ready && this.mode === 'loading') this.spawn();
-      if (this.car && this.player) this.simulate(dt, ready);
+      if (this.car && this.player && !this.paused) this.simulate(dt, ready);
     }
 
     if ((this.mode === 'car' || this.mode === 'foot') && this.chase) {
@@ -525,12 +578,13 @@ export class Game {
       this.pipeline.resetAuto(true);
     }
     this.pipeline.render(dt);
-    this.effects.update(dt);
+    this.menu?.update();
+    if (!this.paused) this.effects.update(dt);
     this.hud.update(dt);
     if (this.minimap && (this.mode === 'car' || this.mode === 'foot' || this.mode === 'fly')) {
       const yaw = this.mode === 'fly' ? this.fly.yaw + Math.PI : this.chase?.viewYaw ?? 0;
       this.minimap.update(this.focus, yaw, this.mode === 'foot' ? this.car?.position ?? null : null,
-        this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0, this.chunks.entrancesNear(this.focus, 3000).map((e) => new THREE.Vector3(e.x, e.y, e.z)));
+        this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0, this.mapMarks());
       this.minimap.canvas.hidden = !!this.insideStore;
     }
     this.touch?.update(this.mode);
@@ -608,6 +662,17 @@ export class Game {
       this.sound.pickup();
       this.say(`+${formatKc(got)}`);
     }
+    // Tuning garage: stop in the orange ring in front of the door.
+    const garageSpot = driving ? this.chunks.entrancesNear(car.position, 3.2, 'garage')[0] : undefined;
+    if (garageSpot && Math.abs(car.speed) < 3) this.garage.open(garageSpot.name, car);
+    else if (!garageSpot) this.garage.close();
+    // Racing exhaust: pops and flames when you lift off the throttle at speed.
+    if (driving && car.tuning.exhaust > 0 && this.lastThrottle > 0.5 && carInput.throttle < 0.1 && Math.abs(car.speed) > 12 && Math.random() < (car.tuning.exhaust === 2 ? 0.9 : 0.4)) {
+      this.sound.backfire();
+      if (car.tuning.exhaust === 2) this.effects.puff(new THREE.Vector3(0.45, -0.45, -car.model.halfLength - 0.1).applyQuaternion(car.quaternion).add(car.position));
+    }
+    this.lastThrottle = driving ? carInput.throttle : 0;
+
     // Inside a store: the gun counter opens the shop menu, the door ring takes you back out.
     const inside = this.interior && this.insideStore;
     if (inside && walking && this.interior!.near(player.position, this.interior!.counter, 1.4)) this.shops?.open(this.insideStore!.name);
@@ -622,7 +687,7 @@ export class Game {
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(car.quaternion);
     this.sound.update(dt, {
       mode: this.mode, carSpeed: car.speed, throttle: carInput.throttle, slip: lv.x * right.x + lv.y * right.y + lv.z * right.z,
-      footSpeed: walking ? player.speed : 0, grounded: player.physics.grounded, horn: driving && k.down('KeyK'),
+      footSpeed: walking ? player.speed : 0, exhaust: car.tuning.exhaust, grounded: player.physics.grounded, horn: driving && k.down('KeyK'),
       sirens: this.police?.sirens() ?? [], listener: this.camera,
     });
 
@@ -660,7 +725,8 @@ export class Game {
     this.scene.add(this.player.model.root);
     this.chase?.setStyle(FOOT_STYLE);
     this.chase?.setYaw(SPAWN.yaw);
-    this.warmUp().finally(() => this.setMode('foot'));
+    // The menu's Play button starts the game once everything is compiled.
+    this.warmUp().finally(() => (this.ready = true));
   }
 
   /**

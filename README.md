@@ -167,13 +167,11 @@ postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blende
   sebereš ho, když přes něj přejdeš nebo přejedeš. Popelnice (u náměstí a podél ulic) jde
   prohledat klávesou F: někdy peníze, někdy náboje, každá jednou za 2 minuty.
   Zatčení stojí pokutu 20 % peněz.
-- **Obchody:** do velkých obchodů (Kaufland, Lidl, Penny, Billa, Albert, Action, JYSK, Hruška…)
-  se dá vejít. Vchod poznáš podle svítících skleněných dveří pod nápisem obchodu a modrého kruhu
-  na chodníku; F (na mobilu Vstoupit) tě pustí dovnitř. Uvnitř je prodejna (regály se zbožím,
-  lednice, pokladny) a vzadu vpravo pult se zbraněmi: stoupni si k němu a otevře se nabídka.
-  Ven se jde modrým kruhem u dveří. Prodejna je jedna společná a stojí vysoko nad městem
-  (`src/game/Interior.ts`), nad pultem visí název obchodu, kterým jsi vešel. Venku se mezitím
-  provoz, chodci i policie zastaví.
+- **Obchody se zbraněmi** jsou tři: Kaufland, Lidl a Penny. Vchod poznáš podle svítících
+  skleněných dveří pod nápisem obchodu a modrého kruhu na chodníku; F (na mobilu Vstoupit) tě
+  pustí dovnitř. Uvnitř je prodejna (regály, lednice, pokladny) a vzadu vpravo pult se zbraněmi:
+  stoupni si k němu a otevře se nabídka. Ven se jde modrým kruhem u dveří. Prodejna je jedna
+  společná a stojí vysoko nad městem (`src/game/Interior.ts`). Venku se mezitím vše zastaví.
   | Zbraň | Cena | Náboje |
   | --- | --- | --- |
   | Pistole | 800 Kč (na začátku ji máš) | 24 ks za 60 Kč |
@@ -187,6 +185,28 @@ postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blende
   body v okruhu kolem nárazu se posunou dovnitř s pozvolným okrajem a lehkým zvlněním plechu
   a promáčklé plochy dostanou ostré stínování. Čím silnější náraz, tím hlubší promáčklina.
   Silně poškozené auto kouří zpod kapoty. Opraví se po zatčení nebo krádeží jiného auta.
+
+## Tuning, mapa, menu
+
+- **Tuningové garáže** jsou dvě (autoservisy z OSM: „Tuning Blansko“ u Autoservisu severně od
+  Penny a „Tuning Poříčí“). Na mapě oranžové G, před vraty oranžový kruh: zajeď do něj autem
+  a zastav, otevře se nabídka.
+  | Úprava | Cena |
+  | --- | --- |
+  | Lak (10 barev, zároveň opraví promáčkliny) | 400 Kč |
+  | Disky (stříbrné, černé, zlaté, chromové, červené) | 600 Kč |
+  | Snížený podvozek | 800 Kč |
+  | Zadní křídlo (v barvě auta) | 900 Kč |
+  | Neon pod autem (4 barvy) | 700 Kč |
+  | Motor Stage 1 / 2 / 3 (+15 / +30 / +50 % výkonu a vyšší max. rychlost) | 2 000 / 4 500 / 8 000 Kč |
+  | Výfuk sportovní / závodní (hlasitější, hlubší; závodní při ubrání plynu střílí plameny) | 1 500 / 3 000 Kč |
+  Úpravy patří autu: ukradené auto je sériové.
+- **Velká mapa:** M nebo klik / klepnutí na minimapu; je natočená na sever, šipka ukazuje směr,
+  vidí se 650 m kolem. Z = obchod se zbraněmi, G = garáž, modré tečky = policie.
+  2D mapa dat je teď na Shift+M.
+- **Načítací obrazovka a menu:** při startu logo, ukazatel průběhu s popisem, co se právě načítá,
+  a tipy. Po načtení menu: Hrát, Nastavení (grafika, zvuk, názvy obchodů), Ovládání, O hře.
+  Esc ve hře otevře pauzu (svět se zastaví) s tlačítkem Pokračovat.
 
 ## Zvuky
 

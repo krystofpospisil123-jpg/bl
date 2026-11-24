@@ -63,6 +63,10 @@ const DOOR_GEO = new THREE.PlaneGeometry(2.2, 2.5);
 const DOOR_MAT = new THREE.MeshStandardMaterial({ color: 0xbfe3ff, emissive: 0xffe8b0, emissiveIntensity: 0.9, roughness: 0.1, metalness: 0.2 });
 const RING_GEO = new THREE.RingGeometry(1.0, 1.35, 32).rotateX(-Math.PI / 2);
 const RING_MAT = new THREE.MeshBasicMaterial({ color: 0x7fd4ff, transparent: true, opacity: 0.55, depthWrite: false });
+const GARAGE_DOOR_GEO = new THREE.PlaneGeometry(4, 3.2);
+const GARAGE_DOOR_MAT = new THREE.MeshStandardMaterial({ color: 0x3a3f45, emissive: 0xff8a1f, emissiveIntensity: 0.35, roughness: 0.5, metalness: 0.4 });
+const GARAGE_RING_GEO = new THREE.RingGeometry(2.6, 3.1, 40).rotateX(-Math.PI / 2);
+const GARAGE_RING_MAT = new THREE.MeshBasicMaterial({ color: 0xff9a2e, transparent: true, opacity: 0.6, depthWrite: false });
 
 export class ChunkManager {
   /** Chunks closer than this (to the chunk's nearest edge) are kept loaded. */
@@ -174,9 +178,9 @@ export class ChunkManager {
   }
 
   /** Walk-in store entrances within `radius` of a point. */
-  entrancesNear(p: THREE.Vector3, radius: number): (StoreEntrance & { y: number })[] {
+  entrancesNear(p: THREE.Vector3, radius: number, kind: 'store' | 'garage' = 'store'): (StoreEntrance & { y: number })[] {
     const out: (StoreEntrance & { y: number })[] = [];
-    for (const st of this.states.values()) for (const e of st.entrances ?? []) if (Math.hypot(e.x - p.x, e.z - p.z) < radius) out.push(e);
+    for (const st of this.states.values()) for (const e of st.entrances ?? []) if (e.kind === kind && Math.hypot(e.x - p.x, e.z - p.z) < radius) out.push(e);
     return out;
   }
 
@@ -268,10 +272,12 @@ export class ChunkManager {
       // Walk-in stores: a lit glass door on the facade and a ring on the pavement.
       st.entrances = storeEntrances(data.data).map((e) => ({ ...e, y: this.heights.sample(e.x, e.z) }));
       for (const e of st.entrances) {
-        const door = new THREE.Mesh(DOOR_GEO, DOOR_MAT);
-        door.position.set(e.x - e.nx * 0.85, e.y + 1.25, e.z - e.nz * 0.85);
+        const garage = e.kind === 'garage';
+        const back = garage ? 3.15 : 0.85;
+        const door = new THREE.Mesh(garage ? GARAGE_DOOR_GEO : DOOR_GEO, garage ? GARAGE_DOOR_MAT : DOOR_MAT);
+        door.position.set(e.x - e.nx * back, e.y + (garage ? 1.6 : 1.25), e.z - e.nz * back);
         door.rotation.y = Math.atan2(e.nx, e.nz);
-        const ring = new THREE.Mesh(RING_GEO, RING_MAT);
+        const ring = new THREE.Mesh(garage ? GARAGE_RING_GEO : RING_GEO, garage ? GARAGE_RING_MAT : RING_MAT);
         ring.position.set(e.x, e.y + 0.07, e.z);
         st.group.add(door, ring);
       }

@@ -48,6 +48,58 @@ export class CarModel {
   private tail?: THREE.Mesh;
   /** Deformable copies of the body and tail-light geometry (dents from crashes). */
   private dentable: THREE.BufferGeometry[] = [];
+  private bodyParts: THREE.Object3D[] = [];
+  private rims: THREE.InstancedMesh[] = [];
+  private type: CarType = 'liftback';
+  private spoiler?: THREE.Object3D;
+  private neon?: THREE.Mesh;
+
+  /** Tuning: rim colour. */
+  setRimColor(hex: number) {
+    for (const r of this.rims) {
+      r.setColorAt(0, new THREE.Color(hex));
+      r.instanceColor!.needsUpdate = true;
+    }
+  }
+
+  /** Tuning: lowered suspension (the body sits 6 cm lower over the wheels). */
+  setLowered(on: boolean) {
+    for (const p of this.bodyParts) p.position.y = on ? -0.06 : 0;
+    if (this.spoiler) this.spoiler.position.y = on ? -0.06 : 0;
+  }
+
+  /** Tuning: rear wing on the boot lid or at the end of the roof, in the given colour. */
+  setSpoiler(color: number | null) {
+    if (this.spoiler) this.root.remove(this.spoiler);
+    this.spoiler = undefined;
+    if (color === null) return;
+    const top: Record<CarType, number> = { liftback: 1.07, superb: 1.08, hatch: 1.47, estate: 1.49, suv: 1.69, city: 1.49 };
+    const saloon = this.type === 'liftback' || this.type === 'superb';
+    const g = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.3 });
+    const y = -0.71 + top[this.type];
+    const z = -this.halfLength + (saloon ? 0.18 : 0.3);
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.04, 0.32).translate(0, y + (saloon ? 0.16 : 0.05), z), mat);
+    wing.castShadow = true;
+    g.add(wing);
+    if (saloon) for (const x of [-0.5, 0.5]) g.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.12).translate(x, y + 0.08, z), mat));
+    this.spoiler = g;
+    this.root.add(g);
+  }
+
+  /** Tuning: coloured glow under the car. */
+  setNeon(color: number | null) {
+    if (this.neon) this.root.remove(this.neon);
+    this.neon = undefined;
+    if (color === null) return;
+    this.neon = new THREE.Mesh(
+      new THREE.PlaneGeometry(this.halfWidth * 2 + 0.6, this.halfLength * 2 + 0.4).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    this.neon.position.y = -0.69;
+    this.root.add(this.neon);
+  }
+
   /** Accumulated damage 0..1 (smoke from the bonnet when high). */
   damage = 0;
   readonly halfLength: number = 2.2;
@@ -56,7 +108,7 @@ export class CarModel {
   constructor(color = CAR_COLORS[0], type: CarType = 'liftback') {
     const asset = assets.cars?.[type];
     if (asset) {
-      this.fromAsset(asset, color);
+      this.fromAsset(asset, color, type);
       return;
     }
     const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.32, metalness: 0.35 });
@@ -102,7 +154,7 @@ export class CarModel {
   }
 
   /** Builds the car from the Blender model: body tinted per car, separate tail lights and wheels. */
-  private fromAsset(a: CarAsset, color: number) {
+  private fromAsset(a: CarAsset, color: number, type: CarType) {
     const bodyGeo = a.body.clone(), tailGeo = a.tail.clone();
     this.dentable = [bodyGeo, tailGeo];
     (this as { halfLength: number }).halfLength = a.halfLength;
@@ -115,9 +167,16 @@ export class CarModel {
     this.tail = new THREE.Mesh(tailGeo, tailOff);
     this.root.add(body, this.tail);
     this.wheelAnchors = a.wheelPos;
+    this.bodyParts = [body, this.tail];
+    this.type = type;
     a.wheelPos.forEach((p) => {
       const w = new THREE.Group();
-      const m = new THREE.Mesh(a.wheel, carMaterial());
+      // Instanced (count 1) so the rim colour can be tuned through the instance colour.
+      const m = new THREE.InstancedMesh(a.wheel, carMaterial(), 1);
+      m.setMatrixAt(0, new THREE.Matrix4());
+      m.setColorAt(0, new THREE.Color(RIM_STOCK));
+      m.computeBoundingSphere();
+      this.rims.push(m);
       if (p.x < 0) m.rotation.y = Math.PI; // rim faces outwards on the right side too
       m.castShadow = true;
       w.add(m);
@@ -178,6 +237,7 @@ const brakeOn = new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xcc
 const tailOff = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, emissive: 0x300000 });
 const tailOn = new THREE.MeshStandardMaterial({ color: 0xff3030, roughness: 0.3, emissive: 0xdd0000 });
 let sharedCarMat: THREE.MeshStandardMaterial | null = null;
+export const RIM_STOCK = 0xa9adb2;
 function carMaterial() {
   sharedCarMat ??= useCarAttributes(new THREE.MeshStandardMaterial({ metalness: 0.3 }));
   return sharedCarMat;

@@ -155,6 +155,8 @@ function buildPylon(p: Pylon, ground: number, disposables: { dispose(): void }[]
 export interface StoreEntrance {
   id: number;
   name: string;
+  /** Walk-in store (gun counter) or a tuning garage you drive into. */
+  kind: 'store' | 'garage';
   /** Door position on the pavement and the outward direction of the facade. */
   x: number;
   z: number;
@@ -162,22 +164,25 @@ export interface StoreEntrance {
   nz: number;
 }
 
-const STORE_USES = /^shop:(supermarket|department_store|doityourself|furniture|mall)$/;
-/** Buildings tagged as stores that are not walk-in shops in the game. */
-const NOT_STORES = new Set([253796332]);
+/** The three walk-in stores with a gun counter: Kaufland, Lidl and Penny (OSM building ids). */
+const GUN_STORES = new Set([253791835, 1280153528, 254004784]);
+/** Car repair shops that work as tuning garages. */
+const GARAGES: Record<number, string> = { 253879043: 'Tuning Blansko', 253791939: 'Tuning Poříčí' };
 
-/** Walk-in stores of a chunk (big shops: supermarkets, department and DIY stores). */
+/** Walk-in stores of a chunk. */
 export function storeEntrances(data: ChunkData): StoreEntrance[] {
   const out: StoreEntrance[] = [];
   for (const b of data.buildings) {
+    const garage = GARAGES[b.id];
+    if (!GUN_STORES.has(b.id) && !garage) continue;
     const use = LANDMARKS[b.id]?.use ?? b.use ?? '';
-    if (!STORE_USES.test(use) || NOT_STORES.has(b.id)) continue;
-    const name = LANDMARKS[b.id]?.label ?? b.label ?? genericName(use);
+    const name = garage ?? LANDMARKS[b.id]?.label ?? b.label ?? genericName(use);
     const st = resolveStyle(b);
     const wall = wallTowardRoad(b, data, st.signFacing);
     if (!wall) continue;
     const mx = (wall.ax + wall.bx) / 2, mz = (wall.az + wall.bz) / 2;
-    out.push({ id: b.id, name, x: mx + wall.nx * 0.9, z: mz + wall.nz * 0.9, nx: wall.nx, nz: wall.nz });
+    const off = garage ? 3.2 : 0.9; // a car needs room in front of the garage door
+    out.push({ id: b.id, name, kind: garage ? 'garage' : 'store', x: mx + wall.nx * off, z: mz + wall.nz * off, nx: wall.nx, nz: wall.nz });
   }
   return out;
 }

@@ -12,6 +12,8 @@ export interface SoundState {
   slip: number;
   /** On foot: walking speed (m/s) and whether the feet touch the ground. */
   footSpeed: number;
+  /** Exhaust tuning: 0 stock, 1 sport, 2 racing (louder, deeper). */
+  exhaust: number;
   grounded: boolean;
   horn: boolean;
   /** Police cars with sirens on. */
@@ -166,6 +168,13 @@ export class Sound {
     this.burst(0.8, 1800, 0.4);
   }
 
+  /** Exhaust backfire: a sharp pop. */
+  backfire() {
+    if (!this.ctx) return;
+    this.burst(0.7, 1200, 0.12);
+    this.burst(0.4, 300, 0.2);
+  }
+
   /** Picking up money: two quick rising beeps. */
   pickup() {
     const ctx = this.ctx;
@@ -210,7 +219,9 @@ export class Sound {
     this.engine.osc.frequency.setTargetAtTime(f0, t, 0.05);
     this.engine.sub.frequency.setTargetAtTime(f0 / 2, t, 0.05);
     this.engine.filter.frequency.setTargetAtTime(300 + s.throttle * 1400 + rpm * 0.12, t, 0.08);
-    this.engine.gain.gain.setTargetAtTime(driving ? 0.07 + s.throttle * 0.08 : 0, t, 0.1);
+    const loud = 1 + s.exhaust * 0.55;
+    this.engine.gain.gain.setTargetAtTime(driving ? (0.07 + s.throttle * 0.08) * loud : 0, t, 0.1);
+    this.engine.sub.frequency.setTargetAtTime(f0 / (s.exhaust ? 2.02 : 2), t, 0.05);
 
     // --- Tyre squeal when sliding sideways.
     const slip = driving ? Math.max(0, Math.abs(s.slip) - 2.5) : 0;

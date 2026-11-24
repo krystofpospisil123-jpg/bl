@@ -32,6 +32,8 @@ export class CarPhysics {
   readonly body: RAPIER_NS.RigidBody;
   readonly vehicle: RAPIER_NS.DynamicRayCastVehicleController;
   private steerSmooth = 0;
+  /** Engine tuning: multiplies engine force and top speed (1 = stock). */
+  power = 1;
 
   constructor(private R: Rapier, private world: RAPIER_NS.World, pos: { x: number; y: number; z: number }, yaw: number) {
     const s = CAR_SPEC;
@@ -96,7 +98,7 @@ export class CarPhysics {
     let engine = 0, brake = 0;
     if (input.throttle > 0) {
       if (v < -0.5) brake = s.maxBrakeForce * input.throttle; // moving backwards: brake first
-      else engine = s.maxEngineForce * input.throttle * (1 - Math.pow(Math.max(0, v) / s.topSpeed, 2));
+      else engine = s.maxEngineForce * this.power * input.throttle * (1 - Math.pow(Math.max(0, v) / (s.topSpeed * Math.sqrt(this.power)), 2));
     }
     if (input.brake > 0) {
       if (v > 0.8) brake = s.maxBrakeForce * input.brake;

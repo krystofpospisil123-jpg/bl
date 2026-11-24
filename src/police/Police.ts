@@ -391,7 +391,10 @@ export class Police {
     const r = new THREE.Mesh(a.beaconR, this.beaconOff);
     g.add(body, tail, l, r);
     for (const p of a.wheelPos) {
-      const w = new THREE.Mesh(a.wheel, this.bodyMat);
+      const w = new THREE.InstancedMesh(a.wheel, this.bodyMat, 1);
+      w.setMatrixAt(0, new THREE.Matrix4());
+      w.setColorAt(0, new THREE.Color(0xa9adb2));
+      w.computeBoundingSphere();
       w.position.copy(p);
       if (p.x < 0) w.rotation.y = Math.PI;
       w.castShadow = true;

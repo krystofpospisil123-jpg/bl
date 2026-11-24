@@ -69,7 +69,7 @@ export function carTypeFor(r: number): CarType {
  * Merges all meshes under `node` (in the node's own frame) into one geometry with `color`,
  * `paintMask` and `rough` attributes. Paint and tint materials become white (instance colour).
  */
-function bake(node: THREE.Object3D, skip?: (mat: string, centre: THREE.Vector3) => boolean): THREE.BufferGeometry {
+function bake(node: THREE.Object3D, skip?: (mat: string, centre: THREE.Vector3) => boolean, tint = (mat: string) => mat.startsWith('paint')): THREE.BufferGeometry {
   node.updateMatrixWorld(true);
   const inv = node.matrixWorld.clone().invert();
   const parts: THREE.BufferGeometry[] = [];
@@ -103,7 +103,7 @@ function bake(node: THREE.Object3D, skip?: (mat: string, centre: THREE.Vector3) 
       g.setAttribute('position', new THREE.Float32BufferAttribute(keepP, 3));
       g.setAttribute('normal', new THREE.Float32BufferAttribute(keepN, 3));
     }
-    const tinted = name.startsWith('paint') || name === 'tint';
+    const tinted = tint(name) || name === 'tint';
     if (tinted) c.setRGB(1, 1, 1);
     else {
       c.copy(mat.color);
@@ -114,7 +114,7 @@ function bake(node: THREE.Object3D, skip?: (mat: string, centre: THREE.Vector3) 
     const r = ROUGHNESS[name] ?? (name.startsWith('paint') ? 0.3 : 0.75);
     for (let i = 0; i < n; i++) {
       col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
-      mask[i] = name.startsWith('paint') ? 1 : 0;
+      mask[i] = tint(name) ? 1 : 0;
       rough[i] = r;
     }
     g.setAttribute('color', new THREE.BufferAttribute(col, 3));
@@ -169,7 +169,8 @@ export async function loadModels(buffer: ArrayBuffer): Promise<void> {
     const isWheel = (mat: string, ctr: THREE.Vector3) => mat === 'tyre' || mat === 'rim' || (mat === 'trim' && wheelsAt.some((w) => w.distanceTo(ctr) < radius * 0.5));
     const body = bake(hiNode, (mat, ctr) => mat === 'taillight' || extraSkip(mat) || isWheel(mat, ctr)).translate(0, CAR_GROUND, 0);
     const tail = bake(hiNode, (mat) => mat !== 'taillight').translate(0, CAR_GROUND, 0);
-    const wheel = bake(wheelNode);
+    // Rims are tintable (tuning: rim colour via the instance colour).
+    const wheel = bake(wheelNode, undefined, (m) => m === 'rim');
     return { hi, lo, body, tail, wheel, wheelPos, halfLength: Math.max(-bb.min.z, bb.max.z), halfWidth: (bb.max.x - bb.min.x) / 2 - 0.1 };
   };
   const cars = {} as Record<CarType, CarAsset>;
