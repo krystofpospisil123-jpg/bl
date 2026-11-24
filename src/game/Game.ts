@@ -24,6 +24,10 @@ import { VIEWPOINTS } from './viewpoints.ts';
 import { Police } from '../police/Police.ts';
 import { Sound } from '../audio/Sound.ts';
 import { Weapon } from '../combat/Weapon.ts';
+import { Arsenal, WEAPONS, formatKc } from '../combat/Arsenal.ts';
+import { Effects } from '../fx/Effects.ts';
+import { Pickups } from './Pickups.ts';
+import { Shops } from './Shops.ts';
 import { Minimap } from '../ui/Minimap.ts';
 import { assets } from '../assets/models.ts';
 import type RAPIER from '@dimforge/rapier3d-compat';
@@ -55,7 +59,15 @@ export class Game {
   pedestrians?: Pedestrians;
   police?: Police;
   readonly sound = new Sound(settings.muted);
-  readonly weapon = new Weapon();
+  readonly arsenal = new Arsenal();
+  readonly weapon = new Weapon(this.arsenal);
+  readonly effects = new Effects();
+  readonly pickups = new Pickups();
+  shops?: Shops;
+  /** Bins searched recently (key "x,z" -> time when they can be searched again). */
+  private searchedBins = new Map<string, number>();
+  /** Smoke from the bonnet of a badly damaged car. */
+  private carSmoke = this.effects.addSource(new THREE.Vector3(0, -1e4, 0), 0, false);
   minimap?: Minimap;
   /** Cars the player left behind after stealing another one (static, with a collider). */
   private leftCars: { mesh: THREE.Object3D; collider: RAPIER.Collider }[] = [];
@@ -93,7 +105,7 @@ export class Game {
     if (mobile) {
       this.chunks.useMobileProfile();
       this.touch = new TouchControls(this.input, {
-        canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped,
+        canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped, nearBin: () => !!this.nearBin,
       });
     }
     this.scene.add(this.chunks.root);
@@ -108,6 +120,7 @@ export class Game {
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) this.mouseFire = false;
     });
+    this.scene.add(this.effects.group);
     this.crosshair.id = 'crosshair';
     this.crosshair.hidden = true;
     document.body.append(this.crosshair);
@@ -151,6 +164,24 @@ export class Game {
       this.police.onBusted = () => this.busted();
       this.weapon.onCrime = (amount, reason) => this.police?.report(amount, reason);
       this.weapon.onShot = () => this.sound.gunshot();
+      this.weapon.onEmpty = () => {
+        this.sound.click();
+        this.say('Došly náboje – kup je v obchodě se zbraněmi');
+      };
+      this.pedestrians.onKilled = (pos) => this.pickups.drop(pos, 20 + Math.round(Math.random() * 18) * 10);
+      const wrecked = (pos: THREE.Vector3) => {
+        this.effects.explosion(pos);
+        this.effects.addSource(pos, 0.9, true, 60);
+        this.sound.explosion();
+      };
+      this.traffic.onWrecked = (pos) => {
+        wrecked(pos);
+        this.police?.report(0.5, 'wrecked a car');
+      };
+      this.police.onWrecked = wrecked;
+      this.shops = new Shops(graphs.walk, (x, z) => this.heights.sample(x, z), this.arsenal);
+      this.shops.onMessage = (t) => this.say(t);
+      this.scene.add(this.shops.group, this.pickups.group);
       this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 110 : 180);
       this.scene.add(this.traffic.group, this.pedestrians.group, this.police.group, this.weapon.group);
       this.chase = new ChaseCamera(this.camera, this.mouse, (x, z) => this.heights.sample(x, z), (o, d, max) =>
@@ -278,6 +309,36 @@ export class Game {
     this.say('Ukradl jsi auto');
   }
 
+  /** The nearest litter bin within reach (on foot). */
+  get nearBin(): THREE.Vector3 | null {
+    if (this.mode !== 'foot' || !this.player) return null;
+    const bins = this.chunks.binsNear(this.player.position, 1.8);
+    return bins[0] ?? null;
+  }
+
+  /** Searching a bin: sometimes money or a few bullets (each bin once every 2 minutes). */
+  private searchBin() {
+    const b = this.nearBin;
+    if (!b) return;
+    const key = `${b.x.toFixed(1)},${b.z.toFixed(1)}`;
+    const now = performance.now() / 1000;
+    if ((this.searchedBins.get(key) ?? 0) > now) {
+      this.say('Tuhle popelnici už jsi prohledal');
+      return;
+    }
+    this.searchedBins.set(key, now + 120);
+    const r = Math.random();
+    if (r < 0.45) {
+      const amount = 10 + Math.round(Math.random() * 19) * 10;
+      this.arsenal.money += amount;
+      this.sound.pickup();
+      this.say(`V popelnici: +${formatKc(amount)}`);
+    } else if (r < 0.6) {
+      this.arsenal.ammo.pistol += 12;
+      this.say('V popelnici: 12 nábojů do pistole');
+    } else this.say('Popelnice je prázdná');
+  }
+
   /** Leaves a static copy of the current car (with a collider) where it stands. */
   private leaveCarBehind() {
     const car = this.car!, phys = this.physics!;
@@ -315,7 +376,12 @@ export class Game {
     this.player.setActive(true);
     this.chase?.setYaw(SPAWN.yaw);
     this.setMode('foot');
-    this.say('ZATČEN! Začínáš znovu na náměstí Republiky.', 5);
+    // A fine, and the car comes back from the police repaired.
+    const fine = Math.round(this.arsenal.money * 0.2);
+    this.arsenal.money -= fine;
+    this.arsenal.current = null;
+    this.car.setLook(this.car.look.color, this.car.look.type);
+    this.say(`ZATČEN! Pokuta ${formatKc(fine)}. Začínáš znovu na náměstí Republiky.`, 5);
   }
 
   /** From the free camera: put the player (and the car beside them) under the camera. */
@@ -359,7 +425,8 @@ export class Game {
     if (k.justPressed('KeyF')) {
       if (this.mode === 'car') this.exitCar();
       else if (this.canEnterCar) this.enterCar();
-      else if (this.mode === 'foot') this.steal();
+      else if (this.mode === 'foot' && this.canSteal) this.steal();
+      else if (this.mode === 'foot') this.searchBin();
     }
     if (k.justPressed('KeyR') && this.car && this.mode === 'car') this.car.reset(undefined, this.car.yaw);
     if (k.justPressed('KeyG')) {
@@ -373,8 +440,8 @@ export class Game {
       this.say(settings.realNames ? 'Skutečné názvy obchodů' : 'Obecné názvy obchodů');
     }
     if (k.justPressed('KeyQ') && this.mode === 'foot') {
-      this.weapon.equipped = !this.weapon.equipped;
-      this.say(this.weapon.equipped ? 'Pistole: střílej levým tlačítkem myši nebo E' : 'Pistole schovaná');
+      const w = this.arsenal.cycle();
+      this.say(w ? `${WEAPONS[w].name} (náboje ${this.arsenal.ammo[w]}) – střílej myší nebo E` : 'Zbraň schovaná');
     }
     if (k.justPressed('KeyU')) {
       settings.muted = !settings.muted;
@@ -424,6 +491,7 @@ export class Game {
       this.pipeline.resetAuto(true);
     }
     this.pipeline.render(dt);
+    this.effects.update(dt);
     this.hud.update(dt);
     if (this.minimap && (this.mode === 'car' || this.mode === 'foot' || this.mode === 'fly')) {
       const yaw = this.mode === 'fly' ? this.fly.yaw + Math.PI : this.chase?.viewYaw ?? 0;
@@ -491,11 +559,23 @@ export class Game {
     player.aimYaw = aiming && this.chase ? this.chase.viewYaw : null;
     player.model.aiming = aiming;
     this.crosshair.hidden = !aiming;
-    if (!walking) this.weapon.equipped = false;
+    if (!walking) this.arsenal.current = null;
     this.weapon.update(dt, aiming && (this.mouseFire || k.down('KeyE')), {
       camera: this.camera, muzzle: aiming ? player.model.muzzle() : player.position, playerFeet: player.position,
       phys: this.physics!, exclude: player.body, pedestrians: this.pedestrians, traffic: this.traffic, police: this.police,
     });
+
+    // Money on the ground, gun shops, smoke from a damaged car.
+    const got = this.pickups.update(dt, driving ? car.position : player.position, driving ? 2.6 : 1.3, (x, z) => this.heights.sample(x, z));
+    if (got) {
+      this.arsenal.money += got;
+      this.sound.pickup();
+      this.say(`+${formatKc(got)}`);
+    }
+    this.shops?.update(player.position, walking, timeUniform.value);
+    const dmg = car.model.damage;
+    this.carSmoke.smoke = dmg > 0.45 ? Math.min(0.9, (dmg - 0.45) * 2) : 0;
+    this.carSmoke.pos.set(0, 0.35, car.model.halfLength - 0.7).applyQuaternion(car.quaternion).add(car.position);
 
     // Sound: engine from throttle and speed, squeal from sideways slip.
     const lv = car.body.linvel();

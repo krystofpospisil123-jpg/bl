@@ -59,3 +59,14 @@ body.touch #hud { padding: 4px 8px; }
 #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255, 255, 255, 0.9); box-shadow: 0 0 2px #000; }
 #crosshair::before { left: 8px; top: 0; width: 2px; height: 18px; }
 #crosshair::after { top: 8px; left: 0; width: 18px; height: 2px; }
+#money { position: fixed; top: calc(52px + env(safe-area-inset-top, 0px)); right: calc(16px + env(safe-area-inset-right, 0px)); font-size: 22px; font-weight: 700; color: #7fe08a; text-shadow: 0 1px 3px #000; pointer-events: none; font-variant-numeric: tabular-nums; }
+#ammo { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(28px + env(safe-area-inset-bottom, 0px)); background: rgba(20, 24, 30, 0.8); border-radius: 10px; padding: 6px 14px; text-align: right; pointer-events: none; }
+#ammo b { font-size: 26px; display: block; font-variant-numeric: tabular-nums; }
+#ammo span { font-size: 12px; opacity: 0.8; }
+#shop { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); background: rgba(18, 22, 28, 0.94); border: 2px solid #f1c232; border-radius: 14px; padding: 14px 18px; color: #fff; z-index: 20; }
+#shop h2 { margin: 0 0 6px; font-size: 20px; color: #f1c232; }
+#shop .row { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+#shop .row button { grid-column: span 2; padding: 9px; border-radius: 8px; border: 0; background: #f1c232; color: #111; font-weight: 700; font-size: 15px; cursor: pointer; }
+#shop .row button[disabled] { opacity: 0.35; cursor: default; }
+#shop .hint { font-size: 12px; opacity: 0.7; margin: 8px 0 0; }
+@media (pointer: coarse) { #money { top: calc(80px + env(safe-area-inset-top, 0px)); font-size: 18px; } #minimap { top: calc(112px + env(safe-area-inset-top, 0px)); } #ammo { bottom: auto; top: calc(232px + env(safe-area-inset-top, 0px)); } }

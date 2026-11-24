@@ -46,6 +46,12 @@ export class CarModel {
   wheelAnchors?: THREE.Vector3[];
   private brakeLights: THREE.Mesh[] = [];
   private tail?: THREE.Mesh;
+  /** Deformable copies of the body and tail-light geometry (dents from crashes). */
+  private dentable: THREE.BufferGeometry[] = [];
+  /** Accumulated damage 0..1 (smoke from the bonnet when high). */
+  damage = 0;
+  readonly halfLength: number = 2.2;
+  readonly halfWidth: number = 0.9;
 
   constructor(color = CAR_COLORS[0], type: CarType = 'liftback') {
     const asset = assets.cars?.[type];
@@ -97,12 +103,16 @@ export class CarModel {
 
   /** Builds the car from the Blender model: body tinted per car, separate tail lights and wheels. */
   private fromAsset(a: CarAsset, color: number) {
-    const body = new THREE.InstancedMesh(a.body, carMaterial(), 1);
+    const bodyGeo = a.body.clone(), tailGeo = a.tail.clone();
+    this.dentable = [bodyGeo, tailGeo];
+    (this as { halfLength: number }).halfLength = a.halfLength;
+    (this as { halfWidth: number }).halfWidth = a.halfWidth;
+    const body = new THREE.InstancedMesh(bodyGeo, carMaterial(), 1);
     body.setMatrixAt(0, new THREE.Matrix4());
     body.setColorAt(0, new THREE.Color(color));
     body.computeBoundingSphere();
     body.castShadow = body.receiveShadow = true;
-    this.tail = new THREE.Mesh(a.tail, tailOff);
+    this.tail = new THREE.Mesh(tailGeo, tailOff);
     this.root.add(body, this.tail);
     this.wheelAnchors = a.wheelPos;
     a.wheelPos.forEach((p) => {
@@ -114,6 +124,48 @@ export class CarModel {
       this.wheels.push(w);
       this.root.add(w);
     });
+  }
+
+  /**
+   * Dents the body: vertices within `radius` of `point` (car frame) are pushed along `dir`
+   * (into the car) by up to `depth` metres, with a smooth falloff and a little crumple noise.
+   */
+  dent(point: THREE.Vector3, dir: THREE.Vector3, depth: number, radius: number) {
+    if (!this.dentable.length) return;
+    this.damage = Math.min(1, this.damage + depth * 0.9);
+    const v = new THREE.Vector3();
+    for (const g of this.dentable) {
+      const pos = g.attributes.position as THREE.BufferAttribute;
+      const nor = g.attributes.normal as THREE.BufferAttribute;
+      const moved = new Uint8Array(pos.count);
+      let any = false;
+      for (let i = 0; i < pos.count; i++) {
+        v.fromBufferAttribute(pos, i);
+        const d = v.distanceTo(point);
+        if (d > radius) continue;
+        const f = (1 - d / radius) ** 2;
+        const crumple = 0.75 + 0.5 * Math.abs(Math.sin(v.x * 37.1 + v.y * 19.7 + v.z * 23.3));
+        v.addScaledVector(dir, depth * f * crumple);
+        // Crumpled metal also bulges a little upwards and sideways.
+        v.y += depth * f * 0.15 * Math.sin(v.z * 13.1);
+        pos.setXYZ(i, v.x, v.y, v.z);
+        moved[i] = 1;
+        any = true;
+      }
+      if (!any) continue;
+      // Dented triangles get flat normals (crumpled look); the rest stays smooth.
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+      for (let i = 0; i + 2 < pos.count; i += 3) {
+        if (!moved[i] && !moved[i + 1] && !moved[i + 2]) continue;
+        a.fromBufferAttribute(pos, i);
+        b.fromBufferAttribute(pos, i + 1);
+        c.fromBufferAttribute(pos, i + 2);
+        const n = b.sub(a).cross(c.sub(a)).normalize();
+        for (let k = 0; k < 3; k++) nor.setXYZ(i + k, n.x, n.y, n.z);
+      }
+      pos.needsUpdate = true;
+      nor.needsUpdate = true;
+    }
   }
 
   setBraking(on: boolean) {

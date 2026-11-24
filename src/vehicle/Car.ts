@@ -8,6 +8,10 @@ import type { CarType } from '../assets/models.ts';
 export class Car {
   readonly physics: CarPhysics;
   model: CarModel;
+  /** Called on a crash with its strength (change of velocity, m/s). */
+  onCrash?: (strength: number) => void;
+  private prevVel = new THREE.Vector3();
+  private crashCooldown = 0;
   /** Current body colour and model (for leaving the old car behind after a theft). */
   look: { color: number; type: CarType } = { color: CAR_COLORS[0], type: 'liftback' };
   readonly position = new THREE.Vector3();
@@ -49,6 +53,7 @@ export class Car {
     this.quaternion.set(r.x, r.y, r.z, r.w);
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(this.quaternion);
     this.yaw = Math.atan2(fwd.x, fwd.z);
+    this.detectCrash(dt);
     this.model.root.position.copy(this.position);
     this.model.root.quaternion.copy(this.quaternion);
 
@@ -67,6 +72,35 @@ export class Car {
     }
   }
 
+  /**
+   * A sudden change of velocity is a crash: dent the body on the side that hit something.
+   * The change points from the car towards the obstacle (the velocity it lost).
+   */
+  private detectCrash(dt: number) {
+    const lv = this.physics.body.linvel();
+    const vel = new THREE.Vector3(lv.x, lv.y, lv.z);
+    const dv = this.prevVel.clone().sub(vel);
+    dv.y *= 0.3; // landings dent less than walls
+    this.crashCooldown = Math.max(0, this.crashCooldown - dt);
+    const strength = dv.length();
+    if (dt > 0 && strength > 3.5 && this.crashCooldown === 0) {
+      this.crashCooldown = 0.25;
+      const local = dv.clone().applyQuaternion(this.quaternion.clone().invert());
+      local.y = 0;
+      if (local.lengthSq() > 1e-4) {
+        local.normalize();
+        const hl = this.model.halfLength, hw = this.model.halfWidth;
+        const t = Math.min(hl / Math.max(1e-3, Math.abs(local.z)), hw / Math.max(1e-3, Math.abs(local.x)));
+        const point = local.clone().multiplyScalar(t);
+        point.y = -0.15 + Math.random() * 0.3;
+        const depth = Math.min(0.3, 0.04 + (strength - 3.5) * 0.03);
+        this.model.dent(point, local.clone().negate(), depth, 0.7 + depth * 1.6);
+      }
+      this.onCrash?.(strength);
+    }
+    this.prevVel.copy(vel);
+  }
+
   /** Swaps the look (after stealing another car); physics stay the same. */
   setLook(color: number, type: CarType) {
     const parent = this.model.root.parent;
@@ -78,6 +112,8 @@ export class Car {
   }
 
   reset(pos?: THREE.Vector3, yaw?: number) {
+    this.prevVel.set(0, 0, 0);
+    this.crashCooldown = 0.5;
     this.physics.reset(pos, yaw);
     this.sync();
   }

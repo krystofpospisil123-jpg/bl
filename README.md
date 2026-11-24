@@ -161,6 +161,28 @@ postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blende
   žlutá šipka = hráč, bílý čtverec = tvoje auto, modré tečky = policie (při honičce blikají
   červeně a modře, vzdálená auta se drží na okraji), S = sever.
 
+## Peníze, obchody se zbraněmi, ničení aut, poškození
+
+- **Peníze** (vpravo nahoře, začínáš s 500 Kč): zabitý chodec upustí balíček bankovek (20–200 Kč),
+  sebereš ho, když přes něj přejdeš nebo přejedeš. Popelnice (u náměstí a podél ulic) jde
+  prohledat klávesou F: někdy peníze, někdy náboje, každá jednou za 2 minuty.
+  Zatčení stojí pokutu 20 % peněz.
+- **Obchody se zbraněmi** (žlutý kruh se značkou ZBRANĚ: u náměstí Republiky, na parkovišti
+  Na Řadech a u Fügnerovy): stoupni si do kruhu a otevře se nabídka.
+  | Zbraň | Cena | Náboje |
+  | --- | --- | --- |
+  | Pistole | 800 Kč (na začátku ji máš) | 24 ks za 60 Kč |
+  | Samopal (rychlá palba) | 3 500 Kč | 90 ks za 150 Kč |
+  | Brokovnice (8 broků) | 2 400 Kč | 16 ks za 120 Kč |
+  Q přepíná vlastněné zbraně (a nakonec zbraň schová), náboje se ukazují vpravo dole.
+- **Ničení aut:** auta v provozu i policejní auta mají odolnost; po dost zásazích vybuchnou
+  (výbuch, záblesk, oheň a pak dlouho kouř) a zůstane z nich ohořelý vrak. Zničené policejní auto
+  = +1 hvězda, policie pošle náhradu.
+- **Poškození auta:** při nárazu (prudká změna rychlosti) se karoserie v místě nárazu promáčkne:
+  body v okruhu kolem nárazu se posunou dovnitř s pozvolným okrajem a lehkým zvlněním plechu
+  a promáčklé plochy dostanou ostré stínování. Čím silnější náraz, tím hlubší promáčklina.
+  Silně poškozené auto kouří zpod kapoty. Opraví se po zatčení nebo krádeží jiného auta.
+
 ## Zvuky
 
 Všechny zvuky se syntetizují přímo v prohlížeči (Web Audio), žádné nahrávky se nepoužívají:

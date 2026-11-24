@@ -85,6 +85,8 @@ export interface ChunkProps {
   group: THREE.Group;
   /** Collision boxes, flat [x, y, z, yaw, hx, hy, hz, ...]. */
   boxes: number[];
+  /** Litter bins (x, y, z) the player can search for money. */
+  bins: THREE.Vector3[];
   dispose(): void;
 }
 
@@ -157,6 +159,26 @@ export function buildStreetProps(data: ChunkData, rect: Rect, heights: HeightFie
         if (!inChunk(x, z) || nearRoad(x, z)) continue;
         spots.shrub.push({ x, z, yaw: hash(d, i) * 6.28, s: 0.7 + hash(i, d) * 0.6 });
       }
+    }
+  }
+
+  // Litter bins along town streets, every ~70 m on the sidewalk (they can be searched for money).
+  for (const rd of data.roads) {
+    if (!['residential', 'tertiary', 'secondary', 'pedestrian', 'living_street'].includes(rd.kind) || rd.bridge || rd.tunnel) continue;
+    const p = rd.pts;
+    let acc = 35 + (rd.id % 30);
+    for (let i = 0; i + 3 < p.length; i += 2) {
+      const dx = p[i + 2] - p[i], dz = p[i + 3] - p[i + 1], len = Math.hypot(dx, dz);
+      while (acc < len) {
+        const t = acc / len, side = rd.id % 2 ? 1 : -1;
+        const x = p[i] + dx * t + (-dz / len) * side * (rd.w / 2 + 1.4), z = p[i + 1] + dz * t + (dx / len) * side * (rd.w / 2 + 1.4);
+        if (inChunk(x, z) && !nearRoad(x, z, 0.5)) {
+          spots.bin.push({ x, z, yaw: 0, s: 1 });
+          boxes.push(x, heights.sample(x, z) + 0.43, z, 0, 0.25, 0.43, 0.25);
+        }
+        acc += 70;
+      }
+      acc -= len;
     }
   }
 
@@ -242,5 +264,6 @@ export function buildStreetProps(data: ChunkData, rect: Rect, heights: HeightFie
       disposables.push(mesh);
     }
   }
-  return { group, boxes, dispose: () => disposables.forEach((d) => d.dispose()) };
+  const bins = spots.bin.map((b) => new THREE.Vector3(b.x, heights.sample(b.x, b.z), b.z));
+  return { group, boxes, bins, dispose: () => disposables.forEach((d) => d.dispose()) };
 }

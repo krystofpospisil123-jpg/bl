@@ -16,7 +16,7 @@ const SIGHT = 60;
 /** Chase speed (m/s) per wanted level. */
 const CHASE_SPEED = [0, 15, 17, 20, 23, 26];
 
-type UnitMode = 'patrol' | 'chase' | 'leave';
+type UnitMode = 'patrol' | 'chase' | 'leave' | 'wreck';
 
 interface Unit {
   pos: THREE.Vector3;
@@ -33,6 +33,7 @@ interface Unit {
   direct: boolean;
   stuck: number;
   hitCooldown: number;
+  hp: number;
 }
 
 export interface PoliceTarget {
@@ -59,7 +60,7 @@ export class Police {
   onWanted?: (level: number, reason: string) => void;
   /** Materials to compile during the loading screen (avoids a stutter at the first police car). */
   get warmMaterials(): THREE.Material[] {
-    return [this.beaconOn, this.beaconOff, this.bodyMat];
+    return [this.beaconOn, this.beaconOff, this.bodyMat, this.burnt];
   }
   private heat = 0;
   private lostFor = 0;
@@ -93,6 +94,28 @@ export class Police {
     while (this.units.length) this.remove(this.units[0]);
   }
 
+  /** Called when a police car is shot to pieces (explosion and fire). */
+  onWrecked?: (pos: THREE.Vector3) => void;
+  private burnt = new THREE.MeshStandardMaterial({ color: 0x1d1c1b, roughness: 0.9 });
+
+  /** Gunfire on a police car: an attack on the police; enough hits wreck the car. */
+  damage(u: Unit, amount: number) {
+    if (u.mode === 'wreck') return;
+    if (u.hitCooldown === 0) {
+      this.report(1, 'shooting at the police');
+      u.hitCooldown = 6;
+    }
+    u.hp -= amount;
+    if (u.hp > 0) return;
+    u.mode = 'wreck';
+    u.speed = 0;
+    u.mesh.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.material = this.burnt;
+    });
+    this.report(1, 'destroyed a police car');
+    this.onWrecked?.(u.pos);
+  }
+
   /** Positions of police cars with sirens on (for the sound). */
   sirens(): THREE.Vector3[] {
     return this.units.filter((u) => u.mode === 'chase').map((u) => u.pos);
@@ -110,7 +133,7 @@ export class Police {
       // A chasing car that ended up far away (one-way streets) is replaced by a closer one.
       if (u.pos.distanceTo(tp) > DESPAWN || (u.mode === 'chase' && u.pos.distanceTo(tp) > 220)) this.remove(u);
     }
-    const active = this.units.filter((u) => u.mode !== 'leave');
+    const active = this.units.filter((u) => u.mode !== 'leave' && u.mode !== 'wreck');
     this.spawnTimer -= dt;
     if (active.length < want && this.spawnTimer <= 0) {
       this.spawn(tp);
@@ -143,6 +166,7 @@ export class Police {
 
     for (const u of this.units) {
       u.hitCooldown = Math.max(0, u.hitCooldown - dt);
+      if (u.mode === 'wreck') continue;
       const d = u.pos.distanceTo(tp);
       // Speeding past a patrol car, or ramming a police car, is a crime.
       if (target.inCar && u.hitCooldown === 0) {
@@ -161,6 +185,7 @@ export class Police {
     this.flash += dt;
     const phase = Math.floor(this.flash * 6) % 4;
     for (const u of this.units) {
+      if (u.mode === 'wreck') continue;
       const [l, r] = u.mesh.userData.beacons as [THREE.Mesh, THREE.Mesh];
       const on = u.mode === 'chase';
       l.material = on && (phase === 0 || phase === 2) ? this.beaconOn : this.beaconOff;
@@ -326,7 +351,7 @@ export class Police {
       this.group.add(mesh);
       this.units.push({
         pos, yaw: Math.atan2(tmp.dx, tmp.dz), speed: 8, body, mesh, lane, s, path: [], repath: 0,
-        mode: this.wanted ? 'chase' : 'patrol', direct: false, stuck: 0, hitCooldown: 2,
+        mode: this.wanted ? 'chase' : 'patrol', direct: false, stuck: 0, hitCooldown: 2, hp: 160,
       });
       return;
     }

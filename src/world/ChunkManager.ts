@@ -43,6 +43,7 @@ interface ChunkState {
   lampMesh?: THREE.Object3D;
   signs?: { group: THREE.Group; dispose: () => void };
   lamps: LampSpot[];
+  bins?: THREE.Vector3[];
   /** Ground texture size currently shown / last requested from the worker. */
   texShown: number;
   /** Earliest time to retry loading after a failure. */
@@ -166,6 +167,13 @@ export class ChunkManager {
     }
   }
 
+  /** Litter bins within `radius` of a point (searchable for money). */
+  binsNear(p: THREE.Vector3, radius: number): THREE.Vector3[] {
+    const out: THREE.Vector3[] = [];
+    for (const st of this.states.values()) for (const b of st.bins ?? []) if (b.distanceTo(p) < radius) out.push(b);
+    return out;
+  }
+
   /** Street lamp light positions in all built chunks (for night lighting). */
   lampSpots(): LampSpot[] {
     const out: LampSpot[] = [];
@@ -257,6 +265,7 @@ export class ChunkManager {
       st.propsGroup = props.group;
       st.lampMesh = lamps.mesh ?? undefined;
       st.propBoxes = props.boxes;
+      st.bins = props.bins;
       if (scene.extras.length) {
         // Landmark features stay visible at every distance.
         const extras = buildLandmarkExtras(scene.extras, this.heights, this.mats.props, data.data);

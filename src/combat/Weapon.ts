@@ -1,14 +1,15 @@
-// Pistol for the on-foot player: aims along the camera, hits pedestrians (they fall over and
-// get up later, no blood), stops traffic cars, and police cars count as an attack. Shots are
-// hitscan rays with a short tracer, a muzzle flash and a spark where they land.
+// Guns for the on-foot player (pistol, sub-machine gun, shotgun): aim along the camera, damage
+// pedestrians, traffic and police cars (cars burn out when wrecked). Shots are hitscan rays
+// with tracers, a muzzle flash and a spark where they land. No blood.
 import * as THREE from 'three';
 import type { PhysicsWorld } from '../physics/PhysicsWorld.ts';
 import type { Pedestrians } from '../traffic/Pedestrians.ts';
 import type { Traffic } from '../traffic/Traffic.ts';
 import type { Police } from '../police/Police.ts';
 
+import { WEAPONS, type Arsenal, type WeaponId, type WeaponSpec } from './Arsenal.ts';
+
 const RANGE = 120;
-const FIRE_INTERVAL = 0.28;
 
 export interface ShotContext {
   camera: THREE.Camera;
@@ -45,76 +46,101 @@ function raySphere(o: THREE.Vector3, d: THREE.Vector3, c: THREE.Vector3, r: numb
 }
 
 export class Weapon {
-  equipped = false;
   readonly group = new THREE.Group();
   /** Called for crimes: amount of wanted level and a reason. */
   onCrime?: (amount: number, reason: string) => void;
-  onShot?: () => void;
+  onShot?: (id: WeaponId) => void;
+  onEmpty?: () => void;
   private cooldown = 0;
   private fxTime = 0;
   private policeAlertCooldown = 0;
-  private tracer: THREE.Line;
+  private tracers: THREE.LineSegments;
   private flash: THREE.Mesh;
   private spark: THREE.Mesh;
 
-  constructor() {
-    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]);
-    this.tracer = new THREE.Line(g, new THREE.LineBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.8 }));
+  constructor(readonly arsenal: Arsenal) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(8 * 2 * 3), 3));
+    this.tracers = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.8 }));
     this.flash = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd36a }));
     this.spark = new THREE.Mesh(new THREE.SphereGeometry(0.07, 6, 4), new THREE.MeshBasicMaterial({ color: 0xfff2c0 }));
-    for (const o of [this.tracer, this.flash, this.spark]) {
+    for (const o of [this.tracers, this.flash, this.spark]) {
       o.visible = false;
       o.frustumCulled = false;
       this.group.add(o);
     }
   }
 
+  get equipped(): boolean {
+    return this.arsenal.current !== null;
+  }
+
   update(dt: number, firing: boolean, ctx: ShotContext) {
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.policeAlertCooldown = Math.max(0, this.policeAlertCooldown - dt);
     this.fxTime -= dt;
-    this.tracer.visible = this.flash.visible = this.fxTime > 0.04;
+    this.tracers.visible = this.flash.visible = this.fxTime > 0.04;
     this.spark.visible = this.fxTime > 0;
-    if (!this.equipped || !firing || this.cooldown > 0) return;
-    this.cooldown = FIRE_INTERVAL;
-    this.shoot(ctx);
+    const id = this.arsenal.current;
+    if (!id || !firing || this.cooldown > 0) return;
+    const spec = WEAPONS[id];
+    this.cooldown = spec.interval;
+    if (this.arsenal.ammo[id] <= 0) {
+      this.onEmpty?.();
+      this.cooldown = 0.4;
+      return;
+    }
+    this.arsenal.ammo[id]--;
+    this.shoot(ctx, spec);
+    this.onShot?.(id);
   }
 
-  private shoot(ctx: ShotContext) {
+  private shoot(ctx: ShotContext, spec: WeaponSpec) {
     const o = ctx.camera.getWorldPosition(new THREE.Vector3());
-    const d = ctx.camera.getWorldDirection(new THREE.Vector3());
+    const aim = ctx.camera.getWorldDirection(new THREE.Vector3());
     // Ignore everything between the camera and the player (the camera is behind them).
-    const minT = Math.max(0, new THREE.Vector3().subVectors(ctx.playerFeet, o).dot(d)) + 0.6;
-    const start = o.clone().addScaledVector(d, minT);
-    let best = ctx.phys.castRay(start, d, RANGE, ctx.exclude) + minT;
-    let hit: (() => void) | null = null;
-
-    ctx.pedestrians?.peds.forEach((p) => {
-      if (p.down > 0) return;
-      const t = rayCapsule(o, d, p.pos, 1.8, 0.35);
-      if (t > minT && t < best) {
-        best = t;
-        hit = () => {
-          ctx.pedestrians!.knockDown(p, d);
-          this.onCrime?.(1, 'shooting a pedestrian');
-        };
+    const minT = Math.max(0, new THREE.Vector3().subVectors(ctx.playerFeet, o).dot(aim)) + 0.6;
+    const pos = this.tracers.geometry.attributes.position as THREE.BufferAttribute;
+    let lastEnd = o.clone();
+    for (let k = 0; k < 8; k++) pos.setXYZ(k * 2, 0, -1e5, 0), pos.setXYZ(k * 2 + 1, 0, -1e5, 0);
+    for (let k = 0; k < spec.pellets; k++) {
+      const d = aim.clone().add(new THREE.Vector3((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2).multiplyScalar(spec.spread)).normalize();
+      const start = o.clone().addScaledVector(d, minT);
+      let best = ctx.phys.castRay(start, d, RANGE, ctx.exclude) + minT;
+      let hit: (() => void) | null = null;
+      ctx.pedestrians?.peds.forEach((p) => {
+        if (p.down > 0) return;
+        const t = rayCapsule(o, d, p.pos, 1.8, 0.35);
+        if (t > minT && t < best) {
+          best = t;
+          hit = () => {
+            ctx.pedestrians!.damage(p, spec.damage, d);
+            this.onCrime?.(1, 'shooting a pedestrian');
+          };
+        }
+      });
+      ctx.traffic?.cars.forEach((c) => {
+        const t = raySphere(o, d, c.pos, 1.7);
+        if (t > minT && t < best) {
+          best = t;
+          hit = () => ctx.traffic!.damage(c, spec.damage);
+        }
+      });
+      ctx.police?.units.forEach((u) => {
+        const t = raySphere(o, d, u.pos, 1.7);
+        if (t > minT && t < best) {
+          best = t;
+          hit = () => ctx.police!.damage(u, spec.damage);
+        }
+      });
+      (hit as (() => void) | null)?.();
+      lastEnd = o.clone().addScaledVector(d, Math.min(best, RANGE));
+      if (k < 8) {
+        pos.setXYZ(k * 2, ctx.muzzle.x, ctx.muzzle.y, ctx.muzzle.z);
+        pos.setXYZ(k * 2 + 1, lastEnd.x, lastEnd.y, lastEnd.z);
       }
-    });
-    ctx.traffic?.cars.forEach((c) => {
-      const t = raySphere(o, d, c.pos, 1.7);
-      if (t > minT && t < best) {
-        best = t;
-        hit = () => ctx.traffic!.shoot(c);
-      }
-    });
-    ctx.police?.units.forEach((u) => {
-      const t = raySphere(o, d, u.pos, 1.7);
-      if (t > minT && t < best) {
-        best = t;
-        hit = () => this.onCrime?.(1, 'shooting at the police');
-      }
-    });
-    (hit as (() => void) | null)?.();
+    }
+    pos.needsUpdate = true;
 
     // Gunshots scare people nearby; police that hear them get involved.
     ctx.pedestrians?.panicAround(ctx.muzzle, 25);
@@ -122,17 +148,8 @@ export class Weapon {
       this.policeAlertCooldown = 10;
       this.onCrime?.(1, 'shooting near the police');
     }
-
-    // Effects
-    const end = o.clone().addScaledVector(d, Math.min(best, RANGE));
-    const pos = this.tracer.geometry.attributes.position as THREE.BufferAttribute;
-    pos.setXYZ(0, ctx.muzzle.x, ctx.muzzle.y, ctx.muzzle.z);
-    pos.setXYZ(1, end.x, end.y, end.z);
-    pos.needsUpdate = true;
-    this.tracer.geometry.computeBoundingSphere();
     this.flash.position.copy(ctx.muzzle);
-    this.spark.position.copy(end);
+    this.spark.position.copy(lastEnd);
     this.fxTime = 0.12;
-    this.onShot?.();
   }
 }

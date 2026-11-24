@@ -2,6 +2,7 @@
 import type { Game, Mode } from '../game/Game.ts';
 import { VIEWPOINTS } from '../game/viewpoints.ts';
 import { QUALITY_LABEL } from '../render/Pipeline.ts';
+import { WEAPONS, formatKc } from '../combat/Arsenal.ts';
 
 const HELP: Record<Mode, [string, string][]> = {
   loading: [['', 'Načítám město a fyziku…']],
@@ -10,8 +11,9 @@ const HELP: Record<Mode, [string, string][]> = {
     ['Shift', 'sprint'],
     ['Mezerník', 'skok'],
     ['F', 'nastoupit do auta / ukrást auto z provozu'],
-    ['Q', 'pistole vytáhnout / schovat'],
-    ['Myš / E', 'střelba (s vytaženou pistolí)'],
+    ['Q', 'zbraň: vytáhnout / další / schovat'],
+    ['Myš / E', 'střelba'],
+    ['F u popelnice', 'prohledat (peníze, náboje)'],
     ['Myš', 'rozhlížení (klik zamkne myš)'],
     ['P', 'volná kamera'],
   ],
@@ -42,6 +44,8 @@ export class Hud {
   private speedo: HTMLElement;
   private prompt: HTMLElement;
   private wanted: HTMLElement;
+  private money: HTMLElement;
+  private ammo: HTMLElement;
   private shownWanted = '';
   private frames = 0;
   private acc = 0;
@@ -64,7 +68,11 @@ export class Hud {
     this.prompt.id = 'prompt';
     this.wanted = document.createElement('div');
     this.wanted.id = 'wanted';
-    document.body.append(this.speedo, this.prompt, this.wanted);
+    this.money = document.createElement('div');
+    this.money.id = 'money';
+    this.ammo = document.createElement('div');
+    this.ammo.id = 'ammo';
+    document.body.append(this.speedo, this.prompt, this.wanted, this.money, this.ammo);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyM') location.hash = 'mapa';
       if (e.code === 'KeyH') {
@@ -80,7 +88,7 @@ export class Hud {
       this.shownMode = g.mode;
       this.help.innerHTML = HELP[g.mode].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
     }
-    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '') || (g.canSteal && !g.touch ? 'F – ukrást auto' : '');
+    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '') || (g.canSteal && !g.touch ? 'F – ukrást auto' : '') || (g.nearBin ? (g.touch ? 'Popelnice – tlačítko Prohledat' : 'F – prohledat popelnici') : '');
     if (this.prompt.textContent !== msg) this.prompt.textContent = msg;
     this.prompt.hidden = !msg;
     // Wanted stars (police chase), flashing while a police car sees you.
@@ -94,6 +102,15 @@ export class Hud {
     }
     this.wanted.hidden = !level;
     this.wanted.classList.toggle('flash', !!pol?.seen && level > 0);
+    const money = formatKc(g.arsenal.money);
+    if (this.money.textContent !== money) this.money.textContent = money;
+    this.money.hidden = g.mode === 'loading';
+    const w = g.arsenal.current;
+    this.ammo.hidden = g.mode !== 'foot' || !w;
+    if (w) {
+      const html = `<b>${g.arsenal.ammo[w]}</b><span>${WEAPONS[w].name}</span>`;
+      if (this.ammo.innerHTML !== html) this.ammo.innerHTML = html;
+    }
     const driving = g.mode === 'car' && g.car;
     this.speedo.hidden = !driving;
     if (driving) {

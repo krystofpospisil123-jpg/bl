@@ -32,6 +32,9 @@ interface Ped {
   fresh: boolean;
   /** Seconds left running away in panic (after gunshots). */
   panic: number;
+  hp: number;
+  /** Killed: lies on the ground until removed (no blood). */
+  dead: boolean;
 }
 
 const tmp = { x: 0, y: 0, z: 0, dx: 0, dz: 0 };
@@ -59,6 +62,8 @@ export class Pedestrians {
   enabled = true;
   /** Called when the player's car knocks someone over. */
   onHit?: () => void;
+  /** Called when someone dies (they drop money). */
+  onKilled?: (pos: THREE.Vector3) => void;
   /** Population limit (lower on phones); at most MAX_PEDS. */
   maxPeds = MAX_PEDS;
   private meshes: Record<'torso' | 'head' | 'armL' | 'armR' | 'legL' | 'legR', THREE.InstancedMesh> & { handL?: THREE.InstancedMesh; handR?: THREE.InstancedMesh };
@@ -112,7 +117,7 @@ export class Pedestrians {
         lane: Math.random() < 0.5 ? lane : { edge: ei, dir: -1 }, s, speed: 1.1 + Math.random() * 0.6,
         side: Math.random() < 0.5 ? -1 : 1, sideways: 0, phase: Math.random() * 10,
         pos: new THREE.Vector3(), yaw: 0, down: 0, fall: new THREE.Vector3(),
-        top: new THREE.Color(pick(TOPS)), legs: new THREE.Color(pick(LEGS)), skin: new THREE.Color(pick(SKINS)), fresh: true, panic: 0,
+        top: new THREE.Color(pick(TOPS)), legs: new THREE.Color(pick(LEGS)), skin: new THREE.Color(pick(SKINS)), fresh: true, panic: 0, hp: 50, dead: false,
       });
       return;
     }
@@ -121,6 +126,23 @@ export class Pedestrians {
   /** Removes all pedestrians (used to recover from errors); new ones spawn gradually. */
   reset() {
     this.peds.length = 0;
+  }
+
+  /** Gunshot damage; at zero health the pedestrian dies. */
+  damage(p: Ped, amount: number, dir: THREE.Vector3) {
+    if (p.dead) return;
+    p.hp -= amount;
+    if (p.hp <= 0) this.kill(p, dir);
+    else p.panic = 10;
+  }
+
+  kill(p: Ped, dir: THREE.Vector3) {
+    if (p.dead) return;
+    p.dead = true;
+    p.down = 30;
+    p.fall.copy(dir).setY(0).normalize().multiplyScalar(1.5);
+    this.panicAround(p.pos, 30);
+    this.onKilled?.(p.pos.clone());
   }
 
   /** Knocks a pedestrian over (shot or hit) and makes people around them run. */
@@ -159,7 +181,10 @@ export class Pedestrians {
         p.pos.addScaledVector(p.fall, dt);
         p.fall.multiplyScalar(Math.exp(-dt * 4));
         p.pos.y = this.heights.sample(p.pos.x, p.pos.z);
-        if (p.down <= 0) p.fresh = true; // stand up where the walk graph says
+        if (p.down <= 0) {
+          if (p.dead) p.speed = -1; // marked for removal below
+          else p.fresh = true; // stand up where the walk graph says
+        }
         continue;
       }
       // React to the player's car.
@@ -172,6 +197,7 @@ export class Pedestrians {
           // Hit: knocked over in the car's direction.
           p.down = 4;
           this.onHit?.();
+          if (Math.abs(playerCar.speed) > 13) this.kill(p, carFwd);
           p.fall.copy(carFwd).multiplyScalar(playerCar.speed * 0.5);
           continue;
         }
@@ -213,6 +239,7 @@ export class Pedestrians {
       }
       p.phase += (p.panic > 0 ? 4.2 : p.speed) * dt * Math.PI * 1.1;
     }
+    for (let i = this.peds.length - 1; i >= 0; i--) if (this.peds[i].speed < 0) this.peds.splice(i, 1);
     this.render();
   }
 

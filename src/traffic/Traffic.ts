@@ -31,6 +31,9 @@ export interface AiCar {
   offset: number;
   color: THREE.Color;
   type: CarType;
+  hp: number;
+  /** Burnt-out wreck: stays where it is until it is far away. */
+  wrecked: boolean;
   blockedFor: number;
   stunnedFor: number;
   body: RAPIER.RigidBody;
@@ -126,7 +129,7 @@ export class Traffic {
       this.phys.world.createCollider(this.phys.R.ColliderDesc.cuboid(he.x, he.y, he.z).setTranslation(0, 0.1, 0), body);
       const car: AiCar = {
         id: this.nextId++, lane, s, speed: 0, offset: this.laneOffset(lane),
-        color: new THREE.Color(CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)]), type: carTypeFor(Math.random()),
+        color: new THREE.Color(CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)]), type: carTypeFor(Math.random()), hp: 100, wrecked: false,
         blockedFor: 0, stunnedFor: 0, body, pos: new THREE.Vector3(), yaw: 0, pitch: 0, fresh: true,
       };
       car.speed = g.edges[ei].speed * 0.7;
@@ -140,7 +143,7 @@ export class Traffic {
     let best: AiCar | undefined, bd = reach;
     for (const c of this.cars) {
       const d = Math.hypot(c.pos.x - pos.x, c.pos.z - pos.z);
-      if (d < bd && c.speed < 6) { bd = d; best = c; }
+      if (d < bd && c.speed < 6 && !c.wrecked) { bd = d; best = c; }
     }
     return best;
   }
@@ -152,10 +155,22 @@ export class Traffic {
     return out;
   }
 
-  /** A car hit by gunfire stops for a while (the driver ducks). */
-  shoot(c: AiCar) {
-    c.stunnedFor = 6;
+  /** Called when a car is shot to pieces (explosion and fire at its position). */
+  onWrecked?: (pos: THREE.Vector3) => void;
+
+  /** Gunfire: the car stops (the driver ducks); enough hits wreck it. */
+  damage(c: AiCar, amount: number) {
+    if (c.wrecked) return;
+    c.stunnedFor = 8;
     c.speed *= 0.3;
+    c.hp -= amount;
+    if (c.hp <= 0) {
+      c.wrecked = true;
+      c.speed = 0;
+      c.color.setHex(0x1c1c1c);
+      for (const [n, id] of this.reserved) if (id === c.id) this.reserved.delete(n);
+      this.onWrecked?.(c.pos);
+    }
   }
 
   /** Removes all cars (used to recover from errors); new ones spawn gradually. */
@@ -199,6 +214,7 @@ export class Traffic {
     for (const c of this.cars) {
       const len = g.length(c.lane.edge);
       const edge = g.edges[c.lane.edge];
+      if (c.wrecked) continue;
       c.stunnedFor = Math.max(0, c.stunnedFor - dt);
 
       // Current heading for the obstacle scan.

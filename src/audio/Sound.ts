@@ -159,6 +159,35 @@ export class Sound {
     this.burst(0.7, 700, 0.3);
   }
 
+  /** Car explosion: a deep boom with a long rumble. */
+  explosion() {
+    if (!this.ctx) return;
+    this.burst(1, 250, 1.6);
+    this.burst(0.8, 1800, 0.4);
+  }
+
+  /** Picking up money: two quick rising beeps. */
+  pickup() {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    [880, 1320].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f;
+      const t = ctx.currentTime + i * 0.08;
+      g.gain.setValueAtTime(0.15, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      o.connect(g).connect(this.master!);
+      o.start(t);
+      o.stop(t + 0.15);
+    });
+  }
+
+  /** Empty gun: a dry click. */
+  click() {
+    if (this.ctx) this.burst(0.25, 3000, 0.03);
+  }
+
   /** Dull thud when a pedestrian is hit. */
   thud() {
     if (this.ctx) this.burst(0.7, 400, 0.25);
