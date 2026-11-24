@@ -10,6 +10,7 @@ import type { HeightField } from '../HeightField.ts';
 import type { PropKind, PropSpot } from '../scenes.ts';
 import { inPolygon, parkingSlots } from '../parking.ts';
 import { bakeCarGeometries, CAR_COLORS } from '../../vehicle/CarModel.ts';
+import { assets, carTypeFor, CAR_TYPES } from '../../assets/models.ts';
 
 type Rect = { minX: number; minZ: number; maxX: number; maxZ: number };
 type GeoKind = PropKind | 'shrub';
@@ -71,6 +72,7 @@ function makeLibrary(): Record<GeoKind, THREE.BufferGeometry> {
   return { bench, bollard, pyramid, planter, jet, bin, shrub };
 }
 
+const fallbackCarMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 });
 let carGeo: { paint: THREE.BufferGeometry; detail: THREE.BufferGeometry } | null = null;
 
 export interface PropMaterials {
@@ -197,10 +199,31 @@ export function buildStreetProps(data: ChunkData, rect: Rect, heights: HeightFie
     disposables.push(mesh);
   }
 
-  if (cars.length) {
+  if (cars.length && assets.cars) {
+    // Blender models: one instanced mesh per model (simplified geometry), coloured per car.
+    const color = new THREE.Color();
+    for (const t of CAR_TYPES) {
+      const list = cars.filter((c) => carTypeFor(hash(c.x * 0.37, c.z * 0.71)) === t);
+      if (!list.length) continue;
+      const a = assets.cars[t];
+      const mesh = new THREE.InstancedMesh(a.lo, mats.parkedCars, list.length);
+      list.forEach((c, i) => {
+        const y = heights.sample(c.x, c.z) + 0.72;
+        m.compose(new THREE.Vector3(c.x, y, c.z), q.setFromAxisAngle(up, c.yaw), new THREE.Vector3(1, 1, 1));
+        mesh.setMatrixAt(i, m);
+        color.setHex(CAR_COLORS[Math.floor(hash(c.z, c.x) * CAR_COLORS.length)]);
+        mesh.setColorAt(i, color);
+        boxes.push(c.x, y + 0.1, c.z, c.yaw, Math.min(a.halfWidth, 0.92), 0.45, a.halfLength - 0.05);
+      });
+      mesh.castShadow = mesh.receiveShadow = true;
+      mesh.computeBoundingSphere();
+      group.add(mesh);
+      disposables.push(mesh);
+    }
+  } else if (cars.length) {
     carGeo ??= bakeCarGeometries();
-    const paint = new THREE.InstancedMesh(carGeo.paint, mats.parkedCars, cars.length);
-    const detail = new THREE.InstancedMesh(carGeo.detail, mats.parkedCars, cars.length);
+    const paint = new THREE.InstancedMesh(carGeo.paint, fallbackCarMat, cars.length);
+    const detail = new THREE.InstancedMesh(carGeo.detail, fallbackCarMat, cars.length);
     const color = new THREE.Color(), white = new THREE.Color(1, 1, 1);
     cars.forEach((c, i) => {
       const y = heights.sample(c.x, c.z) + 0.72;

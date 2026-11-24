@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import type { HeightField } from '../world/HeightField.ts';
 import { Graph, type Lane } from './Graph.ts';
+import { assets } from '../assets/models.ts';
 
 const MAX_PEDS = 60;
 const SPAWN_MIN = 25, SPAWN_MAX = 200, DESPAWN = 240;
@@ -56,17 +57,19 @@ export class Pedestrians {
   enabled = true;
   /** Population limit (lower on phones); at most MAX_PEDS. */
   maxPeds = MAX_PEDS;
-  private meshes: Record<'torso' | 'head' | 'armL' | 'armR' | 'legL' | 'legR', THREE.InstancedMesh>;
+  private meshes: Record<'torso' | 'head' | 'armL' | 'armR' | 'legL' | 'legR', THREE.InstancedMesh> & { handL?: THREE.InstancedMesh; handR?: THREE.InstancedMesh };
   private spawnTimer = 0;
 
   constructor(graph: Graph, private heights: HeightField) {
     this.graph = graph;
-    const mat = new THREE.MeshStandardMaterial({ roughness: 0.85 });
+    const person = assets.person;
+    // Blender body parts carry vertex colours (hair, shoes, eyes); the instance colour tints them.
+    const mat = new THREE.MeshStandardMaterial({ roughness: 0.85, vertexColors: !!person });
     // Limb geometries hang from their joint at the origin.
-    const leg = merge([boxAt(0.15, 0.86, 0.17, 0, 0), boxAt(0.15, 0.07, 0.25, 0, -0.86, 0.04)]);
-    const arm = merge([boxAt(0.11, 0.62, 0.12, 0, 0)]);
-    const torso = merge([boxAt(0.4, 0.58, 0.23, 0, 1.48), boxAt(0.36, 0.12, 0.21, 0, 0.98)]);
-    const head = merge([boxAt(0.1, 0.08, 0.1, 0, 1.58), boxAt(0.21, 0.25, 0.22, 0, 1.83), boxAt(0.23, 0.07, 0.24, 0, 1.86)]);
+    const leg = person?.leg ?? merge([boxAt(0.15, 0.86, 0.17, 0, 0), boxAt(0.15, 0.07, 0.25, 0, -0.86, 0.04)]);
+    const arm = person?.arm ?? merge([boxAt(0.11, 0.62, 0.12, 0, 0)]);
+    const torso = person?.torso ?? merge([boxAt(0.4, 0.58, 0.23, 0, 1.48), boxAt(0.36, 0.12, 0.21, 0, 0.98)]);
+    const head = person?.head ?? merge([boxAt(0.1, 0.08, 0.1, 0, 1.58), boxAt(0.21, 0.25, 0.22, 0, 1.83), boxAt(0.23, 0.07, 0.24, 0, 1.86)]);
     const make = (g: THREE.BufferGeometry) => {
       const m = new THREE.InstancedMesh(g, mat, MAX_PEDS);
       m.castShadow = true;
@@ -77,6 +80,10 @@ export class Pedestrians {
       return m;
     };
     this.meshes = { torso: make(torso), head: make(head), armL: make(arm), armR: make(arm), legL: make(leg), legR: make(leg) };
+    if (person) {
+      this.meshes.handL = make(person.hand);
+      this.meshes.handR = make(person.hand);
+    }
   }
 
   private offsetFor(p: Ped): number {
@@ -208,10 +215,15 @@ export class Pedestrians {
       set(m.legR, -0.1, 0.92, -swing, p.legs);
       set(m.armL, 0.27, 1.44, -swing * 0.8, p.top);
       set(m.armR, -0.27, 1.44, swing * 0.8, p.top);
+      if (m.handL && m.handR) {
+        set(m.handL, 0.27, 1.44, -swing * 0.8, p.skin);
+        set(m.handR, -0.27, 1.44, swing * 0.8, p.skin);
+      }
       set(m.torso, 0, 0, 0, p.top);
       set(m.head, 0, 0, 0, p.skin);
     });
     for (const mesh of Object.values(m)) {
+      if (!mesh) continue;
       mesh.count = this.peds.length;
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;

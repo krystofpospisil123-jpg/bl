@@ -1,5 +1,6 @@
 // Shared materials and procedurally generated textures (no external assets).
 import * as THREE from 'three';
+import { useCarAttributes } from '../assets/models.ts';
 import { makeFacadeAtlas, applyFacadeAtlas } from './facades.ts';
 import { makeNoiseCanvas } from './noise.ts';
 export { makeNoiseCanvas } from './noise.ts';
@@ -120,7 +121,8 @@ export class Materials {
   readonly bridgeRail = new THREE.MeshStandardMaterial({ color: 0x3f78c4, roughness: 0.45, metalness: 0.5, side: THREE.DoubleSide });
   readonly overview = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
   readonly props = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.15 });
-  readonly parkedCars = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 });
+  /** Parked cars: Blender models with baked colour, paint mask and roughness (see assets/models.ts). */
+  readonly parkedCars = useCarAttributes(new THREE.MeshStandardMaterial({ metalness: 0.3 }));
   /** Floor-fountain jets: translucent water columns that pulse up and down. */
   readonly jets = new THREE.MeshStandardMaterial({ color: 0xe6f2ff, transparent: true, opacity: 0.55, roughness: 0.05, depthWrite: false });
 

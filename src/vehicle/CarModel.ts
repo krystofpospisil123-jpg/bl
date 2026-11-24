@@ -1,8 +1,13 @@
 // Procedural low-poly car (generic hatchback, no real-world brand). Local +Z = forward.
 import * as THREE from 'three';
 import { CAR_SPEC } from './CarPhysics.ts';
+import { assets, useCarAttributes, type CarAsset, type CarType } from '../assets/models.ts';
 
-export const CAR_COLORS = [0xb8352f, 0x2f5fa8, 0xd8d8d2, 0x2b2d30, 0x6f7a3a, 0xc9a23a, 0x8a8f96, 0x3e8a86];
+/** Body colours, weighted like a typical Czech street: lots of white, silver, grey and black. */
+export const CAR_COLORS = [
+  0xe8e8e4, 0xe8e8e4, 0xf2f2ef, 0xa9adb2, 0xa9adb2, 0x8a8f96, 0x5d6267, 0x5d6267, 0x1e2023, 0x1e2023,
+  0x2b2d30, 0x23395e, 0x2f5fa8, 0xa52a26, 0xb8352f, 0x3d6b3a, 0x6b4c36, 0xc8bca0, 0x7a2f3a, 0x4f7f9a,
+];
 
 const glass = new THREE.MeshStandardMaterial({ color: 0x1d2630, roughness: 0.05, metalness: 0.2 });
 const trim = new THREE.MeshStandardMaterial({ color: 0x1b1b1c });
@@ -37,9 +42,17 @@ function cabinGeometry(wBottom: number, wTop: number, lBottom: number, lTop: num
 export class CarModel {
   readonly root = new THREE.Group();
   readonly wheels: THREE.Object3D[] = [];
+  /** Wheel centres of the Blender model (x, z used for the visual wheels), if loaded. */
+  wheelAnchors?: THREE.Vector3[];
   private brakeLights: THREE.Mesh[] = [];
+  private tail?: THREE.Mesh;
 
-  constructor(color = CAR_COLORS[0]) {
+  constructor(color = CAR_COLORS[0], type: CarType = 'liftback') {
+    const asset = assets.cars?.[type];
+    if (asset) {
+      this.fromAsset(asset, color);
+      return;
+    }
     const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.32, metalness: 0.35 });
     const s = CAR_SPEC;
     const W = s.halfExtents.x * 2, L = s.halfExtents.z * 2;
@@ -82,12 +95,41 @@ export class CarModel {
     }
   }
 
+  /** Builds the car from the Blender model: body tinted per car, separate tail lights and wheels. */
+  private fromAsset(a: CarAsset, color: number) {
+    const body = new THREE.InstancedMesh(a.body, carMaterial(), 1);
+    body.setMatrixAt(0, new THREE.Matrix4());
+    body.setColorAt(0, new THREE.Color(color));
+    body.computeBoundingSphere();
+    body.castShadow = body.receiveShadow = true;
+    this.tail = new THREE.Mesh(a.tail, tailOff);
+    this.root.add(body, this.tail);
+    this.wheelAnchors = a.wheelPos;
+    a.wheelPos.forEach((p) => {
+      const w = new THREE.Group();
+      const m = new THREE.Mesh(a.wheel, carMaterial());
+      if (p.x < 0) m.rotation.y = Math.PI; // rim faces outwards on the right side too
+      m.castShadow = true;
+      w.add(m);
+      this.wheels.push(w);
+      this.root.add(w);
+    });
+  }
+
   setBraking(on: boolean) {
+    if (this.tail) this.tail.material = on ? tailOn : tailOff;
     for (const l of this.brakeLights) (l.material as THREE.MeshStandardMaterial) = on ? brakeOn : taillight;
   }
 }
 
 const brakeOn = new THREE.MeshStandardMaterial({ color: 0xff2a2a, emissive: 0xcc0000 });
+const tailOff = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, emissive: 0x300000 });
+const tailOn = new THREE.MeshStandardMaterial({ color: 0xff3030, roughness: 0.3, emissive: 0xdd0000 });
+let sharedCarMat: THREE.MeshStandardMaterial | null = null;
+function carMaterial() {
+  sharedCarMat ??= useCarAttributes(new THREE.MeshStandardMaterial({ metalness: 0.3 }));
+  return sharedCarMat;
+}
 
 /**
  * Bakes the car model into two geometries for instanced traffic:

@@ -54,6 +54,13 @@ export class WorldData {
     return { bitmap, step: g.step, half: this.manifest.halfExtent };
   }
 
+  /** Cars and pedestrians made in Blender (GLB). */
+  async loadModelsFile(): Promise<ArrayBuffer> {
+    const res = await this.get('models/vehicles.glb');
+    if (!res.ok) throw new Error(`models/vehicles.glb: ${res.status}`);
+    return res.arrayBuffer();
+  }
+
   async loadGraphs(): Promise<RoadGraphs> {
     const res = await this.get(this.manifest.graphFile ?? 'roads.json');
     if (!res.ok) throw new Error(`roads.json not found (${res.status}). Run "npm run data:build".`);

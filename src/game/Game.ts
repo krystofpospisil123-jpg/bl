@@ -1,6 +1,7 @@
 // Game loop: streamed 3D world, Rapier physics, the player on foot or in the car,
 // and a free camera for exploring.
 import * as THREE from 'three';
+import { loadModels } from '../assets/models.ts';
 import type { WorldData } from '../world/WorldData.ts';
 import { HeightField } from '../world/HeightField.ts';
 import { ChunkManager } from '../world/ChunkManager.ts';
@@ -87,13 +88,14 @@ export class Game {
 
     this.camera.position.set(SPAWN.x + 30, 330, SPAWN.z + 30);
     // Chunks wait for the aerial photo so every ground texture is painted with it.
-    world.loadGroundPhoto().then(
-      (photo) => {
-        if (photo) this.chunks.painter.setPhoto(photo.bitmap, photo.step, photo.half);
-        this.chunks.paused = false;
-      },
-      () => (this.chunks.paused = false),
-    );
+    // Car and pedestrian models are needed before the first chunks (parked cars) and traffic.
+    const models = world.loadModelsFile().then((buf) => loadModels(buf)).catch((err) => {
+      console.error('Modely aut a postav se nenačetly, používám jednoduché tvary', err);
+    });
+    Promise.all([world.loadGroundPhoto().catch(() => null), models]).then(([photo]) => {
+      if (photo) this.chunks.painter.setPhoto(photo.bitmap, photo.step, photo.half);
+      this.chunks.paused = false;
+    });
     world.loadOverview().then((o) => {
       this.heights.setOverview(o);
       this.scene.add(buildOverviewMesh(world.manifest, o, mats.overview));
@@ -101,7 +103,7 @@ export class Game {
       this.camera.position.set(SPAWN.x - 12 * Math.sin(SPAWN.yaw), g + 5, SPAWN.z - 12 * Math.cos(SPAWN.yaw));
       this.camera.lookAt(SPAWN.x, g + 1, SPAWN.z);
     });
-    Promise.all([PhysicsWorld.create(world.manifest), world.loadGraphs()]).then(([p, graphs]) => {
+    Promise.all([PhysicsWorld.create(world.manifest), world.loadGraphs(), models]).then(([p, graphs]) => {
       this.physics = p;
       this.traffic = new Traffic(new Graph(graphs.drive, true), p, this.heights);
       this.pedestrians = new Pedestrians(new Graph(graphs.walk, false), this.heights);

@@ -12,12 +12,12 @@ export interface CarInput {
 }
 
 export const CAR_SPEC = {
-  halfExtents: { x: 0.88, y: 0.42, z: 2.15 },
+  halfExtents: { x: 0.9, y: 0.42, z: 2.3 }, // liftback model: 4.69 x 1.83 m
   mass: 1250,
   wheelRadius: 0.34,
   wheelX: 0.8,
-  wheelZFront: 1.33,
-  wheelZRear: -1.3,
+  wheelZFront: 1.4,
+  wheelZRear: -1.29,
   wheelY: -0.12,
   suspensionRest: 0.32,
   maxEngineForce: 7200, // N total, rear-wheel drive

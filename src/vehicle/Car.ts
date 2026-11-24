@@ -54,7 +54,9 @@ export class Car {
       const conn = v.wheelChassisConnectionPointCs(i)!;
       const susp = v.wheelSuspensionLength(i) ?? CAR_SPEC.suspensionRest;
       // Visual wheels sit slightly outboard so the tyres are flush with the body.
-      w.position.set(conn.x * 1.06, conn.y - susp, conn.z);
+      const anchor = this.model.wheelAnchors?.[i];
+      if (anchor) w.position.set(anchor.x, conn.y - susp, anchor.z);
+      else w.position.set(conn.x * 1.06, conn.y - susp, conn.z);
       // Spin from forward speed (wheelRotation is not always updated without contact).
       this.wheelSpin[i] += (this.speed / CAR_SPEC.wheelRadius) * dt;
       w.rotation.set(this.wheelSpin[i], v.wheelSteering(i) ?? 0, 0, 'YXZ');

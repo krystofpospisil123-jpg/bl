@@ -1,5 +1,6 @@
 // Procedural low-poly person with a simple walk/run cycle. Origin at the feet, facing +Z.
 import * as THREE from 'three';
+import { assets, type PersonAsset } from '../assets/models.ts';
 
 export interface Outfit {
   skin: number;
@@ -33,6 +34,12 @@ export class CharacterModel {
 
   constructor(o: Outfit = DEFAULT_OUTFIT) {
     this.root.add(this.body);
+    if (assets.person) {
+      this.shinL = new THREE.Group();
+      this.shinR = new THREE.Group();
+      this.fromAsset(assets.person, o);
+      return;
+    }
     // Legs: thigh + shin with knee joint.
     const makeLeg = (g: THREE.Group, x: number) => {
       g.position.set(x, 0.92, 0);
@@ -71,6 +78,33 @@ export class CharacterModel {
     back.position.z = -0.1;
     this.head.add(neck, face, hair, back);
     this.body.add(this.head);
+  }
+
+  /** Blender body parts, tinted with the outfit colours (vertex colours keep hair, eyes, shoes). */
+  private fromAsset(p: PersonAsset, o: Outfit) {
+    const mat = (color: number) => new THREE.MeshStandardMaterial({ color, vertexColors: true, roughness: 0.85 });
+    const mesh = (g: THREE.BufferGeometry, color: number) => {
+      const m = new THREE.Mesh(g, mat(color));
+      m.castShadow = true;
+      return m;
+    };
+    this.body.add(mesh(p.torso, o.top));
+    // The head group pivots at the neck (y = 1.5); the geometry is modelled at body height.
+    const head = mesh(p.head, o.skin);
+    head.position.y = -1.5;
+    this.head.position.y = 1.5;
+    this.head.add(head);
+    this.body.add(this.head);
+    for (const [g, x] of [[this.armL, 0.27], [this.armR, -0.27]] as const) {
+      g.position.set(x, 1.44, 0);
+      g.add(mesh(p.arm, o.top), mesh(p.hand, o.skin));
+      this.body.add(g);
+    }
+    for (const [g, shin, x] of [[this.legL, this.shinL, 0.1], [this.legR, this.shinR, -0.1]] as const) {
+      g.position.set(x, 0.92, 0);
+      g.add(mesh(p.leg, o.legs), shin);
+      this.body.add(g);
+    }
   }
 
   /**

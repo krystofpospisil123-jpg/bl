@@ -8,6 +8,7 @@ import type { HeightField } from '../world/HeightField.ts';
 import { Graph, type Lane } from './Graph.ts';
 import { bakeCarGeometries, CAR_COLORS } from '../vehicle/CarModel.ts';
 import { CAR_SPEC } from '../vehicle/CarPhysics.ts';
+import { assets, carTypeFor, useCarAttributes, CAR_TYPES, type CarType } from '../assets/models.ts';
 
 const MAX_CARS = 26;
 const SPAWN_MIN = 90, SPAWN_MAX = 340, DESPAWN = 420;
@@ -29,6 +30,7 @@ interface AiCar {
   next?: Lane;
   offset: number;
   color: THREE.Color;
+  type: CarType;
   blockedFor: number;
   stunnedFor: number;
   body: RAPIER.RigidBody;
@@ -48,8 +50,10 @@ export class Traffic {
   enabled = true;
   /** Population limit (lower on phones); at most MAX_CARS. */
   maxCars = MAX_CARS;
-  private paintMesh: THREE.InstancedMesh;
-  private detailMesh: THREE.InstancedMesh;
+  /** One instanced mesh per car model, or the procedural paint/detail pair as a fallback. */
+  private typeMeshes = new Map<CarType, THREE.InstancedMesh>();
+  private paintMesh?: THREE.InstancedMesh;
+  private detailMesh?: THREE.InstancedMesh;
   /** Junction reservations: node -> car id. */
   private reserved = new Map<number, number>();
   private nextId = 1;
@@ -57,11 +61,22 @@ export class Traffic {
 
   constructor(graph: Graph, private phys: PhysicsWorld, private heights: HeightField) {
     this.graph = graph;
-    const { paint, detail } = bakeCarGeometries();
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 });
-    this.paintMesh = new THREE.InstancedMesh(paint, mat, MAX_CARS);
-    this.detailMesh = new THREE.InstancedMesh(detail, mat, MAX_CARS);
-    for (const m of [this.paintMesh, this.detailMesh]) {
+    const meshes: THREE.InstancedMesh[] = [];
+    if (assets.cars) {
+      const mat = useCarAttributes(new THREE.MeshStandardMaterial({ metalness: 0.3 }));
+      for (const t of CAR_TYPES) {
+        const m = new THREE.InstancedMesh(assets.cars[t].hi, mat, MAX_CARS);
+        this.typeMeshes.set(t, m);
+        meshes.push(m);
+      }
+    } else {
+      const { paint, detail } = bakeCarGeometries();
+      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.3 });
+      this.paintMesh = new THREE.InstancedMesh(paint, mat, MAX_CARS);
+      this.detailMesh = new THREE.InstancedMesh(detail, mat, MAX_CARS);
+      meshes.push(this.paintMesh, this.detailMesh);
+    }
+    for (const m of meshes) {
       m.castShadow = true;
       m.receiveShadow = true;
       m.frustumCulled = false; // instances spread over a large area
@@ -109,7 +124,7 @@ export class Traffic {
       this.phys.world.createCollider(this.phys.R.ColliderDesc.cuboid(he.x, he.y, he.z).setTranslation(0, 0.1, 0), body);
       const car: AiCar = {
         id: this.nextId++, lane, s, speed: 0, offset: this.laneOffset(lane),
-        color: new THREE.Color(CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)]),
+        color: new THREE.Color(CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)]), type: carTypeFor(Math.random()),
         blockedFor: 0, stunnedFor: 0, body, pos: new THREE.Vector3(), yaw: 0, pitch: 0, fresh: true,
       };
       car.speed = g.edges[ei].speed * 0.7;
@@ -255,14 +270,29 @@ export class Traffic {
   private render() {
     const m = new THREE.Matrix4();
     const white = new THREE.Color(1, 1, 1);
+    const counts = new Map<CarType, number>();
     this.cars.forEach((c, i) => {
       m.compose(c.pos, new THREE.Quaternion().setFromEuler(new THREE.Euler(c.pitch, c.yaw, 0, 'YXZ')), new THREE.Vector3(1, 1, 1));
-      this.paintMesh.setMatrixAt(i, m);
-      this.detailMesh.setMatrixAt(i, m);
-      this.paintMesh.setColorAt(i, c.color);
-      this.detailMesh.setColorAt(i, white);
+      const tm = this.typeMeshes.get(c.type);
+      if (tm) {
+        const k = counts.get(c.type) ?? 0;
+        counts.set(c.type, k + 1);
+        tm.setMatrixAt(k, m);
+        tm.setColorAt(k, c.color);
+        return;
+      }
+      this.paintMesh!.setMatrixAt(i, m);
+      this.detailMesh!.setMatrixAt(i, m);
+      this.paintMesh!.setColorAt(i, c.color);
+      this.detailMesh!.setColorAt(i, white);
     });
+    for (const [t, mesh] of this.typeMeshes) {
+      mesh.count = counts.get(t) ?? 0;
+      mesh.instanceMatrix.needsUpdate = true;
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    }
     for (const mesh of [this.paintMesh, this.detailMesh]) {
+      if (!mesh) continue;
       mesh.count = this.cars.length;
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;

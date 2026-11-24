@@ -112,8 +112,26 @@ src/
 Atribuce se zobrazuje ve hře vpravo dole. Vygenerovaná data v `public/data/` jsou odvozená
 databáze z OSM, a proto také spadají pod ODbL.
 
-Žádné externí modely, textury ani zvuky se zatím nepoužívají. Vše bude procedurální,
-případný externí asset se uvede sem i s licencí.
+Žádné cizí modely, textury ani zvuky se nepoužívají. Auta a postavy jsou vlastní modely
+postavené skriptem v Blenderu (`scripts/blender/vehicles.py`, hostovaný Blender v Higgsfield
+3D Jutsu, export `public/data/models/vehicles.glb`). Ostatní je procedurální.
+
+## Auta a postavy z Blenderu
+
+- Šest typů aut volně inspirovaných běžnými auty v Česku (ne kopie, bez značek a log):
+  hatchback (jako Fabia), liftback (jako Octavia), kombi (jako Octavia Combi), velký liftback
+  (jako Superb), SUV (jako Kodiaq) a malé městské auto.
+- Karoserie je potažená přes profily: podběhy kol, okna a sloupky, světla obtočená kolem rohů,
+  maska se svislými lamelami, mlhovky, SPZ, zrcátka, kliky, spáry dveří, střešní ližiny, kola
+  s paprsky. Každý typ má podrobnou (asi 4,5 tis. trojúhelníků) a zjednodušenou verzi (asi 1,6 tis.).
+- Provoz používá podrobné modely, zaparkovaná auta zjednodušené. Jeden typ = jedno instancované
+  vykreslení; barva karoserie se nastavuje za běhu jen na lak (maska v atributu `paintMask`),
+  sklo, světla a pneumatiky si drží svou barvu i drsnost (atribut `rough`).
+- Hráčovo auto je liftback s otáčivými koly a samostatnými brzdovými světly. Barvy aut odpovídají
+  běžné ulici: hodně bílé, stříbrné, šedé a černé.
+- Chodci a hráč: zaoblené tělo, hlava s vlasy, očima, nosem a ušima, ruce s dlaněmi, nohy s botami.
+  Díly jsou oddělené, aby chůze a barvy oblečení fungovaly jako dřív.
+- Když se modely nenačtou, hra použije původní jednoduché tvary.
 
 ## Plán
 
