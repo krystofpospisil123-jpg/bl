@@ -85,6 +85,8 @@ export interface Polyline {
   layer?: number;
   oneway?: boolean;
   pts: number[];
+  /** Footways that are mapped crossings: marked ("zebra", "uncontrolled", "yes") or "unmarked". */
+  crossing?: string;
   /** Paved surface other than asphalt (sett, cobblestone, paving_stones). */
   surface?: string;
   /** Bridges only: deck elevation (m a.s.l.) for each point. */
@@ -124,6 +126,8 @@ export interface ChunkData {
   /** Flat [x, z, height, type, ...]; type 0 = deciduous, 1 = conifer. */
   trees: number[];
   pois: Poi[];
+  /** Traffic signs derived from the road network: flat [x, z, yaw, tile, plateHeight, post, ...]. */
+  signs?: number[];
   /** Hand-placed road markings from world/scenes.ts: flat [x, z, yaw, kind, ...] (see MarkKind). */
   marks?: number[];
   /** Free-standing sign pylons from world/scenes.ts. */

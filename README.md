@@ -243,6 +243,27 @@ a chodník končí. Chodník je jen tam, kde poblíž stojí budova (do 28 m), a
 Má kolize, takže po něm jde chodit a přes obrubník se přejede kolem. Zobrazuje se do 260 m
 (LOD 0), dál zůstává v textuře. Asfalt a čáry zůstaly v textuře terénu.
 
+## Dopravní značky
+
+Ve městě stojí 530 českých dopravních značek (`scripts/lib/signs.ts` je počítá z dat, vykreslují
+se v `src/world/builders/trafficSigns.ts`, dvě vykreslení na dlaždici). Stojí vpravo u obrubníku
+a otáčí se k řidiči, který k nim jede, spodní hrana je 2,2 m nad chodníkem:
+
+| Značka | Kde |
+| --- | --- |
+| P2 hlavní pozemní komunikace (žlutý kosočtverec) | na průjezdní silnici před křižovatkou s nižší třídou |
+| P4 dej přednost v jízdě / P6 stůj | na vedlejších ulicích; stop při rozdílu dvou tříd a hlavní silnici nad 60 km/h |
+| C1 kruhový objezd + P4 | na každém vjezdu do kruháče |
+| B20a omezení rychlosti | kde se omezení mění (30, 40, 60, 70, 80) a „50“ na konci omezeného úseku |
+| IP6 přechod pro chodce | po obou stranách každého označeného přechodu (jen zebry z OSM) |
+| IP4a jednosměrný provoz / B2 zákaz vjezdu | na vjezdu a na konci jednosměrky |
+| IP11a parkoviště | u vjezdu na parkoviště nad 500 m² |
+
+Stejné označené přechody jsou teď jediné, na které se maluje zebra. Konkrétní značky stop a dej
+přednost z OpenStreetMap se nepodařilo stáhnout (server Overpass z prostředí nepřijímá spojení),
+takže přednost se odvozuje z třídy silnic podle českých pravidel; skript `scripts/fetch-signs.ts`
+je připravený na stažení skutečných značek.
+
 ## Zvuky
 
 Všechny zvuky se syntetizují přímo v prohlížeči (Web Audio), žádné nahrávky se nepoužívají:

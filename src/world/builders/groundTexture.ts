@@ -227,7 +227,8 @@ function bbox(pts: number[]) {
 
 function paintCrossings(g: CanvasRenderingContext2D, roads: Polyline[]) {
   const done: [number, number][] = [];
-  const walks = roads.filter((r) => WALKWAYS.has(r.kind)).map((r) => ({ r, b: bbox(r.pts) }));
+  // Zebras only where OSM maps a marked crossing (the same ones that get IP6 signs).
+  const walks = roads.filter((r) => WALKWAYS.has(r.kind) && r.crossing && r.crossing !== 'unmarked').map((r) => ({ r, b: bbox(r.pts) }));
   for (const road of roads) {
     if (!CROSSABLE.has(road.kind) || road.w < 5) continue;
     const p = road.pts;

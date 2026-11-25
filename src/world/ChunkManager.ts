@@ -9,6 +9,7 @@ import { buildBuildingsGeometry } from './builders/buildings.ts';
 import { ChunkTrees } from './builders/trees.ts';
 import { buildWaterGeometry, buildBridgeGeometry } from './builders/water.ts';
 import { buildPavementGeometry } from './builders/roads.ts';
+import { buildTrafficSigns } from './builders/trafficSigns.ts';
 import type { PhysicsChunkSource } from '../physics/PhysicsWorld.ts';
 import { buildSigns, storeEntrances, type StoreEntrance } from './builders/signs.ts';
 import { buildLamps, type LampSpot } from './builders/props.ts';
@@ -42,6 +43,7 @@ interface ChunkState {
   /** Small details shown only near the viewer (props, parked cars) / at medium range (lamps). */
   propsGroup?: THREE.Group;
   pavement?: THREE.Mesh;
+  trafficSigns?: THREE.Group;
   lampMesh?: THREE.Object3D;
   signs?: { group: THREE.Group; dispose: () => void };
   lamps: LampSpot[];
@@ -304,6 +306,13 @@ export class ChunkManager {
       st.propsGroup = props.group;
       st.lampMesh = lamps.mesh ?? undefined;
       st.propBoxes = props.boxes;
+      const ts = data.data.signs ? buildTrafficSigns(data.data.signs, this.heights) : null;
+      if (ts) {
+        st.group.add(ts.group);
+        st.disposables.push(ts);
+        st.trafficSigns = ts.group;
+        st.propBoxes = st.propBoxes.concat(ts.boxes);
+      }
       st.bins = props.bins;
       if (scene.extras.length) {
         // Landmark features stay visible at every distance.
@@ -356,6 +365,7 @@ export class ChunkManager {
     // Small details only where they can be seen.
     if (st.propsGroup) st.propsGroup.visible = st.lod === 0;
     if (st.pavement) st.pavement.visible = st.lod === 0;
+    if (st.trafficSigns) st.trafficSigns.visible = st.lod <= 1;
     if (st.lampMesh) st.lampMesh.visible = st.lod <= 1;
     if (st.signs) st.signs.group.visible = st.lod <= 1;
   }

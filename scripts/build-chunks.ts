@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { encodeUint16Png } from './lib/png.ts';
 import { buildRoadGraphs, type GraphWay } from './lib/roadGraph.ts';
+import { generateSigns } from './lib/signs.ts';
 import { loadOrtho, roofColour } from './lib/ortho.ts';
 import jpeg from 'jpeg-js';
 import { RAW_DIR, OUT_DIR, ORIGIN, HALF_EXTENT, CHUNK_SIZE, HEIGHT_STEP, lonLatToLocal } from './lib/config.ts';
@@ -388,6 +389,7 @@ async function main() {
   const treeRows: Vec2[][] = [];
   const allPois: Poi[] = [];
   const graphWays: GraphWay[] = [];
+  const railLines: Vec2[][] = [];
   const streetTreeRoads: { id: number; line: Vec2[]; w: number; chance: number }[] = [];
   const stats = { buildings: 0, estimated: 0, roads: 0, rails: 0, waterways: 0, water: 0, areas: 0, trees: 0 };
 
@@ -478,6 +480,7 @@ async function main() {
       addPolyline(line, w / 2 + 1, (pts, elev) => ({
         id: el.id, kind: t.highway, w, pts, ...(elev ? { elev } : {}),
         ...(['sett', 'cobblestone', 'unhewn_cobblestone', 'paving_stones'].includes(t.surface) ? { surface: t.surface } : {}),
+        ...(t.footway === 'crossing' ? { crossing: t.crossing ?? 'yes' } : {}),
         ...(t.name ? { name: t.name } : {}),
         ...(bridge ? { bridge: true } : {}),
         ...(tunnel ? { tunnel: true } : {}),
@@ -494,6 +497,7 @@ async function main() {
       const tunnel = t.tunnel === 'yes';
       const bridge = !!t.bridge && t.bridge !== 'no';
       if (bridge) line = densify(line, line.map((_, i) => i), el.id).line;
+      if (!bridge && !tunnel && ['rail', 'light_rail', 'tram', 'narrow_gauge'].includes(t.railway)) railLines.push(line);
       addPolyline(line, 3, (pts, elev) => ({
         id: el.id, kind: t.railway, w: 4, pts, ...(elev ? { elev } : {}),
         ...(bridge ? { bridge: true } : {}),
@@ -706,6 +710,18 @@ async function main() {
     ],
   };
 
+  // Traffic signs derived from the road network (see scripts/lib/signs.ts), filed into chunks.
+  const parkingRings: Vec2[][] = osm.elements
+    .filter((el) => el.tags?.amenity === 'parking' && el.type === 'way' && el.geometry)
+    .map((el) => el.geometry!.filter((p): p is OsmGeomPoint => !!p).map(toMap));
+  let signCount = 0;
+  for (const sg of generateSigns(graphWays, railLines, parkingRings)) {
+    const c = chunkAt(sg.x, -sg.z);
+    if (!c) continue;
+    (c.signs ??= []).push(r1(sg.x), r1(sg.z), Math.round(sg.yaw * 100) / 100, sg.tile, Math.round(sg.h * 100) / 100, sg.post);
+    signCount++;
+  }
+  console.log(`Traffic signs: ${signCount}`);
   let bytes = 0;
   const n = SAMPLES_PER_CHUNK + 1;
   for (const row of chunks) {
