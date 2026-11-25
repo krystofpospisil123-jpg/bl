@@ -234,6 +234,15 @@ vymyšlená loga v podobných barvách, ale s jiným názvem a symbolem (`src/wo
 (červená se žlutým kurzívním písmem). Kreslí se vektorově na canvas, takže jsou ostrá i zblízka.
 Skutečná loga ve hře nejsou. Klávesa N dál přepíná na obecné názvy.
 
+## Chodníky a obrubníky
+
+Podél ulic ve městě (primary až living_street) jsou skutečné chodníky z geometrie
+(`src/world/builders/roads.ts`): dlažba 1,5–2,2 m široká, zvednutá o 13 cm nad vozovku, s kamenným
+obrubníkem a sešikmeným vnějším okrajem. U vjezdů a křižovatek obrubník klesá do nájezdu
+a chodník končí. Chodník je jen tam, kde poblíž stojí budova (do 28 m), a ne uvnitř budov.
+Má kolize, takže po něm jde chodit a přes obrubník se přejede kolem. Zobrazuje se do 260 m
+(LOD 0), dál zůstává v textuře. Asfalt a čáry zůstaly v textuře terénu.
+
 ## Zvuky
 
 Všechny zvuky se syntetizují přímo v prohlížeči (Web Audio), žádné nahrávky se nepoužívají:

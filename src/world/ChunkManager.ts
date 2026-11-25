@@ -8,6 +8,7 @@ import { GroundPainter } from './GroundPainter.ts';
 import { buildBuildingsGeometry } from './builders/buildings.ts';
 import { ChunkTrees } from './builders/trees.ts';
 import { buildWaterGeometry, buildBridgeGeometry } from './builders/water.ts';
+import { buildPavementGeometry } from './builders/roads.ts';
 import type { PhysicsChunkSource } from '../physics/PhysicsWorld.ts';
 import { buildSigns, storeEntrances, type StoreEntrance } from './builders/signs.ts';
 import { buildLamps, type LampSpot } from './builders/props.ts';
@@ -40,6 +41,7 @@ interface ChunkState {
   propBoxes: number[];
   /** Small details shown only near the viewer (props, parked cars) / at medium range (lamps). */
   propsGroup?: THREE.Group;
+  pavement?: THREE.Mesh;
   lampMesh?: THREE.Object3D;
   signs?: { group: THREE.Group; dispose: () => void };
   lamps: LampSpot[];
@@ -260,6 +262,14 @@ export class ChunkManager {
         st.group.add(mesh);
         st.disposables.push(wGeo);
       }
+      const pvGeo = buildPavementGeometry(data.data, st.rect, this.heights);
+      if (pvGeo) {
+        st.pavement = new THREE.Mesh(pvGeo, this.mats.pavement);
+        st.pavement.receiveShadow = true;
+        st.group.add(st.pavement);
+        st.disposables.push(pvGeo);
+        st.collisionMeshes.push(pvGeo.attributes.position.array as Float32Array);
+      }
       const brGeo = buildBridgeGeometry(data.data, st.rect);
       if (brGeo) {
         const mesh = new THREE.Mesh(brGeo, [this.mats.bridgeDeck, this.mats.bridge, this.mats.bridgeRail]);
@@ -345,6 +355,7 @@ export class ChunkManager {
     st.lod = st.wantLod;
     // Small details only where they can be seen.
     if (st.propsGroup) st.propsGroup.visible = st.lod === 0;
+    if (st.pavement) st.pavement.visible = st.lod === 0;
     if (st.lampMesh) st.lampMesh.visible = st.lod <= 1;
     if (st.signs) st.signs.group.visible = st.lod <= 1;
   }
