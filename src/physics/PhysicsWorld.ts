@@ -109,6 +109,14 @@ export class PhysicsWorld {
   }
 
   /** Advances the simulation with a fixed step; `beforeStep` runs before every sub-step. */
+  /**
+   * How far the render time is between the last two physics steps (0..1). Rendered poses are
+   * blended by this so motion stays smooth when the frame rate is not exactly 60 Hz.
+   */
+  get alpha(): number {
+    return Math.min(1, this.acc / FIXED_DT);
+  }
+
   step(dt: number, beforeStep: (dt: number) => void) {
     this.acc = Math.min(this.acc + dt, FIXED_DT * 5);
     while (this.acc >= FIXED_DT) {

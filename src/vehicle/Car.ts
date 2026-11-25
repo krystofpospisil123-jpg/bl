@@ -21,6 +21,10 @@ export class Car {
   readonly quaternion = new THREE.Quaternion();
   yaw = 0;
   private wheelSpin = [0, 0, 0, 0];
+  /** Body pose before the latest physics step, for blending the rendered pose. */
+  private prevPos = new THREE.Vector3();
+  private prevQuat = new THREE.Quaternion();
+  private snapNext = true;
 
   constructor(phys: PhysicsWorld, pos: THREE.Vector3, yaw: number, color?: number) {
     this.physics = new CarPhysics(phys.R, phys.world, pos, yaw);
@@ -44,16 +48,31 @@ export class Car {
   }
 
   control(input: CarInput, dt: number) {
+    // Remember the pose before this step (called once per fixed step).
+    const t = this.physics.body.translation(), r = this.physics.body.rotation();
+    this.prevPos.set(t.x, t.y, t.z);
+    this.prevQuat.set(r.x, r.y, r.z, r.w);
+    this.snapNext = false;
     this.physics.update(input, dt);
     this.model.setBraking((input.brake > 0 || input.handbrake) && this.speed > 0.5);
   }
 
-  /** Copies the physics state to the model (call after the physics step). */
-  sync(dt = 0) {
+  /**
+   * Copies the physics state to the model (call after the physics step). `alpha` blends between
+   * the pose before and after the latest step, so the car moves smoothly at any frame rate.
+   */
+  sync(dt = 0, alpha = 1) {
     const t = this.physics.body.translation();
     const r = this.physics.body.rotation();
     this.position.set(t.x, t.y, t.z);
     this.quaternion.set(r.x, r.y, r.z, r.w);
+    if (this.snapNext) {
+      this.prevPos.copy(this.position);
+      this.prevQuat.copy(this.quaternion);
+    } else if (alpha < 1) {
+      this.position.lerpVectors(this.prevPos, this.position, alpha);
+      this.quaternion.slerpQuaternions(this.prevQuat, this.quaternion, alpha);
+    }
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(this.quaternion);
     this.yaw = Math.atan2(fwd.x, fwd.z);
     this.detectCrash(dt);
@@ -128,6 +147,7 @@ export class Car {
     this.prevVel.set(0, 0, 0);
     this.crashCooldown = 0.5;
     this.physics.reset(pos, yaw);
+    this.snapNext = true;
     this.sync();
   }
 }

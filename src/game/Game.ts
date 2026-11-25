@@ -690,8 +690,9 @@ export class Game {
         player.control(moveInput, h);
       });
     }
-    car.sync(dt);
-    player.sync(dt);
+    const alpha = this.physics!.alpha;
+    car.sync(dt, alpha);
+    player.sync(dt, alpha);
 
     // Pistol: aim along the camera while on foot with the weapon out.
     const aiming = walking && this.weapon.equipped;

@@ -12,6 +12,8 @@ export class Player {
   /** While aiming the player faces this way (the camera direction) instead of where they walk. */
   aimYaw: number | null = null;
   private active = true;
+  private prevFeet = new THREE.Vector3();
+  private snapNext = true;
 
   constructor(phys: PhysicsWorld, feet: THREE.Vector3, yaw = 0) {
     this.physics = new CharacterPhysics(phys.R, phys.world, feet);
@@ -40,18 +42,24 @@ export class Player {
 
   teleport(feet: THREE.Vector3, yaw?: number) {
     this.physics.teleport(feet);
+    this.snapNext = true;
     if (yaw !== undefined) this.yaw = yaw;
     this.sync(0);
   }
 
   control(input: MoveInput, dt: number) {
+    const f = this.physics.feet;
+    this.prevFeet.set(f.x, f.y, f.z);
+    this.snapNext = false;
     if (this.active) this.physics.update(input, dt);
   }
 
   /** Copies physics to the model and animates; call once per frame after stepping. */
-  sync(dt: number) {
+  sync(dt: number, alpha = 1) {
     const f = this.physics.feet;
     this.position.set(f.x, f.y, f.z);
+    if (this.snapNext) this.prevFeet.copy(this.position);
+    else if (alpha < 1) this.position.lerpVectors(this.prevFeet, this.position, alpha);
     const v = this.physics.velocity;
     const sp = Math.hypot(v.x, v.z);
     if (this.aimYaw !== null) {
