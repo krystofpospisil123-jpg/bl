@@ -120,32 +120,6 @@ export class Materials {
   readonly bridgeDeck = new THREE.MeshStandardMaterial({ color: 0x4a4a4c, roughness: 0.75 });
   readonly bridgeRail = new THREE.MeshStandardMaterial({ color: 0x3f78c4, roughness: 0.45, metalness: 0.5, side: THREE.DoubleSide });
   readonly overview = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
-  /** Pavements along streets: paving slabs with a darker joint grid (world-space UVs, 2.4 m tile). */
-  readonly pavement: THREE.MeshStandardMaterial = (() => {
-    const c = document.createElement('canvas');
-    c.width = c.height = 256;
-    const g = c.getContext('2d')!;
-    g.fillStyle = '#d6d2ca';
-    g.fillRect(0, 0, 256, 256);
-    let seed = 9;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    // 6 x 6 slabs, each a slightly different grey, with joints.
-    for (let j = 0; j < 6; j++) for (let i = 0; i < 6; i++) {
-      const v = 200 + Math.round(rnd() * 26);
-      g.fillStyle = `rgb(${v},${v - 3},${v - 9})`;
-      g.fillRect(i * 42.67 + 1.5, j * 42.67 + 1.5, 39.7, 39.7);
-    }
-    for (let k = 0; k < 2500; k++) {
-      const v = 150 + Math.round(rnd() * 80);
-      g.fillStyle = `rgba(${v},${v},${v},0.25)`;
-      g.fillRect(rnd() * 256, rnd() * 256, 2, 2);
-    }
-    const t = new THREE.CanvasTexture(c);
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 8;
-    return new THREE.MeshStandardMaterial({ map: t, vertexColors: true, roughness: 0.92, side: THREE.DoubleSide });
-  })();
   readonly props = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.15 });
   /** Parked cars: Blender models with baked colour, paint mask and roughness (see assets/models.ts). */
   readonly parkedCars = useCarAttributes(new THREE.MeshStandardMaterial({ metalness: 0.3 }));

@@ -265,7 +265,7 @@ export function buildTrafficSigns(signs: number[], heights: HeightField): ChunkS
   let pi = 0;
   for (let i = 0; i < n; i++) {
     const [x, z, yaw, tile, h, post] = signs.slice(i * 6, i * 6 + 6);
-    // Ground height of the kerb the post stands on (pavement 13 cm above the road where there is one).
+    // Ground height where the post stands.
     const y = heights.sample(x, z);
     const size = SIZE[tile] ?? 0.7;
     // The plate sits just in front of the post (towards the driver).

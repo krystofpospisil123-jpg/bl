@@ -234,19 +234,10 @@ vymyšlená loga v podobných barvách, ale s jiným názvem a symbolem (`src/wo
 (červená se žlutým kurzívním písmem). Kreslí se vektorově na canvas, takže jsou ostrá i zblízka.
 Skutečná loga ve hře nejsou. Klávesa N dál přepíná na obecné názvy.
 
-## Chodníky a obrubníky
-
-Podél ulic ve městě (primary až living_street) jsou skutečné chodníky z geometrie
-(`src/world/builders/roads.ts`): dlažba 1,5–2,2 m široká, zvednutá o 13 cm nad vozovku, s kamenným
-obrubníkem a sešikmeným vnějším okrajem. U vjezdů a křižovatek obrubník klesá do nájezdu
-a chodník končí. Chodník je jen tam, kde poblíž stojí budova (do 28 m), a ne uvnitř budov.
-Má kolize, takže po něm jde chodit a přes obrubník se přejede kolem. Zobrazuje se do 260 m
-(LOD 0), dál zůstává v textuře. Asfalt a čáry zůstaly v textuře terénu.
-
 ## Dopravní značky
 
-Ve městě stojí 530 českých dopravních značek (`scripts/lib/signs.ts` je počítá z dat, vykreslují
-se v `src/world/builders/trafficSigns.ts`, dvě vykreslení na dlaždici). Stojí vpravo u obrubníku
+Ve městě stojí 503 českých dopravních značek (`scripts/lib/signs.ts` je počítá z dat, vykreslují
+se v `src/world/builders/trafficSigns.ts`, dvě vykreslení na dlaždici). Stojí vpravo od vozovky
 a otáčí se k řidiči, který k nim jede, spodní hrana je 2,2 m nad chodníkem:
 
 | Značka | Kde |

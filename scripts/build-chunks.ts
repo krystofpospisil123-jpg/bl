@@ -715,7 +715,21 @@ async function main() {
     .filter((el) => el.tags?.amenity === 'parking' && el.type === 'way' && el.geometry)
     .map((el) => el.geometry!.filter((p): p is OsmGeomPoint => !!p).map(toMap));
   let signCount = 0;
-  for (const sg of generateSigns(graphWays, railLines, parkingRings)) {
+  // Is a point (game coordinates) inside a building? Signs must not stand in walls.
+  const inBuilding = (x: number, z: number) => {
+    const c = chunkAt(x, -z);
+    if (!c) return false;
+    for (const b of c.buildings) {
+      const o = b.rings[0];
+      let inside = false;
+      for (let i = 0, j = o.length - 2; i < o.length; j = i, i += 2) {
+        if (o[i + 1] > z !== o[j + 1] > z && x < ((o[j] - o[i]) * (z - o[i + 1])) / (o[j + 1] - o[i + 1]) + o[i]) inside = !inside;
+      }
+      if (inside) return true;
+    }
+    return false;
+  };
+  for (const sg of generateSigns(graphWays, railLines, parkingRings, inBuilding)) {
     const c = chunkAt(sg.x, -sg.z);
     if (!c) continue;
     (c.signs ??= []).push(r1(sg.x), r1(sg.z), Math.round(sg.yaw * 100) / 100, sg.tile, Math.round(sg.h * 100) / 100, sg.post);

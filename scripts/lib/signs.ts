@@ -35,9 +35,17 @@ export interface Sign {
 const RANK: Record<string, number> = {
   primary: 5, primary_link: 5, secondary: 4, secondary_link: 4, tertiary: 3, tertiary_link: 3, unclassified: 2, residential: 1, living_street: 0,
 };
+/** Carriageway widths as the world builder uses them (scripts/build-chunks.ts), so signs stay off the asphalt. */
 const WIDTH: Record<string, number> = {
-  primary: 10, secondary: 8.5, tertiary: 7, unclassified: 6, residential: 6, living_street: 5,
-  primary_link: 6.5, secondary_link: 6, tertiary_link: 5.5,
+  motorway: 14, trunk: 12, primary: 10, secondary: 8.5, tertiary: 7, unclassified: 6, residential: 6,
+  living_street: 5, service: 4, pedestrian: 5, track: 3, footway: 2, path: 1.6, cycleway: 2.2, bridleway: 2,
+  construction: 5, platform: 3, raceway: 6,
+  motorway_link: 7, trunk_link: 7, primary_link: 6.5, secondary_link: 6, tertiary_link: 5.5,
+};
+const widthOf = (t: Record<string, string>): number => {
+  const base = WIDTH[t.highway] ?? 4;
+  const lanes = parseInt(t.lanes ?? '', 10);
+  return Number.isFinite(lanes) && lanes > 0 && base >= 5 ? Math.max(base, lanes * 3.25) : base;
 };
 const LIMIT_TILE: Record<number, number> = { 20: TILE.s20, 30: TILE.s30, 40: TILE.s40, 50: TILE.s50, 60: TILE.s60, 70: TILE.s70, 80: TILE.s80 };
 
@@ -89,8 +97,11 @@ function along(p: Vec2[], i: number, step: 1 | -1, s: number) {
 
 const yawOf = (nx: number, nz: number) => Math.atan2(nx, nz);
 
-/** Ways, rails and parking outlines all in map coordinates (x east, y north); signs come out in game coordinates. */
-export function generateSigns(ways: GraphWay[], rails: Vec2[][], parking: Vec2[][]): Sign[] {
+/**
+ * Ways, rails and parking outlines all in map coordinates (x east, y north); signs come out in game
+ * coordinates. `blocked(x, z)` tells whether a point is inside a building (game coordinates).
+ */
+export function generateSigns(ways: GraphWay[], rails: Vec2[][], parking: Vec2[][], blocked: (x: number, z: number) => boolean = () => false): Sign[] {
   const out: Sign[] = [];
   rails = rails.map((r) => r.map(toGame));
   parking = parking.map((r) => r.map(toGame));
@@ -103,10 +114,35 @@ export function generateSigns(ways: GraphWay[], rails: Vec2[][], parking: Vec2[]
       top += size + 0.06;
     });
   };
-  /** Sign for traffic heading (hx, hz) at point (x, z) on a road of width w: right-hand kerb, face towards the driver. */
+  // Every street, drive, path and track as segments, to keep posts off the carriageway.
+  const lanes: { ax: number; az: number; bx: number; bz: number; half: number }[] = [];
+  for (const way of ways) {
+    if (!(way.tags.highway in WIDTH) || way.tags.highway === 'platform') continue;
+    const p = way.pts.map(toGame), half = widthOf(way.tags) / 2;
+    for (let i = 0; i + 1 < p.length; i++) lanes.push({ ax: p[i][0], az: p[i][1], bx: p[i + 1][0], bz: p[i + 1][1], half });
+  }
+  const onRoad = (x: number, z: number, margin = 0.5) => {
+    for (const s of lanes) {
+      const dx = s.bx - s.ax, dz = s.bz - s.az, l2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / l2));
+      if (Math.hypot(s.ax + dx * t - x, s.az + dz * t - z) < s.half + margin) return true;
+    }
+    return false;
+  };
+  const free = (x: number, z: number) => !onRoad(x, z) && !blocked(x, z);
+  /**
+   * Sign for traffic heading (hx, hz) at point (x, z) on a road of width w: right-hand kerb, face
+   * towards the driver. If that spot is on another road (junctions) or in a building, the post
+   * slides back along the road and outwards until it stands clear; if nothing is clear it is dropped.
+   */
   const roadside = (x: number, z: number, hx: number, hz: number, w: number, tiles: number[]) => {
     const rx = -hz, rz = hx; // right of the heading in the x-east, z-south frame
-    add(x + rx * (w / 2 + 0.85), z + rz * (w / 2 + 0.85), -hx, -hz, tiles);
+    for (const along of [0, -2, -4, 2, -6, -8]) {
+      for (const out of [0.85, 1.4, 2.0, 2.8]) {
+        const px = x + hx * along + rx * (w / 2 + out), pz = z + hz * along + rz * (w / 2 + out);
+        if (free(px, pz)) return add(px, pz, -hx, -hz, tiles);
+      }
+    }
   };
 
   // --- Road network -------------------------------------------------------------------------
@@ -122,7 +158,7 @@ export function generateSigns(ways: GraphWay[], rails: Vec2[][], parking: Vec2[]
     const oneway = roundabout || t.oneway === 'yes' || t.oneway === '1' || t.oneway === '-1' || (t.highway.endsWith('_link') && t.oneway !== 'no');
     const limit = parseInt(t.maxspeed ?? '', 10);
     roads.push({
-      way, p, rank, w: WIDTH[t.highway] ?? 6, roundabout,
+      way, p, rank, w: widthOf(t), roundabout,
       flow: oneway ? (t.oneway === '-1' ? -1 : 1) : 0,
       limit: Number.isFinite(limit) ? limit : undefined,
     });
@@ -306,8 +342,13 @@ export function generateSigns(ways: GraphWay[], rails: Vec2[][], parking: Vec2[]
     if (best > 25) continue;
     const nl = Math.hypot(rx - vx, rz - vz) || 1;
     const nx = (rx - vx) / nl, nz = (rz - vz) / nl;
-    // Step 1 m into the car park (away from the street) and face the street.
-    add(vx - nx * 1, vz - nz * 1, nx, nz, [TILE.ip11]);
+    // Step into the car park (away from the street) until the post stands clear, facing the street.
+    for (const d of [1, 2, 3, 4]) {
+      if (free(vx - nx * d, vz - nz * d)) {
+        add(vx - nx * d, vz - nz * d, nx, nz, [TILE.ip11]);
+        break;
+      }
+    }
     void cx; void cz;
   }
 
