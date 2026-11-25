@@ -226,6 +226,14 @@ v pauze tlačítko Cheaty). Napiš kód a stiskni Enter:
 | `tuning` | plný tuning auta |
 | `oprava` | opraví promáčkliny |
 
+## Vymyšlené značky obchodů
+
+Kaufland, Lidl a Penny mají na cedulích nad vchodem, na cedulových věžích a uvnitř nad pultem
+vymyšlená loga v podobných barvách, ale s jiným názvem a symbolem (`src/world/builders/brands.ts`):
+**Nakupland** (červený čtverec s košíkem), **Levno** (modrá s žlutým sluncem) a **Halíř**
+(červená se žlutým kurzívním písmem). Kreslí se vektorově na canvas, takže jsou ostrá i zblízka.
+Skutečná loga ve hře nejsou. Klávesa N dál přepíná na obecné názvy.
+
 ## Zvuky
 
 Všechny zvuky se syntetizují přímo v prohlížeči (Web Audio), žádné nahrávky se nepoužívají:

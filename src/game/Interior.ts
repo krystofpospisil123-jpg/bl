@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { PhysicsWorld } from '../physics/PhysicsWorld.ts';
+import { brandFor } from '../world/builders/brands.ts';
 
 /** Where the hall stands (far above any terrain). */
 const ORIGIN = new THREE.Vector3(0, 1500, 0);
@@ -141,7 +142,16 @@ export class Interior {
   /** Shows the store's name over the counter. */
   setName(name: string) {
     this.nameMat.map?.dispose();
-    const t = textTexture(name, '#ffffff', '#1d2a36');
+    const brand = brandFor(name);
+    let t: THREE.CanvasTexture;
+    if (brand) {
+      const c = document.createElement('canvas');
+      c.width = 1024;
+      c.height = 188;
+      brand.draw(c.getContext('2d')!, c.width, c.height);
+      t = new THREE.CanvasTexture(c);
+      t.colorSpace = THREE.SRGBColorSpace;
+    } else t = textTexture(name, '#ffffff', '#1d2a36');
     this.nameMat.map = t;
     this.nameMat.emissiveMap = t;
     this.nameMat.needsUpdate = true;

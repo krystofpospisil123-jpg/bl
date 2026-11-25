@@ -6,6 +6,7 @@ import type { ChunkData, Building, Pylon } from '../format.ts';
 import { LANDMARKS, SIGN_USES, genericName } from '../landmarks.ts';
 import { resolveStyle } from './buildings.ts';
 import { settings } from '../../config.ts';
+import { brandFor } from './brands.ts';
 
 interface SignTheme {
   bg: string;
@@ -26,11 +27,20 @@ function themeFor(use: string): SignTheme {
 }
 
 function signTexture(text: string, theme: SignTheme, aspect: number): THREE.CanvasTexture {
-  const h = 96, w = Math.min(1024, Math.max(192, Math.round(h * aspect)));
+  const brand = brandFor(text);
+  // Logos get a bigger canvas so they stay crisp (square boards stay square).
+  const h = brand ? 256 : 96, w = Math.min(1024, Math.max(brand ? 256 : 192, Math.round(h * aspect)));
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
   const g = c.getContext('2d')!;
+  if (brand) {
+    brand.draw(g, w, h);
+    const bt = new THREE.CanvasTexture(c);
+    bt.colorSpace = THREE.SRGBColorSpace;
+    bt.anisotropy = 8;
+    return bt;
+  }
   g.fillStyle = theme.bg;
   g.fillRect(0, 0, w, h);
   if (theme.accent) {
@@ -200,7 +210,7 @@ export function buildSigns(data: ChunkData, groundAt?: (x: number, z: number) =>
     const theme = themeFor(LANDMARKS[b.id]?.use ?? b.use!);
     const height = theme.big ? 1.6 : 0.85;
     const width = Math.min(wall.len * 0.8, Math.max(2.4, text.length * height * 0.55), theme.big ? 16 : 8);
-    const tex = signTexture(text, theme, width / height);
+    const tex = signTexture(text, theme, brandFor(text) ? Math.min(width / height, 5) : width / height);
     const face = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.45, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.12 });
     // Board (one draw call) with the printed face as a plane just in front of it.
     const geo = new THREE.BoxGeometry(width + 0.08, height + 0.08, 0.12);
