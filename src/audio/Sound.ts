@@ -155,10 +155,10 @@ export class Sound {
   }
 
   /** Pistol shot: a sharp crack and a lower boom. */
-  gunshot() {
+  gunshot(volume = 1) {
     if (!this.ctx) return;
-    this.burst(0.9, 6000, 0.09);
-    this.burst(0.7, 700, 0.3);
+    this.burst(0.9 * volume, 6000, 0.09);
+    this.burst(0.7 * volume, 700, 0.3);
   }
 
   /** Car explosion: a deep boom with a long rumble. */

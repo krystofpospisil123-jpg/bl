@@ -74,6 +74,11 @@ export class Game {
   interior?: Interior;
   readonly garage = new Garage(this.arsenal);
   private lastThrottle = 0;
+  /** The player's health (0-100); at zero they are taken to hospital (wasted). */
+  health = 100;
+  /** Red screen flash after a hit (0-1, fades out). */
+  hurtFlash = 0;
+  private lastHurt = -1e9;
   /** Paused from the menu (Esc): the world stops, rendering goes on. */
   paused = false;
   private ready = false;
@@ -171,7 +176,7 @@ export class Game {
       this.pedestrians = new Pedestrians(new Graph(graphs.walk, false), this.heights);
       if (this.touch) {
         this.traffic.maxCars = 12;
-        this.pedestrians.maxPeds = 24;
+        this.pedestrians.maxPeds = 12;
       }
       this.police = new Police(new Graph(graphs.drive, true), p, this.heights);
       // Crimes raise the wanted level; police catching you ends the chase.
@@ -185,6 +190,10 @@ export class Game {
         else this.say(`Hledanost ${'★'.repeat(level)}`);
       };
       this.police.onBusted = () => this.busted();
+      // Officers on foot shoot at the player; the player can shoot back.
+      this.police.onShootPlayer = (dmg) => this.hurt(dmg);
+      this.police.onGunshot = (pos) => this.sound.gunshot(THREE.MathUtils.clamp(1 - pos.distanceTo(this.focus) / 90, 0.15, 0.7));
+      this.police.onCopKilled = (pos) => this.pickups.drop(pos, 150 + Math.round(Math.random() * 10) * 20);
       this.weapon.onCrime = (amount, reason) => this.police?.report(amount, reason);
       this.weapon.onShot = () => this.sound.gunshot();
       this.weapon.onEmpty = () => {
@@ -389,6 +398,10 @@ export class Game {
         Object.assign(this.car.tuning, { engine: 3, exhaust: 2, spoiler: true, lowered: true, neon: 0x2f7bff, rims: 0xc9a23a });
         this.car.applyTuning();
         return 'Plný tuning hotový';
+      case 'zdravi':
+      case 'heal':
+        this.health = 100;
+        return 'Zdraví doplněno';
       case 'oprava':
         if (!this.car) return 'Auto ještě není';
         this.car.setLook(this.car.look.color, this.car.look.type);
@@ -501,6 +514,25 @@ export class Game {
 
   /** Caught by the police: start again on foot at náměstí Republiky, the car beside you. */
   private busted() {
+    this.respawn(0.2, (fine) => `ZATČEN! Pokuta ${formatKc(fine)}. Začínáš znovu na náměstí Republiky.`);
+  }
+
+  /** Health ran out: wake up at náměstí Republiky, a bit poorer. */
+  private wasted() {
+    this.police?.clear();
+    this.respawn(0.1, (fine) => `ZABIT! Nemocnice tě stála ${formatKc(fine)}. Začínáš znovu na náměstí Republiky.`);
+  }
+
+  /** Damages the player (shot, crash). Not while loading, flying or inside a store. */
+  hurt(amount: number) {
+    if (this.mode === 'loading' || this.mode === 'fly' || this.insideStore || this.health <= 0 || amount <= 0) return;
+    this.health = Math.max(0, this.health - amount);
+    this.lastHurt = performance.now();
+    this.hurtFlash = Math.min(1, this.hurtFlash + 0.25 + amount / 25);
+    if (this.health <= 0) this.wasted();
+  }
+
+  private respawn(fineFraction: number, text: (fine: number) => string) {
     if (!this.car || !this.player) return;
     const g = this.heights.sample(SPAWN.x, SPAWN.z);
     this.car.reset(new THREE.Vector3(SPAWN.x, g + 1.2, SPAWN.z), SPAWN.yaw);
@@ -510,13 +542,15 @@ export class Game {
     this.player.setActive(true);
     this.chase?.setYaw(SPAWN.yaw);
     this.setMode('foot');
+    this.health = 100;
+    this.hurtFlash = 0;
     // A fine, and the car comes back from the police repaired.
-    const fine = Math.round(this.arsenal.money * 0.2);
+    const fine = Math.round(this.arsenal.money * fineFraction);
     this.arsenal.money -= fine;
     this.arsenal.current = null;
     this.car.setLook(this.car.look.color, this.car.look.type);
     this.car.applyTuning();
-    this.say(`ZATČEN! Pokuta ${formatKc(fine)}. Začínáš znovu na náměstí Republiky.`, 5);
+    this.say(text(fine), 5);
   }
 
   /** From the free camera: put the player (and the car beside them) under the camera. */
@@ -630,6 +664,9 @@ export class Game {
     this.menu?.update();
     if (!this.paused) this.effects.update(dt);
     this.hud.update(dt);
+    this.hurtFlash = Math.max(0, this.hurtFlash - dt * 1.4);
+    // Slow recovery when nobody has hurt the player for a while.
+    if (!this.paused && this.health > 0 && this.health < 100 && performance.now() - this.lastHurt > 8000) this.health = Math.min(100, this.health + dt * 2);
     if (this.minimap && (this.mode === 'car' || this.mode === 'foot' || this.mode === 'fly')) {
       const yaw = this.mode === 'fly' ? this.fly.yaw + Math.PI : this.chase?.viewYaw ?? 0;
       this.minimap.update(this.focus, yaw, this.mode === 'foot' ? this.car?.position ?? null : null,
@@ -768,6 +805,10 @@ export class Game {
     const g = this.heights.sample(SPAWN.x, SPAWN.z);
     this.car = new Car(this.physics!, new THREE.Vector3(SPAWN.x, g + 1.2, SPAWN.z), SPAWN.yaw);
     this.scene.add(this.car.model.root);
+    // A hard crash hurts the driver.
+    this.car.onCrash = (strength) => {
+      if (this.mode === 'car') this.hurt(Math.min(60, Math.max(0, strength - 7) * 2.2));
+    };
     // The player stands by the driver's door, facing the same way as the car.
     const door = new THREE.Vector3(2.2, 0, 0.3).applyAxisAngle(new THREE.Vector3(0, 1, 0), SPAWN.yaw);
     const px = SPAWN.x + door.x, pz = SPAWN.z + door.z;

@@ -6,8 +6,8 @@ import type { HeightField } from '../world/HeightField.ts';
 import { Graph, type Lane } from './Graph.ts';
 import { assets } from '../assets/models.ts';
 
-const MAX_PEDS = 60;
-const SPAWN_MIN = 25, SPAWN_MAX = 200, DESPAWN = 240;
+const MAX_PEDS = 24;
+const SPAWN_MIN = 35, SPAWN_MAX = 170, DESPAWN = 210;
 const SIDEWALK = new Set(['residential', 'unclassified', 'tertiary', 'secondary']);
 const ROAD_HALF_WIDTH: Record<string, number> = { residential: 3, unclassified: 3, tertiary: 3.5, secondary: 4.25 };
 
@@ -98,7 +98,7 @@ export class Pedestrians {
   private offsetFor(p: Ped): number {
     const e = this.graph.edges[p.lane.edge];
     const base = SIDEWALK.has(e.kind) ? (ROAD_HALF_WIDTH[e.kind] ?? 3) + 1.1 : 0.35;
-    return p.side * base + p.sideways;
+    return p.side * (base + p.sideways);
   }
 
   private spawn(focus: THREE.Vector3, minDist: number) {
@@ -168,8 +168,8 @@ export class Pedestrians {
     for (let i = this.peds.length - 1; i >= 0; i--) if (this.peds[i].pos.distanceTo(focus) > DESPAWN && !this.peds[i].fresh) this.peds.splice(i, 1);
     this.spawnTimer -= dt;
     if (this.enabled && this.peds.length < this.maxPeds && this.spawnTimer <= 0) {
-      this.spawn(focus, this.peds.length < this.maxPeds / 2 ? 10 : SPAWN_MIN);
-      this.spawnTimer = 0.08;
+      this.spawn(focus, SPAWN_MIN);
+      this.spawnTimer = 0.7;
     }
 
     const g = this.graph;
@@ -202,10 +202,9 @@ export class Pedestrians {
           continue;
         }
         if (along > 0 && along < 14 && lateral < 2.5) {
-          // Jump aside, away from the car's path.
-          const cross = carFwd.x * rel.z - carFwd.z * rel.x;
-          p.sideways += Math.sign(cross || 1) * p.side * 6 * dt;
-          p.sideways = THREE.MathUtils.clamp(p.sideways, -4, 4);
+          // Step back from the kerb (away from the road), never towards the car's path.
+          p.sideways += p.side * 3 * dt;
+          p.sideways = THREE.MathUtils.clamp(p.sideways, -0.2, 1.2);
         }
       }
       p.sideways *= Math.exp(-dt * 0.5);
@@ -218,7 +217,7 @@ export class Pedestrians {
         const opts = g.next(p.lane);
         p.lane = opts[Math.floor(Math.random() * opts.length)];
         p.s -= len;
-        if (Math.random() < 0.15) p.side = -p.side; // occasionally cross to the other sidewalk
+        if (p.panic <= 0 && Math.random() < 0.05) p.side = -p.side; // occasionally cross to the other sidewalk (never while fleeing)
       }
       g.sample(p.lane, p.s, tmp);
       const off = this.offsetFor(p);

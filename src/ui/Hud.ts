@@ -46,6 +46,9 @@ export class Hud {
   private wanted: HTMLElement;
   private money: HTMLElement;
   private ammo: HTMLElement;
+  private health: HTMLElement;
+  private healthFill: HTMLElement;
+  private hurt: HTMLElement;
   private shownWanted = '';
   private frames = 0;
   private acc = 0;
@@ -72,7 +75,13 @@ export class Hud {
     this.money.id = 'money';
     this.ammo = document.createElement('div');
     this.ammo.id = 'ammo';
-    document.body.append(this.speedo, this.prompt, this.wanted, this.money, this.ammo);
+    this.health = document.createElement('div');
+    this.health.id = 'health';
+    this.health.innerHTML = '<div class="fill"></div><span></span>';
+    this.healthFill = this.health.querySelector('.fill')!;
+    this.hurt = document.createElement('div');
+    this.hurt.id = 'hurt';
+    document.body.append(this.speedo, this.prompt, this.wanted, this.money, this.ammo, this.health, this.hurt);
     window.addEventListener('keydown', (e) => {
       if (e.target instanceof HTMLInputElement) return;
       if (e.code === 'KeyM' && e.shiftKey) location.hash = 'mapa';
@@ -106,6 +115,13 @@ export class Hud {
     const money = formatKc(g.arsenal.money);
     if (this.money.textContent !== money) this.money.textContent = money;
     this.money.hidden = g.mode === 'loading';
+    const hp = Math.ceil(g.health);
+    this.health.hidden = g.mode !== 'foot' && g.mode !== 'car';
+    this.healthFill.style.width = `${hp}%`;
+    this.health.classList.toggle('low', hp <= 30);
+    const label = this.health.querySelector('span')!;
+    if (label.textContent !== String(hp)) label.textContent = String(hp);
+    this.hurt.style.opacity = String(g.hurtFlash);
     const w = g.arsenal.current;
     this.ammo.hidden = g.mode !== 'foot' || !w;
     if (w) {

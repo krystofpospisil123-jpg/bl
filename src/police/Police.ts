@@ -8,6 +8,7 @@ import type { HeightField } from '../world/HeightField.ts';
 import { Graph, type Lane } from '../traffic/Graph.ts';
 import { assets, useCarAttributes } from '../assets/models.ts';
 import { CAR_SPEC } from '../vehicle/CarPhysics.ts';
+import { CharacterModel } from '../character/CharacterModel.ts';
 
 const RIDE_HEIGHT = 0.74;
 const SPAWN_MIN = 90, SPAWN_MAX = 170, DESPAWN = 420;
@@ -34,6 +35,26 @@ interface Unit {
   stuck: number;
   hitCooldown: number;
   hp: number;
+  /** Officers that got out of the car (the car stands still while they are out). */
+  cops: Cop[];
+  /** Seconds the player has been within reach (an officer gets out after a moment). */
+  dismount: number;
+  /** Seconds the player has been driving away (the officers get back in). */
+  escaping: number;
+  /** Seconds the car has been blocked by a wall in direct chase. */
+  blocked: number;
+  /** Don't get out again until this many seconds have passed. */
+  rest: number;
+}
+
+export interface Cop {
+  pos: THREE.Vector3;
+  yaw: number;
+  model: CharacterModel;
+  hp: number;
+  shootCd: number;
+  returning: boolean;
+  speed: number;
 }
 
 export interface PoliceTarget {
@@ -57,6 +78,12 @@ export class Police {
   arrest = 0;
   readonly arrestTime = 4;
   onBusted?: () => void;
+  /** An officer's bullet hit the player (damage in health points). */
+  onShootPlayer?: (damage: number) => void;
+  /** An officer fired (position, for the sound). */
+  onGunshot?: (pos: THREE.Vector3) => void;
+  /** An officer was shot dead (position, for the money drop). */
+  onCopKilled?: (pos: THREE.Vector3) => void;
   onWanted?: (level: number, reason: string) => void;
   /** Materials to compile during the loading screen (avoids a stutter at the first police car). */
   get warmMaterials(): THREE.Material[] {
@@ -66,6 +93,8 @@ export class Police {
   private lostFor = 0;
   private spawnTimer = 0;
   private flash = 0;
+  private tracers: THREE.LineSegments;
+  private tracerTtl = 0;
   private beaconOn: THREE.MeshStandardMaterial;
   private beaconOff: THREE.MeshStandardMaterial;
   private bodyMat = useCarAttributes(new THREE.MeshStandardMaterial({ metalness: 0.3 }));
@@ -73,6 +102,34 @@ export class Police {
   constructor(readonly graph: Graph, private phys: PhysicsWorld, private heights: HeightField) {
     this.beaconOn = new THREE.MeshStandardMaterial({ color: 0x6f95ff, emissive: 0x2a5cff, emissiveIntensity: 3, roughness: 0.2 });
     this.beaconOff = new THREE.MeshStandardMaterial({ color: 0x1b2d66, emissive: 0x0a1433, roughness: 0.2 });
+    const tg = new THREE.BufferGeometry();
+    tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(8 * 2 * 3).fill(-1e5), 3));
+    this.tracers = new THREE.LineSegments(tg, new THREE.LineBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.8 }));
+    this.tracers.frustumCulled = false;
+    this.tracers.visible = false;
+    this.group.add(this.tracers);
+  }
+
+  /** All officers on foot (for the player's gunfire and the minimap). */
+  get cops(): Cop[] {
+    return this.units.flatMap((u) => u.cops);
+  }
+
+  /** The player shot an officer. */
+  hurtCop(c: Cop, amount: number) {
+    c.hp -= amount;
+    this.report(1, 'shooting at the police');
+    if (c.hp > 0) return;
+    for (const u of this.units) {
+      const i = u.cops.indexOf(c);
+      if (i >= 0) {
+        u.cops.splice(i, 1);
+        this.group.remove(c.model.root);
+        this.report(1, 'killed a police officer');
+        this.onCopKilled?.(c.pos.clone());
+        u.rest = 8;
+      }
+    }
   }
 
   /** A crime: raises the wanted level (pedestrian 1, police car 1, ramming traffic 0.5…). */
@@ -131,7 +188,7 @@ export class Police {
     const want = this.wanted === 0 ? 1 : Math.min(3, Math.ceil(this.wanted * 0.6));
     for (const u of [...this.units]) {
       // A chasing car that ended up far away (one-way streets) is replaced by a closer one.
-      if (u.pos.distanceTo(tp) > DESPAWN || (u.mode === 'chase' && u.pos.distanceTo(tp) > 220)) this.remove(u);
+      if (u.blocked > 3 || u.pos.distanceTo(tp) > DESPAWN || (u.mode === 'chase' && u.pos.distanceTo(tp) > 220)) this.remove(u);
     }
     const active = this.units.filter((u) => u.mode !== 'leave' && u.mode !== 'wreck');
     this.spawnTimer -= dt;
@@ -178,8 +235,10 @@ export class Police {
           u.hitCooldown = 3;
         }
       }
+      this.officers(u, dt, target, d);
       this.drive(u, dt, target);
     }
+    this.updateTracers(dt);
 
     // --- Flashing light bars: left and right alternate.
     this.flash += dt;
@@ -201,18 +260,40 @@ export class Police {
     const playerOnGround = tp.y < terrain + 3;
     let maxSpeed = u.mode === 'chase' ? CHASE_SPEED[this.wanted] : g.edges[u.lane.edge].speed * 0.85;
 
-    if (u.mode === 'chase' && d < 32 && playerOnGround) {
-      // Close: leave the road graph and head straight for the player (ram them in a car).
+    if (u.cops.length) {
+      // Officers are out: the car brakes to a stop and stays where it is.
+      u.speed = Math.max(0, u.speed - 16 * dt);
+      u.pos.x += Math.sin(u.yaw) * u.speed * dt;
+      u.pos.z += Math.cos(u.yaw) * u.speed * dt;
+      u.pos.y = this.heights.sample(u.pos.x, u.pos.z) + RIDE_HEIGHT;
+      this.applyPose(u);
+      return;
+    }
+
+    if (u.mode === 'chase' && d < 32 && playerOnGround && (u.direct || this.sees(u, tp))) {
+      // Close and in sight: leave the road graph and head for the player (ram them in a car).
+      // Walls in the way are steered around; a car that stays stuck is replaced.
       u.direct = true;
       const want = Math.atan2(tp.x - u.pos.x, tp.z - u.pos.z);
       let dy = want - u.yaw;
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       const turn = 1.6 * dt * Math.min(1, Math.abs(u.speed) / 4 + 0.3);
-      u.yaw += THREE.MathUtils.clamp(dy, -turn, turn);
+      const probe = 4 + Math.abs(u.speed) * 0.7;
+      const ahead = d > 9 ? this.free(u, u.yaw, probe) : probe;
+      let wallCap = Infinity;
+      if (ahead < probe) {
+        const l = this.free(u, u.yaw + 0.7, probe), r = this.free(u, u.yaw - 0.7, probe);
+        u.yaw += (l >= r ? 1 : -1) * 2.0 * dt * Math.min(1, Math.abs(u.speed) / 3 + 0.4);
+        wallCap = Math.max(0, ahead - 2.5) * 2;
+        u.blocked = ahead < 2.8 && u.speed < 1.5 ? u.blocked + dt : Math.max(0, u.blocked - dt);
+      } else {
+        u.yaw += THREE.MathUtils.clamp(dy, -turn, turn);
+        u.blocked = Math.max(0, u.blocked - dt);
+      }
       const stopAt = target.inCar ? 3 : 5; // they pull up next to you rather than ram at full speed
       // Braking curve: on foot they stop beside you, in a car they keep pushing.
       const room = Math.max(0, d - stopAt - 1);
-      const desired = Math.min(maxSpeed, Math.sqrt(2 * 9 * room) + (target.inCar ? 2 : 0)) * (Math.abs(dy) > 1.2 ? 0.4 : 1);
+      const desired = Math.min(maxSpeed, wallCap, Math.sqrt(2 * 9 * room) + (target.inCar ? 2 : 0)) * (Math.abs(dy) > 1.2 ? 0.4 : 1);
       u.speed += THREE.MathUtils.clamp(desired - u.speed, -14 * dt, 7 * dt);
       u.pos.x += Math.sin(u.yaw) * u.speed * dt;
       u.pos.z += Math.cos(u.yaw) * u.speed * dt;
@@ -262,11 +343,153 @@ export class Police {
       dy = Math.atan2(Math.sin(dy), Math.cos(dy));
       u.yaw += dy * (1 - Math.exp(-dt * 8));
     }
+    this.applyPose(u);
+  }
+
+  private applyPose(u: Unit) {
     const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), u.yaw);
     u.body.setNextKinematicTranslation(u.pos);
     u.body.setNextKinematicRotation(q);
     u.mesh.position.copy(u.pos);
     u.mesh.quaternion.copy(q);
+  }
+
+  /** Free distance (m) ahead of the bumper along `yaw`, following the ground; `len` if clear. */
+  private free(u: Unit, yaw: number, len: number): number {
+    const sx = Math.sin(yaw), cz = Math.cos(yaw);
+    const ox = u.pos.x + sx * 2.1, oz = u.pos.z + cz * 2.1;
+    const ex = ox + sx * len, ez = oz + cz * len;
+    const oy = this.heights.sample(ox, oz) + 0.9, ey = this.heights.sample(ex, ez) + 0.9;
+    const dir = new THREE.Vector3(ex - ox, ey - oy, ez - oz);
+    const l = dir.length();
+    dir.divideScalar(l);
+    const hit = this.phys.castRay({ x: ox, y: oy, z: oz }, dir, l, u.body);
+    return hit >= l ? len : hit;
+  }
+
+  /** Clear line of sight from the car to the target (no wall between)? */
+  private sees(u: Unit, tp: THREE.Vector3): boolean {
+    const o = { x: u.pos.x, y: u.pos.y + 0.4, z: u.pos.z };
+    const dir = new THREE.Vector3(tp.x - o.x, tp.y + 0.8 - o.y, tp.z - o.z);
+    const l = dir.length();
+    if (l < 1) return true;
+    dir.divideScalar(l);
+    return this.phys.castRay(o, dir, l, u.body) >= l - 3;
+  }
+
+  // ---------------------------------------------------------------- officers on foot
+
+  /** Officers get out when the player is close and stands or crawls; they get back in if they run. */
+  private officers(u: Unit, dt: number, target: PoliceTarget, d: number) {
+    u.rest = Math.max(0, u.rest - dt);
+    const tp = target.position;
+    const chase = u.mode === 'chase' && this.wanted > 0;
+    if (!chase) {
+      for (const c of u.cops) this.group.remove(c.model.root);
+      u.cops.length = 0;
+      return;
+    }
+    const fast = target.inCar && Math.abs(target.speed) > 11;
+    const grounded = tp.y < this.heights.sample(tp.x, tp.z) + 3;
+    if (!u.cops.length) {
+      u.escaping = 0;
+      if (d < 24 && !fast && grounded && u.rest === 0 && u.speed < 8 && this.sees(u, tp)) this.dismountCops(u);
+      return;
+    }
+    // Racing away or far off: the officers run back to their car.
+    u.escaping = (fast && d > 26) || d > 55 ? u.escaping + dt : Math.max(0, u.escaping - dt);
+    const eye = new THREE.Vector3();
+    const chest = new THREE.Vector3(tp.x, tp.y + (target.inCar ? 0.5 : 1.2), tp.z);
+    for (const c of [...u.cops]) {
+      if (u.escaping > 1.5) c.returning = true;
+      const goal = c.returning ? u.pos : tp;
+      eye.set(c.pos.x, c.pos.y + 1.5, c.pos.z);
+      const toT = chest.clone().sub(eye);
+      const dist = toT.length();
+      toT.divideScalar(dist);
+      const los = !c.returning && dist < 70 && this.phys.castRay(eye, toT, dist, u.body) >= dist - 2.8;
+      // Walk toward the goal unless they have a clear shot from a good distance.
+      let move = 0;
+      const flat = new THREE.Vector3(goal.x - c.pos.x, 0, goal.z - c.pos.z);
+      const gd = flat.length();
+      if (c.returning ? gd > 2.2 : !(los && dist < 11) && gd > 4) move = c.returning || this.wanted >= 3 ? 5 : 3.6;
+      if (move > 0) {
+        flat.divideScalar(gd);
+        let dir = flat;
+        const probe = (v: THREE.Vector3) => this.phys.castRay({ x: c.pos.x, y: c.pos.y + 0.9, z: c.pos.z }, v, 1.1, u.body) >= 1.1;
+        if (!probe(dir)) {
+          const a = new THREE.Vector3(dir.z, 0, -dir.x), b = new THREE.Vector3(-dir.z, 0, dir.x);
+          dir = probe(a) ? a : probe(b) ? b : new THREE.Vector3();
+        }
+        c.speed = dir.lengthSq() > 0 ? move : 0;
+        c.pos.x += dir.x * c.speed * dt;
+        c.pos.z += dir.z * c.speed * dt;
+      } else c.speed = 0;
+      c.pos.y = this.heights.sample(c.pos.x, c.pos.z);
+      // Face the player when shooting, otherwise where they go.
+      const face = Math.atan2(goal.x - c.pos.x, goal.z - c.pos.z);
+      let dy = face - c.yaw;
+      dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+      c.yaw += dy * (1 - Math.exp(-dt * 10));
+      c.model.root.position.copy(c.pos);
+      c.model.root.rotation.y = c.yaw;
+      c.model.aiming = los;
+      c.model.animate(c.speed, true, dt);
+      if (c.returning && gd <= 2.2) {
+        this.group.remove(c.model.root);
+        u.cops.splice(u.cops.indexOf(c), 1);
+        u.rest = 4;
+        continue;
+      }
+      // Shoot.
+      c.shootCd -= dt;
+      if (los && dist < 55 && c.shootCd <= 0) {
+        c.shootCd = Math.max(0.5, 1.1 - this.wanted * 0.08) + Math.random() * 0.6;
+        const moving = target.inCar ? THREE.MathUtils.clamp(1 - Math.abs(target.speed) / 40, 0.45, 1) : 1;
+        const hit = Math.random() < THREE.MathUtils.clamp(0.6 - dist * 0.009, 0.12, 0.5) * moving;
+        const end = chest.clone();
+        if (!hit) end.add(new THREE.Vector3((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 5));
+        this.addTracer(c.model.muzzle(), end);
+        this.onGunshot?.(c.pos);
+        if (hit) this.onShootPlayer?.(4 + this.wanted * 1.2 + Math.random() * 2);
+      }
+    }
+  }
+
+  private dismountCops(u: Unit) {
+    const n = this.wanted >= 3 ? 2 : 1;
+    const right = new THREE.Vector3(Math.cos(u.yaw), 0, -Math.sin(u.yaw));
+    const fwd = new THREE.Vector3(Math.sin(u.yaw), 0, Math.cos(u.yaw));
+    for (let i = 0; i < n; i++) {
+      const pos = u.pos.clone().addScaledVector(right, i === 0 ? 2.3 : -2.3).addScaledVector(fwd, 0.6);
+      pos.y = this.heights.sample(pos.x, pos.z);
+      const model = new CharacterModel({ skin: [0xe0b394, 0xd1a07e, 0xb98a68][i % 3], hair: 0x2a2018, top: 0x24324f, legs: 0x1c2433, shoes: 0x111111 });
+      model.root.position.copy(pos);
+      this.group.add(model.root);
+      u.cops.push({ pos, yaw: u.yaw, model, hp: 50, shootCd: 0.8 + Math.random() * 0.6, returning: false, speed: 0 });
+    }
+  }
+
+  private addTracer(from: THREE.Vector3, to: THREE.Vector3) {
+    const pos = this.tracers.geometry.attributes.position as THREE.BufferAttribute;
+    const k = this.tracerIdx++ % 8;
+    pos.setXYZ(k * 2, from.x, from.y, from.z);
+    pos.setXYZ(k * 2 + 1, to.x, to.y, to.z);
+    pos.needsUpdate = true;
+    this.tracers.visible = true;
+    this.tracerTtl = 0.09;
+  }
+
+  private tracerIdx = 0;
+
+  private updateTracers(dt: number) {
+    if (!this.tracers.visible) return;
+    this.tracerTtl -= dt;
+    if (this.tracerTtl > 0) return;
+    this.tracers.visible = false;
+    const pos = this.tracers.geometry.attributes.position as THREE.BufferAttribute;
+    (pos.array as Float32Array).fill(-1e5);
+    pos.needsUpdate = true;
   }
 
   /** A* over the drive graph; returns the lanes to follow after `from`. */
@@ -351,13 +574,15 @@ export class Police {
       this.group.add(mesh);
       this.units.push({
         pos, yaw: Math.atan2(tmp.dx, tmp.dz), speed: 8, body, mesh, lane, s, path: [], repath: 0,
-        mode: this.wanted ? 'chase' : 'patrol', direct: false, stuck: 0, hitCooldown: 2, hp: 160,
+        mode: this.wanted ? 'chase' : 'patrol', direct: false, stuck: 0, hitCooldown: 2, hp: 160, cops: [], dismount: 0, escaping: 0, blocked: 0, rest: 0,
       });
       return;
     }
   }
 
   private remove(u: Unit) {
+    for (const c of u.cops) this.group.remove(c.model.root);
+    u.cops.length = 0;
     this.phys.world.removeRigidBody(u.body);
     this.group.remove(u.mesh);
     u.mesh.traverse((o) => {

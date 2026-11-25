@@ -133,6 +133,13 @@ export class Weapon {
           hit = () => ctx.police!.damage(u, spec.damage);
         }
       });
+      ctx.police?.cops.forEach((c) => {
+        const t = rayCapsule(o, d, c.pos, 1.8, 0.4);
+        if (t > minT && t < best) {
+          best = t;
+          hit = () => ctx.police!.hurtCop(c, spec.damage);
+        }
+      });
       (hit as (() => void) | null)?.();
       lastEnd = o.clone().addScaledVector(d, Math.min(best, RANGE));
       if (k < 8) {
