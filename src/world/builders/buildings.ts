@@ -21,13 +21,13 @@ const FLAT_ROOF_COLORS = [0x6d6d6b, 0x7c7b77, 0x5f6062, 0x8a8782];
 const NO_WINDOWS = new Set(['garage', 'garages', 'carport', 'shed', 'hut', 'roof', 'transformer_tower', 'service', 'kiosk', 'greenhouse']);
 const INDUSTRIAL = new Set(['industrial', 'warehouse', 'manufacture', 'hangar', 'barn', 'farm_auxiliary', 'stable', 'cowshed']);
 const COMMERCIAL = new Set(['commercial', 'retail', 'office', 'supermarket', 'civic', 'public', 'school', 'hospital', 'government', 'train_station', 'transportation']);
-const HOUSE = new Set(['house', 'detached', 'semidetached_house', 'bungalow', 'farm', 'terrace']);
+export const HOUSE = new Set(['house', 'detached', 'semidetached_house', 'bungalow', 'farm', 'terrace']);
 const PITCHABLE = new Set([...HOUSE, 'residential', 'yes', 'apartments', 'chapel', 'church', 'civic', 'barn', 'school', 'public']);
 
 /** Centre of the historic town (náměstí, zámek) – older facades are used around it. */
 const OLD_TOWN = { x: -40, z: 120, r: 480 };
 
-function hash(id: number, salt: number): number {
+export function hash(id: number, salt: number): number {
   let h = Math.imul(id ^ (id / 4294967296), 0x9e3779b1) ^ Math.imul(salt, 0x85ebca6b);
   h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d);
   return ((h ^ (h >>> 13)) >>> 0) / 4294967296;
@@ -51,7 +51,10 @@ class Builder {
   uv: number[][] = [[], [], []];
   col: number[][] = [[], [], []];
   fac: number[][] = [[], [], []];
+  inf: number[][] = [[], [], []];
   facade: [number, number] = [0, 0];
+  /** Per building: seed (0..1), bay width and floor height in metres (for the facade shader). */
+  info: [number, number, number] = [0, 3.2, 3];
 
   /** Adds a triangle to group `grp`, flipping it so its normal points along `want`. */
   tri(grp: number, a: number[], b: number[], c: number[], ua: number[], ub: number[], uc: number[], color: THREE.Color, want?: number[]) {
@@ -69,6 +72,7 @@ class Builder {
     for (let i = 0; i < 3; i++) {
       this.col[grp].push(color.r, color.g, color.b);
       this.fac[grp].push(this.facade[0], this.facade[1]);
+      this.inf[grp].push(this.info[0], this.info[1], this.info[2]);
     }
   }
 
@@ -85,6 +89,7 @@ class Builder {
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv.flat(), 2));
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.col.flat(), 3));
     g.setAttribute('facade', new THREE.Float32BufferAttribute(this.fac.flat(), 2));
+    g.setAttribute('binfo', new THREE.Float32BufferAttribute(this.inf.flat(), 3));
     let start = 0;
     for (let i = 0; i < 3; i++) {
       const count = this.pos[i].length / 3;
@@ -98,7 +103,7 @@ class Builder {
 }
 
 /** Signed area in (x, z); positive = counter-clockwise in the x/z plane. */
-function areaXZ(r: number[]): number {
+export function areaXZ(r: number[]): number {
   let a = 0;
   for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2) a += r[j] * r[i + 1] - r[i] * r[j + 1];
   return a / 2;
@@ -154,6 +159,13 @@ export interface BuildingStyle {
   tower?: Tower;
   sign: boolean;
   signFacing?: number;
+  /** Window bay width and floor height (m); seed 0..1 for per-building variation. */
+  bayW: number;
+  floorH: number;
+  seed: number;
+  /** Facade family: residential, panel, sorela, oldtown, industrial, commercial, garage. */
+  group: string;
+  house: boolean;
 }
 
 /** Resolves the look of a building from OSM data, its purpose and landmark overrides. */
@@ -186,7 +198,13 @@ export function resolveStyle(b: Building): BuildingStyle {
   const pitched = shape && shape !== 'flat';
   const roof = cssColor(lm.roofColour) ?? cssColor(b.roofColour) ?? photoRoof(b.roofPhoto)
     ?? new THREE.Color(pitched || HOUSE.has(b.kind) ? pick(PITCHED_ROOF_COLORS, b.id, 2) : pick(FLAT_ROOF_COLORS, b.id, 3));
-  return { h, top, wall, roof, roofShape: shape, facade, ground, tower: lm.tower, sign: !!lm.sign, signFacing: lm.signFacing };
+  // Window rhythm and storey height by type, varied a little per building.
+  const seed = hash(b.id, 9);
+  const house = HOUSE.has(b.kind);
+  const [bw, fh] = facade === FACADE.panel ? [3.0, 2.8] : facade === FACADE.sorela ? [3.4, 3.15] : facade === FACADE.oldtown || facade === FACADE.civic || facade === FACADE.castle || facade === FACADE.ornate ? [3.6, 3.7]
+    : facade === FACADE.industrial ? [4.6, 4.2] : facade === FACADE.supermarket ? [4.0, 4.5] : facade === FACADE.glass ? [3.2, 3.5] : house ? [2.9, 2.85] : [3.2, 3.0];
+  const bayW = bw * (0.92 + hash(b.id, 10) * 0.16), floorH = fh * (0.96 + hash(b.id, 11) * 0.08);
+  return { h, top, wall, roof, roofShape: shape, facade, ground, tower: lm.tower, sign: !!lm.sign, signFacing: lm.signFacing, bayW, floorH, seed, group, house };
 }
 
 export function buildBuildingsGeometry(buildings: Building[]): THREE.BufferGeometry | null {
@@ -195,14 +213,20 @@ export function buildBuildingsGeometry(buildings: Building[]): THREE.BufferGeome
   return B.build();
 }
 
-function addBuilding(B: Builder, b: Building, st: BuildingStyle) {
+export interface RoofPlan {
+  roof: 'gable' | 'hip' | 'pyramid' | 'inset' | 'flat';
+  roofH: number;
+  eave: number;
+  baseLevel: number;
+  bottom: number;
+  rect: Rect | null;
+}
+
+/** The roof form the footprint supports, and the heights of the walls. */
+export function roofPlan(b: Building, st: BuildingStyle): RoofPlan {
   const baseLevel = st.top - st.h;
   const bottom = b.minH > 0 ? baseLevel + b.minH : b.ground - 0.6;
-  if (st.top - bottom < 1) return;
-  B.facade = [st.facade, st.ground];
   const outer = b.rings[0];
-
-  // Choose the roof form the footprint supports.
   const area = Math.abs(areaXZ(outer));
   let roofH = 0;
   let roof: 'gable' | 'hip' | 'pyramid' | 'inset' | 'flat' = 'flat';
@@ -222,13 +246,21 @@ function addBuilding(B: Builder, b: Building, st: BuildingStyle) {
     }
     if (st.top - roofH - baseLevel < 2.4) { roof = 'flat'; roofH = 0; }
   }
-  const eave = st.top - roofH;
+  return { roof, roofH, eave: st.top - roofH, baseLevel, bottom, rect };
+}
 
-  addWalls(B, b, bottom, eave, baseLevel, st.wall);
+function addBuilding(B: Builder, b: Building, st: BuildingStyle) {
+  const { roof, eave, baseLevel, bottom, rect } = roofPlan(b, st);
+  if (st.top - bottom < 1) return;
+  B.facade = [st.facade, st.ground];
+  B.info = [st.seed, st.bayW, st.floorH];
+  const outer = b.rings[0];
+
+  addWalls(B, b, bottom, eave, baseLevel, st.wall, st.bayW, st.floorH);
   switch (roof) {
     case 'gable':
     case 'hip':
-      addRectRoof(B, rect!, eave, st.top, roof === 'hip', st.wall, st.roof, baseLevel);
+      addRectRoof(B, rect!, eave, st.top, roof === 'hip', st.wall, st.roof, baseLevel, st.bayW, st.floorH);
       break;
     case 'pyramid':
       addPyramidRoof(B, outer, eave, st.top, st.roof);
@@ -242,7 +274,7 @@ function addBuilding(B: Builder, b: Building, st: BuildingStyle) {
   if (st.tower) addTower(B, b, st, baseLevel);
 }
 
-function addWalls(B: Builder, b: Building, bottom: number, eave: number, baseLevel: number, color: THREE.Color) {
+function addWalls(B: Builder, b: Building, bottom: number, eave: number, baseLevel: number, color: THREE.Color, bayW = 3.2, floorH = 3) {
   const outer = b.rings[0];
   for (const ring of b.rings) {
     const ccw = areaXZ(ring) > 0;
@@ -258,9 +290,9 @@ function addWalls(B: Builder, b: Building, bottom: number, eave: number, baseLev
       let nz = ccw ? -(bx - ax) : bx - ax;
       if (isHole) { nx = -nx; nz = -nz; }
       // Whole bays only, so windows are not cut at corners.
-      const bays = Math.max(1, Math.round(len / 3.2));
+      const bays = Math.max(1, Math.round(len / bayW));
       const u0 = dist, u1 = dist + bays;
-      const v0 = (bottom - baseLevel) / 3, v1 = (eave - baseLevel) / 3;
+      const v0 = (bottom - baseLevel) / floorH, v1 = (eave - baseLevel) / floorH;
       B.quad(0, [ax, bottom, az], [bx, bottom, bz], [bx, eave, bz], [ax, eave, az], [u0, v0], [u1, v0], [u1, v1], [u0, v1], color, [nx, 0, nz]);
       dist += bays;
     }
@@ -283,7 +315,7 @@ function addFlatRoof(B: Builder, rings: number[][], y: number, color: THREE.Colo
   }
 }
 
-interface Rect {
+export interface Rect {
   c: number[][]; // 4 corners [x, z]
   long: number; // index of a long edge
   short: number;
@@ -291,7 +323,7 @@ interface Rect {
 }
 
 /** Recognises nearly rectangular single-ring footprints. */
-function rectangle(b: Building): Rect | null {
+export function rectangle(b: Building): Rect | null {
   if (b.rings.length !== 1 || b.rings[0].length !== 8) return null;
   const r = b.rings[0];
   const c = [0, 1, 2, 3].map((i) => [r[i * 2], r[i * 2 + 1]]);
@@ -301,7 +333,7 @@ function rectangle(b: Building): Rect | null {
   return { c, long: w0 >= w1 ? 0 : 1, short: Math.min(w0, w1), length: Math.max(w0, w1) };
 }
 
-function addRectRoof(B: Builder, p: Rect, eave: number, ridge: number, hip: boolean, wallColor: THREE.Color, roofColor: THREE.Color, baseLevel: number) {
+function addRectRoof(B: Builder, p: Rect, eave: number, ridge: number, hip: boolean, wallColor: THREE.Color, roofColor: THREE.Color, baseLevel: number, bayW = 3.2, floorH = 3) {
   const c = p.c, k = p.long;
   const A = c[k], Bc = c[(k + 1) % 4], C = c[(k + 2) % 4], D = c[(k + 3) % 4];
   let r0 = [(D[0] + A[0]) / 2, (D[1] + A[1]) / 2];
@@ -335,8 +367,8 @@ function addRectRoof(B: Builder, p: Rect, eave: number, ridge: number, hip: bool
   } else {
     const gable = (e0: number[], e1: number[], top: number[]) => {
       const want = [top[0] - cx, 0, top[1] - cz];
-      const w = Math.max(1, Math.round(Math.hypot(e1[0] - e0[0], e1[1] - e0[1]) / 3.2));
-      const v0 = (eave - baseLevel) / 3, v1 = (ridge - baseLevel) / 3;
+      const w = Math.max(1, Math.round(Math.hypot(e1[0] - e0[0], e1[1] - e0[1]) / bayW));
+      const v0 = (eave - baseLevel) / floorH, v1 = (ridge - baseLevel) / floorH;
       B.tri(0, P(e0, eave), P(e1, eave), P(top, ridge), [0, v0], [w, v0], [w / 2, v1], wallColor, want);
     };
     gable(D, A, r0);
@@ -438,6 +470,7 @@ function addTower(B: Builder, b: Building, st: BuildingStyle, baseLevel: number)
   const tb: Building = { ...b, rings: [ring], minH: 0 };
   const eave = baseLevel + t.height;
   B.facade = [FACADE.ornate, FACADE.ornate];
+  B.info = [st.seed, 3.2, 3];
   addWalls(B, tb, b.ground - 0.6, eave, baseLevel, st.wall);
   addPyramidRoof(B, ring, eave, eave + t.roofHeight, st.roof);
 }

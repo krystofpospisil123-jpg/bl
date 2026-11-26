@@ -365,56 +365,167 @@ export function applyPhotoFacades(atlas: { map: THREE.Texture; roughness: THREE.
 }
 
 /**
+ * Wall detail texture (tileable, 256 px = one bay x one floor): R = fine plaster grain (used as
+ * a bump map), G = vertical rain streaks, B = blotchy weathering.
+ */
+export function makeFacadeDetail(): THREE.Texture {
+  const N = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(N, N);
+  let seed = 1234567;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  // Value noise on a periodic lattice.
+  const lattice = (cells: number) => {
+    const v = Array.from({ length: cells * cells }, rnd);
+    return (x: number, y: number) => {
+      const fx = (x / N) * cells, fy = (y / N) * cells;
+      const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+      const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+      const at = (i: number, j: number) => v[(((j % cells) + cells) % cells) * cells + (((i % cells) + cells) % cells)];
+      const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * sx;
+      const b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * sx;
+      return a + (b - a) * sy;
+    };
+  };
+  const fine = lattice(128), mid = lattice(32), coarse = lattice(8), streakX = lattice(64), streakY = lattice(4);
+  for (let y = 0; y < N; y++)
+    for (let x = 0; x < N; x++) {
+      const k = (y * N + x) * 4;
+      img.data[k] = (fine(x, y) * 0.6 + mid(x, y) * 0.4) * 255;
+      // Streaks: narrow in x, long in y, fading in and out.
+      const st = Math.max(0, streakX(x, 0) - 0.55) * 2.2 * (0.4 + 0.6 * streakY(0, y));
+      img.data[k + 1] = Math.min(1, st) * 255;
+      img.data[k + 2] = (coarse(x, y) * 0.7 + mid(x, y) * 0.3) * 255;
+      img.data[k + 3] = 255;
+    }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 4;
+  return t;
+}
+
+/** Same integer hash as the shader's `facadeIHash` (balcony bays must match the 3D balconies). */
+export function facadeIHash(a: number, b: number): number {
+  let h = (Math.imul((a + 4096) >>> 0, 73856093) ^ Math.imul(b >>> 0, 19349663)) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  h = Math.imul(h, 1274126177) >>> 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  return (h & 65535) / 65536;
+}
+
+/** Balcony bay test shared by the shader and the 3D balcony builder. */
+export function isBalconyBay(cellX: number, style: number, seed: number): boolean {
+  return facadeIHash(cellX + Math.floor(seed * 1000), style + 19) < 0.34;
+}
+
+/** Accent colours of insulated panel blocks (renovated paneláky). */
+export const PANEL_ACCENTS = [0xe8a33d, 0x8fbf5a, 0x5d8fc9, 0xd9c24a, 0xc95d4a, 0x9b7bc4, 0x4fb3a6];
+
+/**
  * Patches a MeshStandardMaterial so `uv` (bays, floors) is mapped into the atlas using the
- * per-vertex `facade` attribute (x = upper-floor style, y = ground-floor style).
+ * per-vertex `facade` attribute (x = upper-floor style, y = ground-floor style) and `binfo`
+ * (seed, bay width, floor height). Windows look recessed (parallax: the glass is sampled
+ * behind the wall and the reveal shows at grazing angles), plaster gets a bump, rain streaks
+ * and weathering, and insulated panel blocks get colour bands.
  */
 export function applyFacadeAtlas(mat: THREE.MeshStandardMaterial) {
   const rowH = (1 / ROWS).toFixed(5);
   const colW = (1 / ATLAS_COLS).toFixed(5);
+  const accents = PANEL_ACCENTS.map((h) => {
+    const c = new THREE.Color(h);
+    return `vec3(${c.r.toFixed(4)}, ${c.g.toFixed(4)}, ${c.b.toFixed(4)})`;
+  });
   mat.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nattribute vec2 facade;\nvarying vec2 vFacade;\nvarying vec2 vFacadeUv;')
-      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvFacade = facade;\nvFacadeUv = uv;');
+      .replace('#include <common>', `#include <common>
+        attribute vec2 facade; attribute vec3 binfo;
+        varying vec2 vFacade; varying vec2 vFacadeUv; varying vec3 vBInfo; varying vec3 vWPos; varying vec3 vWNormal;`)
+      .replace('#include <uv_vertex>', '#include <uv_vertex>\nvFacade = facade;\nvFacadeUv = uv;\nvBInfo = binfo;')
+      .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+        vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+        vWNormal = normalize(mat3(modelMatrix) * objectNormal);`);
     const atlasFn = /* glsl */ `
       varying vec2 vFacade;
       varying vec2 vFacadeUv;
+      varying vec3 vBInfo;
+      varying vec3 vWPos;
+      varying vec3 vWNormal;
       float facadeHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      vec2 facadeAtlasUv() {
-        vec2 cell = floor(vFacadeUv);
-        vec2 f = fract(vFacadeUv);
+      float facadeIHash(float a, float b) {
+        uint h = (uint(int(a) + 4096) * 73856093u) ^ (uint(int(b)) * 19349663u);
+        h ^= h >> 13u; h *= 1274126177u; h ^= h >> 16u;
+        return float(h & 65535u) / 65536.0;
+      }
+      vec2 facadeAtlasUv(vec2 fuv) {
+        vec2 cell = floor(fuv);
+        vec2 f = fract(fuv);
         bool ground = cell.y < 0.5;
         float col = ground ? vFacade.y : vFacade.x;
         // Canvas row 0 (upper floors) is at the top of the texture (v near 1).
         float row = 0.0;
         if (ground) row = facadeHash(vec2(cell.x, col + 7.0)) < 0.22 ? 3.0 : 2.0;
-        else row = facadeHash(vec2(cell.x, col + 19.0)) < 0.34 ? 1.0 : 0.0; // balconies stack per bay
+        else row = facadeIHash(cell.x + floor(vBInfo.x * 1000.0), col + 19.0) < 0.34 ? 1.0 : 0.0; // balconies stack per bay
         float vBase = 1.0 - (row + 1.0) * ${rowH};
         return vec2((col + 0.005 + f.x * 0.99) * ${colW}, vBase + (0.004 + f.y * 0.992) * ${rowH});
-      }`;
+      }
+      const vec3 ACCENTS[${accents.length}] = vec3[](${accents.join(', ')});`;
     const grad = `dFdx(vFacadeUv) * vec2(${colW}, ${rowH}), dFdy(vFacadeUv) * vec2(${colW}, ${rowH})`;
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\n' + atlasFn)
       .replace(
         '#include <map_fragment>',
-        `vec2 atlasUv = facadeAtlasUv();
-        vec4 sampledDiffuseColor = textureGrad(map, atlasUv, ${grad});
+        `vec2 atlasUv = facadeAtlasUv(vFacadeUv);
         float glassMask = 1.0 - smoothstep(0.08, 0.2, textureGrad(roughnessMap, atlasUv, ${grad}).g);
+        // Recessed windows: look through the wall plane to glass ~16 cm behind it. Where the
+        // ray meets wall instead, show the reveal (the opening's side), darker.
+        float reveal = 0.0;
+        if (glassMask > 0.5) {
+          vec3 Vw = normalize(cameraPosition - vWPos);
+          vec3 Nw = normalize(vWNormal);
+          vec3 Tw = normalize(vec3(-Nw.z, 0.0, Nw.x));
+          float vn = max(dot(Vw, Nw), 0.2);
+          vec2 shift = -0.16 / vn * vec2(dot(Vw, Tw) / vBInfo.y, Vw.y / vBInfo.z);
+          vec2 a2 = facadeAtlasUv(vFacadeUv + shift);
+          float g2 = 1.0 - smoothstep(0.08, 0.2, textureGrad(roughnessMap, a2, ${grad}).g);
+          if (g2 > 0.5) atlasUv = a2;
+          else { atlasUv = a2; reveal = 1.0; glassMask = 0.0; }
+        }
+        vec4 sampledDiffuseColor = textureGrad(map, atlasUv, ${grad});
         // Each window looks a little different: curtains, darker rooms, brighter reflections.
         float wh = facadeHash(floor(vFacadeUv) + vec2(vFacade.x * 13.0, 3.0));
         vec3 curtain = mix(vec3(1.0), vec3(1.9, 1.7, 1.4), step(0.78, wh) * 0.6);
         sampledDiffuseColor.rgb *= mix(vec3(1.0), curtain * (0.75 + 0.5 * wh), glassMask);
-        // Walls get dirtier towards the ground.
-        float grime = mix(0.84, 1.0, smoothstep(-0.2, 0.9, vFacadeUv.y));
+        sampledDiffuseColor.rgb *= 1.0 - reveal * 0.42;
+        // Weathering: dirtier towards the ground, rain streaks, blotches.
+        vec3 det = texture2D(bumpMap, vFacadeUv * vec2(1.0, 0.5)).rgb;
+        float grime = mix(0.82, 1.0, smoothstep(-0.2, 0.9, vFacadeUv.y));
+        grime *= 1.0 - 0.13 * det.g - 0.06 * (det.b - 0.5);
         sampledDiffuseColor.rgb *= mix(grime, 1.0, glassMask);
         diffuseColor *= sampledDiffuseColor;
-        float facadeTint = textureGrad(roughnessMap, atlasUv, ${grad}).b;`,
+        float facadeTint = textureGrad(roughnessMap, atlasUv, ${grad}).b;
+        // Insulated panel / sorela blocks: colour bands chosen per building.
+        vec3 accent = ACCENTS[int(vBInfo.x * ${accents.length}.0) % ${accents.length}];
+        float accentMask = 0.0;
+        bool panelish = abs(vFacade.x - 1.0) < 0.5;
+        if (panelish && vBInfo.x > 0.22 && floor(vFacadeUv.y) >= 1.0) {
+          float kind = fract(vBInfo.x * 7.31);
+          float cx = floor(vFacadeUv.x), cy = floor(vFacadeUv.y);
+          if (kind < 0.4) accentMask = step(mod(cx + floor(vBInfo.x * 50.0), 4.0), 0.5);            // vertical stripes
+          else if (kind < 0.7) accentMask = step(mod(cy, 3.0), 0.5);                                   // horizontal bands
+          else accentMask = step(0.5, fract(vFacadeUv.x * 0.5 + 0.25)) * step(mod(cx + cy, 2.0), 0.5); // chequer
+        }`,
       )
       // Building colour only on plaster (tint mask), not on frames, stone or doors.
-      .replace('#include <color_fragment>', 'diffuseColor.rgb *= mix(vec3(1.0), vColor.rgb, facadeTint);')
+      .replace('#include <color_fragment>', 'diffuseColor.rgb *= mix(vec3(1.0), mix(vColor.rgb, accent * 1.05, accentMask * 0.85), facadeTint);')
       .replace(
         '#include <roughnessmap_fragment>',
         `float roughnessFactor = roughness;\nroughnessFactor *= textureGrad(roughnessMap, atlasUv, ${grad}).g;`,
-      );
+      )
+      // Plaster bump only on the wall, not on glass.
+      .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace('dHdxy_fwd()', 'dHdxy_fwd() * (1.0 - glassMask) * (1.0 - reveal)'));
   };
-  mat.customProgramCacheKey = () => 'facade-atlas-v4';
+  mat.customProgramCacheKey = () => 'facade-atlas-v5';
 }

@@ -511,3 +511,17 @@ Velká mapa (M nebo klik na minimapu) se dá posouvat a přibližovat; klik do n
 (znovu klik na cíl ho zruší). Navigace najde nejkratší cestu po silnicích (v autě dodržuje
 jednosměrky), ukáže ji fialově, hlásí další odbočku a vzdálenost a v cíli stojí fialový světelný
 sloup. Cíl jde nastavit i v telefonu (Mapa: klepnutím, nebo tlačítkem ➤ u místa v okolí).
+
+## Vzhled budov
+
+- **Fasády** (`src/render/facades.ts`): okna jsou opticky zapuštěná (parallax – sklo se kreslí
+  ~16 cm za rovinou zdi, pod úhlem je vidět ostění), omítka má jemnou plastičnost (bump), stěny
+  mají stékající špínu a skvrny, u země jsou tmavší. Zateplené paneláky dostávají barevné pruhy,
+  pásy nebo šachovnici (barva podle budovy).
+- **3D detaily** (`src/world/builders/buildingDetails.ts`, jen zblízka): sokl, římsy, atiky
+  s oplechováním, kordonové římsy u starých domů, okapy a čela pod šikmými střechami, svody na
+  rozích, balkony na panelácích a sorele (přesně na balkonových osách fasády), komíny, střešní
+  okna, vikýře u rodinných domů, vzduchotechnika a strojovny výtahů na plochých střechách
+  a pruhované markýzy nad obchody. Stěny sdílené se sousední budovou detaily nedostávají.
+- **Rozmanitost**: šířka okenních os a výška pater podle typu budovy (paneláky nižší patra,
+  staré město vyšší, průmysl širší) s náhodnou odchylkou pro každý dům.

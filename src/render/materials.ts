@@ -1,7 +1,7 @@
 // Shared materials and procedurally generated textures (no external assets).
 import * as THREE from 'three';
 import { useCarAttributes } from '../assets/models.ts';
-import { makeFacadeAtlas, applyFacadeAtlas } from './facades.ts';
+import { makeFacadeAtlas, applyFacadeAtlas, makeFacadeDetail } from './facades.ts';
 import { makeNoiseCanvas } from './noise.ts';
 export { makeNoiseCanvas } from './noise.ts';
 
@@ -114,6 +114,8 @@ export class Materials {
   readonly walls: THREE.MeshStandardMaterial;
   readonly roofs: THREE.MeshStandardMaterial;
   readonly flatRoofs = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+  /** 3D building details near the viewer (cornices, balconies, chimneys, awnings…). */
+  readonly buildingDetails = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.04 });
   readonly trees = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
   readonly water: THREE.MeshStandardMaterial;
   readonly bridge = new THREE.MeshStandardMaterial({ color: 0x9a958e, roughness: 0.85 });
@@ -128,7 +130,8 @@ export class Materials {
 
   constructor() {
     const atlas = makeFacadeAtlas();
-    this.walls = new THREE.MeshStandardMaterial({ vertexColors: true, map: atlas.map, roughnessMap: atlas.roughness, roughness: 1, metalness: 0.05 });
+    const detail = makeFacadeDetail();
+    this.walls = new THREE.MeshStandardMaterial({ vertexColors: true, map: atlas.map, roughnessMap: atlas.roughness, roughness: 1, metalness: 0.05, bumpMap: detail, bumpScale: 0.22 });
     applyFacadeAtlas(this.walls);
     this.roofs = new THREE.MeshStandardMaterial({ vertexColors: true, map: makeRoofTexture(), roughness: 0.8 });
 

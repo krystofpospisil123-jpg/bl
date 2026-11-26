@@ -6,6 +6,7 @@ import type { Materials } from '../render/materials.ts';
 import { buildTerrainGeometry } from './builders/terrain.ts';
 import { GroundPainter } from './GroundPainter.ts';
 import { buildBuildingsGeometry } from './builders/buildings.ts';
+import { buildBuildingDetails } from './builders/buildingDetails.ts';
 import { ChunkTrees } from './builders/trees.ts';
 import { buildWaterGeometry, buildBridgeGeometry } from './builders/water.ts';
 import { buildTrafficSigns, type ChunkSigns } from './builders/trafficSigns.ts';
@@ -41,6 +42,8 @@ interface ChunkState {
   propBoxes: number[];
   /** Small details shown only near the viewer (props, parked cars) / at medium range (lamps). */
   propsGroup?: THREE.Group;
+  /** 3D building details (cornices, balconies…), only near the viewer. */
+  details?: THREE.Mesh;
   trafficSigns?: THREE.Group;
   signItems?: ChunkSigns;
   lampMesh?: THREE.Object3D;
@@ -80,7 +83,11 @@ export class ChunkManager {
   private lods = DESKTOP_LODS;
 
   /** Lighter settings for phones: shorter view distance, smaller ground textures. */
+  /** Phones: fewer shadows and details. */
+  private mobile = false;
+
   useMobileProfile() {
+    this.mobile = true;
     this.viewDistance = 1000;
     this.budgetMs = 4;
     this.lods = [
@@ -280,6 +287,14 @@ export class ChunkManager {
         st.disposables.push(bGeo);
         st.collisionMeshes.push(bGeo.attributes.position.array as Float32Array);
       }
+      const dGeo = buildBuildingDetails(data.data);
+      if (dGeo) {
+        st.details = new THREE.Mesh(dGeo, this.mats.buildingDetails);
+        st.details.receiveShadow = true;
+        st.details.castShadow = !this.mobile;
+        st.group.add(st.details);
+        st.disposables.push(dGeo);
+      }
       const wGeo = buildWaterGeometry(data.data, st.rect, this.heights);
       if (wGeo) {
         const mesh = new THREE.Mesh(wGeo, this.mats.water);
@@ -380,6 +395,7 @@ export class ChunkManager {
     st.lod = st.wantLod;
     // Small details only where they can be seen.
     if (st.propsGroup) st.propsGroup.visible = st.lod === 0;
+    if (st.details) st.details.visible = st.lod === 0;
     if (st.trafficSigns) st.trafficSigns.visible = st.lod <= 1;
     if (st.lampMesh) st.lampMesh.visible = st.lod <= 1;
     if (st.signs) st.signs.group.visible = st.lod <= 1;
