@@ -72,6 +72,30 @@ export function signText(b: Building): string | null {
   return label;
 }
 
+/** The wall of a building closest to a point (with its outward normal). */
+function wallNear(b: Building, x: number, z: number) {
+  const r = b.rings[0];
+  let best: { ax: number; az: number; bx: number; bz: number; nx: number; nz: number; len: number } | null = null, bd = Infinity;
+  for (let i = 0; i < r.length; i += 2) {
+    const j = (i + 2) % r.length;
+    const ax = r[i], az = r[i + 1], bx = r[j], bz = r[j + 1];
+    const len = Math.hypot(bx - ax, bz - az);
+    if (len < 2) continue;
+    const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / (len * len)));
+    const d = Math.hypot(ax + (bx - ax) * t - x, az + (bz - az) * t - z);
+    if (d >= bd) continue;
+    let nx = (bz - az) / len, nz = -(bx - ax) / len;
+    // Outward: away from the centre of the footprint, towards the point.
+    if (nx * (x - (ax + bx) / 2) + nz * (z - (az + bz) / 2) < 0) { nx = -nx; nz = -nz; }
+    bd = d;
+    best = { ax, az, bx, bz, nx, nz, len };
+  }
+  return best;
+}
+
+/** Bowling entrance: the recessed glass wall on the south side, beside the protruding west wing. */
+const BOWLING_DOOR = { x: 187.2, z: -228.3 };
+
 /** Wall edge facing the nearest road: returns its endpoints and outward normal. */
 function wallTowardRoad(b: Building, data: ChunkData, facing?: number) {
   const r = b.rings[0];
@@ -191,7 +215,7 @@ export function storeEntrances(data: ChunkData): StoreEntrance[] {
   for (const b of data.buildings) {
     const garage = GARAGES[b.id];
     if (b.id === BOWLING_BUILDING) {
-      const wall = wallTowardRoad(b, data);
+      const wall = wallNear(b, BOWLING_DOOR.x, BOWLING_DOOR.z);
       if (!wall) continue;
       const mx = (wall.ax + wall.bx) / 2, mz = (wall.az + wall.bz) / 2;
       out.push({ id: b.id, name: 'Bowling Blansko', kind: 'bowling', x: mx + wall.nx * 0.9, z: mz + wall.nz * 0.9, nx: wall.nx, nz: wall.nz });
@@ -228,7 +252,7 @@ export function buildSigns(data: ChunkData, groundAt?: (x: number, z: number) =>
       continue;
     }
     if (b.id === BOWLING_BUILDING) {
-      const wall = wallTowardRoad(b, data);
+      const wall = wallNear(b, BOWLING_DOOR.x, BOWLING_DOOR.z);
       if (wall) group.add(buildBowlingFront(wall, resolveStyle(b), disposables));
       continue;
     }

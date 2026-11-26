@@ -71,19 +71,6 @@ function tag(g: THREE.BufferGeometry, slot: number, fixed = 0x000000): THREE.Buf
   return ng;
 }
 
-/** Tapered limb hanging down from the joint at the origin, with a ball at the joint. */
-function limb(rTop: number, rBot: number, len: number, slot: number, from = 0): THREE.BufferGeometry[] {
-  const cyl = new THREE.CylinderGeometry(rTop, rBot, len - from, 10, 1, true).translate(0, -from - (len - from) / 2, 0);
-  const out = [tag(cyl, slot)];
-  if (from === 0) out.push(tag(new THREE.SphereGeometry(rTop, 10, 8), slot));
-  out.push(tag(new THREE.SphereGeometry(rBot, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2).translate(0, -len, 0), slot));
-  return out;
-}
-
-function lathe(profile: [number, number][], zScale: number, slot: number, segs = 16): THREE.BufferGeometry {
-  return tag(new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), segs).scale(1, 1, zScale), slot);
-}
-
 const box = (w: number, h: number, d: number, x: number, y: number, z: number, slot: number, fixed?: number) =>
   tag(new THREE.BoxGeometry(w, h, d).translate(x, y, z), slot, fixed);
 const ball = (r: number, x: number, y: number, z: number, sx: number, sy: number, sz: number, slot: number, fixed?: number, seg = 10) =>
@@ -99,87 +86,126 @@ export type PartName = 'hips' | 'chest' | 'hipsF' | 'chestF' | 'head' | 'armL' |
 
 let geos: (Record<PartName, THREE.BufferGeometry> & { hair: Record<string, THREE.BufferGeometry> }) | null = null;
 
+/** Smooth limb or body part turned from a profile of [radius, y] points (y going down from the joint). */
+function turned(profile: [number, number][], slot: number, segs = 14, zScale = 1): THREE.BufferGeometry {
+  // LatheGeometry wants the profile from bottom to top.
+  const pts = [...profile].sort((p, q) => p[1] - q[1]).map(([r, y]) => new THREE.Vector2(r, y));
+  return tag(new THREE.LatheGeometry(pts, segs).scale(1, 1, zScale), slot);
+}
+
 function buildGeometries() {
   if (geos) return geos;
-  // Chest: waist (pivot, y = 0.98 m) up to the shoulders; flattened front to back.
+  // Neck, collar and the shirt hem shared by both chests.
+  const neck = () => [
+    tag(new THREE.CylinderGeometry(0.045, 0.052, 0.13, 14).translate(0, 0.545, 0.004), SKIN),
+    tag(new THREE.TorusGeometry(0.06, 0.012, 6, 18).rotateX(Math.PI / 2).scale(1, 1, 0.9).translate(0, 0.492, 0.004), BODY),
+  ];
+  // Chest (pivot at the waist, y = 0.98 m): rounded ribcage, pecs, shoulder caps, hem.
   const chest = merge([
-    lathe([[0.0, -0.01], [0.145, 0], [0.15, 0.08], [0.165, 0.2], [0.185, 0.32], [0.195, 0.41], [0.17, 0.465], [0.09, 0.5], [0.0, 0.505]], 0.64, BODY),
-    ball(0.068, 0.19, 0.425, 0, 1, 1, 1, BODY),
-    ball(0.068, -0.19, 0.425, 0, 1, 1, 1, BODY),
-    tag(new THREE.CylinderGeometry(0.052, 0.056, 0.12, 10).translate(0, 0.54, 0.0), SKIN),
-    // Collar and a short V of skin at the neckline.
-    tag(new THREE.TorusGeometry(0.068, 0.014, 6, 14).rotateX(Math.PI / 2).scale(1, 1, 0.85).translate(0, 0.495, 0), BODY),
-    tag(new THREE.ConeGeometry(0.035, 0.07, 3).rotateX(Math.PI).scale(1, 1, 0.3).translate(0, 0.455, 0.105), SKIN),
+    turned([[0, -0.012], [0.142, -0.01], [0.146, 0.06], [0.155, 0.14], [0.172, 0.24], [0.185, 0.33], [0.19, 0.39], [0.178, 0.44], [0.14, 0.475], [0.08, 0.498], [0, 0.505]], BODY, 22, 0.62),
+    ball(0.07, 0.068, 0.36, 0.062, 1.15, 0.72, 0.6, BODY, undefined, 14),
+    ball(0.07, -0.068, 0.36, 0.062, 1.15, 0.72, 0.6, BODY, undefined, 14),
+    ball(0.062, 0.168, 0.43, 0, 1, 0.85, 1.05, BODY, undefined, 14),
+    ball(0.062, -0.168, 0.43, 0, 1, 0.85, 1.05, BODY, undefined, 14),
+    tag(new THREE.TorusGeometry(0.144, 0.012, 6, 24).rotateX(Math.PI / 2).scale(1, 1, 0.63).translate(0, 0.004, 0), BODY),
+    ...neck(),
   ]);
-  // Female chest: narrower waist, bust (the "top" slot = bra or blouse) with a band and straps.
+  // Female chest: narrower waist and shoulders, bust (the "top" slot = bra or blouse), straps.
   const chestF = merge([
-    lathe([[0.0, -0.01], [0.125, 0], [0.122, 0.09], [0.14, 0.2], [0.158, 0.31], [0.165, 0.41], [0.148, 0.462], [0.08, 0.5], [0.0, 0.505]], 0.62, BODY),
-    ball(0.058, 0.165, 0.425, 0, 1, 1, 1, BODY),
-    ball(0.058, -0.165, 0.425, 0, 1, 1, 1, BODY),
-    tag(new THREE.CylinderGeometry(0.05, 0.053, 0.12, 10).translate(0, 0.54, 0), SKIN),
-    ball(0.074, 0.062, 0.315, 0.062, 1, 0.92, 0.9, TOP, undefined, 14),
-    ball(0.074, -0.062, 0.315, 0.062, 1, 0.92, 0.9, TOP, undefined, 14),
-    tag(new THREE.CylinderGeometry(0.152, 0.148, 0.04, 18, 1, true).scale(1, 1, 0.66).translate(0, 0.262, 0), TOP),
-    tag(new THREE.BoxGeometry(0.014, 0.17, 0.014).rotateX(0.35).translate(0.075, 0.42, 0.045), TOP),
-    tag(new THREE.BoxGeometry(0.014, 0.17, 0.014).rotateX(0.35).translate(-0.075, 0.42, 0.045), TOP),
+    turned([[0, -0.012], [0.126, -0.01], [0.122, 0.07], [0.13, 0.16], [0.15, 0.26], [0.16, 0.35], [0.163, 0.41], [0.15, 0.452], [0.12, 0.478], [0.07, 0.498], [0, 0.505]], BODY, 22, 0.62),
+    ball(0.055, 0.15, 0.43, 0, 1, 0.85, 1.05, BODY, undefined, 14),
+    ball(0.055, -0.15, 0.43, 0, 1, 0.85, 1.05, BODY, undefined, 14),
+    ball(0.074, 0.062, 0.315, 0.06, 1, 0.92, 0.92, TOP, undefined, 16),
+    ball(0.074, -0.062, 0.315, 0.06, 1, 0.92, 0.92, TOP, undefined, 16),
+    tag(new THREE.CylinderGeometry(0.147, 0.143, 0.04, 22, 1, true).scale(1, 1, 0.66).translate(0, 0.262, 0), TOP),
+    tag(new THREE.BoxGeometry(0.013, 0.17, 0.013).rotateX(0.35).translate(0.072, 0.42, 0.043), TOP),
+    tag(new THREE.BoxGeometry(0.013, 0.17, 0.013).rotateX(0.35).translate(-0.072, 0.42, 0.043), TOP),
+    ...neck(),
   ]);
-  // Female hips: wider and rounder, briefs / trousers in the "legs" slot.
-  const hipsF = merge([
-    lathe([[0.0, -0.15], [0.12, -0.15], [0.172, -0.095], [0.18, -0.035], [0.135, 0.02], [0.0, 0.02]], 0.74, LEGS),
-    ball(0.085, 0.066, -0.075, -0.05, 1, 1.05, 0.85, LEGS, undefined, 12),
-    ball(0.085, -0.066, -0.075, -0.05, 1, 1.05, 0.85, LEGS, undefined, 12),
-    tag(new THREE.CylinderGeometry(0.128, 0.13, 0.05, 16, 1, true).scale(1, 1, 0.7).translate(0, 0.0, 0), BODY),
-  ]);
-  // Hips with a belt.
+  // Hips (pivot at the waist): trousers or briefs in the "legs" slot.
   const hips = merge([
-    lathe([[0.0, -0.15], [0.12, -0.15], [0.16, -0.1], [0.165, -0.03], [0.15, 0.02], [0.0, 0.02]], 0.7, LEGS),
-    tag(new THREE.CylinderGeometry(0.153, 0.153, 0.035, 16, 1, true).scale(1, 1, 0.69).translate(0, 0.0, 0), FIXED, 0x2a2420),
-    box(0.04, 0.03, 0.01, 0, 0, 0.108, FIXED, 0xb8a070),
+    turned([[0, 0.02], [0.148, 0.02], [0.16, -0.03], [0.162, -0.09], [0.14, -0.145], [0.08, -0.16], [0, -0.162]], LEGS, 20, 0.7),
+    tag(new THREE.CylinderGeometry(0.152, 0.152, 0.036, 20, 1, true).scale(1, 1, 0.69).translate(0, 0.0, 0), FIXED, 0x2a2420),
+    box(0.04, 0.03, 0.012, 0, 0, 0.106, FIXED, 0xb8a070),
+    box(0.012, 0.1, 0.006, 0, -0.07, 0.111, LEGS),
   ]);
-  // Head (pivot at the base of the neck): skull, jaw, ears, eyes, brows, nose, mouth.
+  const hipsF = merge([
+    turned([[0, 0.02], [0.13, 0.02], [0.168, -0.04], [0.178, -0.09], [0.15, -0.145], [0.09, -0.162], [0, -0.164]], LEGS, 20, 0.74),
+    ball(0.085, 0.066, -0.078, -0.05, 1, 1.05, 0.85, LEGS, undefined, 14),
+    ball(0.085, -0.066, -0.078, -0.05, 1, 1.05, 0.85, LEGS, undefined, 14),
+    tag(new THREE.CylinderGeometry(0.128, 0.13, 0.05, 18, 1, true).scale(1, 1, 0.7).translate(0, 0.0, 0), BODY),
+  ]);
+  // Head (pivot at the base of the neck): skull, jaw, chin, cheeks, ears, eyes with lids and
+  // irises, brows, nose, lips.
+  const LIP = 0xb0625a;
   const head = merge([
-    ball(0.1, 0, 0.175, 0.0, 1, 1.15, 1.08, SKIN, undefined, 16),
-    ball(0.08, 0, 0.115, 0.022, 1, 0.85, 1.05, SKIN, undefined, 12),
-    ball(0.022, 0.101, 0.165, -0.005, 0.6, 1.3, 1, SKIN),
-    ball(0.022, -0.101, 0.165, -0.005, 0.6, 1.3, 1, SKIN),
-    ball(0.019, 0.038, 0.18, 0.088, 1, 0.8, 0.6, FIXED, 0xf4f2ee),
-    ball(0.019, -0.038, 0.18, 0.088, 1, 0.8, 0.6, FIXED, 0xf4f2ee),
-    ball(0.0095, 0.038, 0.18, 0.1, 1, 1, 0.6, FIXED, 0x3b2a1e),
-    ball(0.0095, -0.038, 0.18, 0.1, 1, 1, 0.6, FIXED, 0x3b2a1e),
-    box(0.04, 0.009, 0.012, 0.039, 0.207, 0.098, HAIR),
-    box(0.04, 0.009, 0.012, -0.039, 0.207, 0.098, HAIR),
-    tag(new THREE.ConeGeometry(0.018, 0.05, 4).rotateX(-Math.PI / 2 + 0.35).translate(0, 0.152, 0.112), SKIN),
-    box(0.042, 0.008, 0.008, 0, 0.113, 0.099, FIXED, 0x9c4f4a),
+    ball(0.098, 0, 0.18, -0.006, 1, 1.12, 1.08, SKIN, undefined, 22),
+    ball(0.078, 0, 0.122, 0.022, 1, 0.92, 1.05, SKIN, undefined, 18),
+    ball(0.03, 0, 0.088, 0.068, 1.2, 0.9, 1, SKIN, undefined, 12),
+    ball(0.026, 0.044, 0.142, 0.056, 1, 0.85, 0.75, SKIN, undefined, 12),
+    ball(0.026, -0.044, 0.142, 0.056, 1, 0.85, 0.75, SKIN, undefined, 12),
+    ball(0.021, 0.099, 0.166, -0.006, 0.42, 1.25, 0.9, SKIN, undefined, 12),
+    ball(0.021, -0.099, 0.166, -0.006, 0.42, 1.25, 0.9, SKIN, undefined, 12),
+    ...[1, -1].flatMap((sx) => [
+      ball(0.016, sx * 0.037, 0.178, 0.084, 1.25, 0.78, 0.6, FIXED, 0xf4f2ee, 12),
+      ball(0.0085, sx * 0.037, 0.178, 0.092, 1, 1, 0.5, FIXED, 0x5a3e26, 10),
+      ball(0.004, sx * 0.037, 0.178, 0.0965, 1, 1, 0.4, FIXED, 0x0e0a08, 8),
+      ball(0.017, sx * 0.037, 0.187, 0.085, 1.3, 0.45, 0.66, SKIN, undefined, 12),
+      tag(new THREE.BoxGeometry(0.038, 0.008, 0.012).rotateZ(sx * -0.12).translate(sx * 0.04, 0.204, 0.094), HAIR),
+    ]),
+    tag(new THREE.BoxGeometry(0.017, 0.05, 0.022).rotateX(-0.28).translate(0, 0.16, 0.098), SKIN),
+    ball(0.014, 0, 0.139, 0.11, 1.15, 0.9, 1, SKIN, undefined, 12),
+    ball(0.009, 0.012, 0.137, 0.103, 1, 0.8, 1, SKIN, undefined, 8),
+    ball(0.009, -0.012, 0.137, 0.103, 1, 0.8, 1, SKIN, undefined, 8),
+    ball(0.019, 0, 0.117, 0.093, 1.4, 0.38, 0.6, FIXED, LIP, 12),
+    ball(0.018, 0, 0.107, 0.091, 1.3, 0.45, 0.6, FIXED, 0xa45550, 12),
   ]);
   // Hair styles (same pivot as the head).
-  const cap = (theta: number) => tag(new THREE.SphereGeometry(0.106, 16, 8, 0, Math.PI * 2, 0, theta).scale(1, 1.12, 1.12).rotateX(-0.32).translate(0, 0.19, -0.008), HAIR);
+  const cap = (theta: number, r = 0.104) => tag(new THREE.SphereGeometry(r, 22, 10, 0, Math.PI * 2, 0, theta).scale(1, 1.12, 1.12).rotateX(-0.32).translate(0, 0.19, -0.01), HAIR);
+  const sideburns = [box(0.012, 0.04, 0.022, 0.096, 0.158, 0.02, HAIR), box(0.012, 0.04, 0.022, -0.096, 0.158, 0.02, HAIR)];
   const hair: Record<string, THREE.BufferGeometry> = {
-    short: merge([cap(Math.PI * 0.5)]),
-    long: merge([cap(Math.PI * 0.55), box(0.2, 0.25, 0.05, 0, 0.09, -0.085, HAIR), box(0.035, 0.2, 0.08, 0.09, 0.1, -0.02, HAIR), box(0.035, 0.2, 0.08, -0.09, 0.1, -0.02, HAIR)]),
-    bun: merge([cap(Math.PI * 0.55), ball(0.05, 0, 0.25, -0.1, 1, 1, 1, HAIR)]),
-    ponytail: merge([cap(Math.PI * 0.55), ball(0.03, 0, 0.21, -0.115, 1, 1, 1, HAIR), tag(new THREE.CylinderGeometry(0.028, 0.012, 0.2, 8).rotateX(0.35).translate(0, 0.12, -0.15), HAIR)]),
+    short: merge([cap(Math.PI * 0.52), ...sideburns]),
+    long: merge([cap(Math.PI * 0.56, 0.106), ball(0.1, 0, 0.1, -0.06, 1.02, 1.5, 0.55, HAIR, undefined, 16),
+      tag(new THREE.BoxGeometry(0.035, 0.2, 0.07).translate(0.088, 0.1, -0.015), HAIR), tag(new THREE.BoxGeometry(0.035, 0.2, 0.07).translate(-0.088, 0.1, -0.015), HAIR)]),
+    bun: merge([cap(Math.PI * 0.56), ball(0.05, 0, 0.25, -0.1, 1, 1, 1, HAIR, undefined, 14)]),
+    ponytail: merge([cap(Math.PI * 0.56), ball(0.03, 0, 0.21, -0.115, 1, 1, 1, HAIR), tag(new THREE.CylinderGeometry(0.03, 0.01, 0.22, 10).rotateX(0.35).translate(0, 0.12, -0.15), HAIR)]),
     // Baseball cap in the colour of the top (police: dark blue).
     cap: merge([
-      tag(new THREE.SphereGeometry(0.108, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 0.95, 1.1).translate(0, 0.2, 0), TOP),
-      box(0.17, 0.012, 0.1, 0, 0.205, 0.115, TOP),
+      tag(new THREE.SphereGeometry(0.108, 22, 10, 0, Math.PI * 2, 0, Math.PI * 0.5).scale(1, 0.95, 1.1).translate(0, 0.2, 0), TOP),
+      tag(new THREE.CylinderGeometry(0.09, 0.09, 0.012, 20, 1, false, -Math.PI / 2, Math.PI).scale(1, 1, 1.15).translate(0, 0.205, 0.075), TOP),
+      ball(0.012, 0, 0.305, 0, 1, 0.6, 1, TOP),
+      ...sideburns,
       box(0.18, 0.04, 0.02, 0, 0.17, -0.1, HAIR),
     ]),
   };
-  // Arms: upper arm (sleeve end covers the shoulder), forearm with hand, built per side
-  // (thumb on the inner side).
-  const upper = () => merge([...limb(0.054, 0.046, 0.28, SLEEVE), tag(new THREE.CylinderGeometry(0.062, 0.058, 0.13, 10).translate(0, -0.05, 0), BODY)]);
-  const fore = (side: number) => merge([
-    ...limb(0.046, 0.036, 0.25, SLEEVE),
-    box(0.075, 0.085, 0.034, 0, -0.29, 0, SKIN),
-    box(0.07, 0.065, 0.03, 0, -0.355, 0.004, SKIN),
-    tag(new THREE.BoxGeometry(0.022, 0.055, 0.024).rotateZ(side * 0.5).translate(-side * 0.043, -0.285, 0.012), SKIN),
+  // Arms: upper arm with a deltoid and the shirt sleeve over it, forearm with a hand
+  // (palm, four fingers and a thumb on the inner side), built per side.
+  const upper = () => merge([
+    turned([[0, 0.032], [0.045, 0.026], [0.06, 0.0], [0.062, -0.05], [0.056, -0.12], [0.05, -0.2], [0.046, -0.26], [0.042, -0.285], [0.025, -0.3], [0, -0.304]], SLEEVE, 14),
+    turned([[0, 0.037], [0.05, 0.03], [0.068, 0.0], [0.07, -0.06], [0.068, -0.125], [0.0, -0.126]], BODY, 14),
   ]);
-  const thigh = () => merge([...limb(0.088, 0.066, 0.44, THIGH)]);
+  const fore = (side: number) => {
+    const fingers: THREE.BufferGeometry[] = [];
+    for (let k = 0; k < 4; k++) {
+      const x = (k - 1.5) * 0.0165, len = [0.034, 0.042, 0.04, 0.032][side > 0 ? 3 - k : k];
+      fingers.push(tag(new THREE.CapsuleGeometry(0.0082, len, 3, 6).rotateX(0.28).translate(x, -0.345 - len / 2, 0.012), SKIN));
+    }
+    return merge([
+      turned([[0, 0.022], [0.046, 0.012], [0.05, -0.04], [0.047, -0.1], [0.039, -0.19], [0.032, -0.24], [0.028, -0.255], [0, -0.26]], SLEEVE, 14),
+      ball(1, 0, -0.3, 0.004, 0.037, 0.05, 0.018, SKIN, undefined, 12),
+      ...fingers,
+      tag(new THREE.CapsuleGeometry(0.0095, 0.03, 3, 6).rotateZ(side * 0.75).rotateX(0.4).translate(-side * 0.036, -0.3, 0.02), SKIN),
+    ]);
+  };
+  const thigh = () => merge([turned([[0, 0.035], [0.07, 0.025], [0.09, -0.03], [0.089, -0.12], [0.08, -0.25], [0.069, -0.37], [0.062, -0.43], [0.045, -0.455], [0, -0.46]], THIGH, 16)]);
   const shin = () => merge([
-    ...limb(0.064, 0.047, 0.42, SHIN),
-    // Shoe with a light sole.
-    ball(0.055, 0, -0.44, 0.045, 0.95, 0.75, 2.2, SHOES),
-    box(0.1, 0.022, 0.25, 0, -0.475, 0.045, FIXED, 0xd8d6d0),
+    turned([[0, 0.025], [0.06, 0.018], [0.064, -0.03], [0.066, -0.11], [0.057, -0.23], [0.047, -0.34], [0.044, -0.4], [0.0, -0.41]], SHIN, 16),
+    // Trouser hem, shoe (upper, toe cap, laces, sole).
+    tag(new THREE.CylinderGeometry(0.052, 0.054, 0.035, 14, 1, true).translate(0, -0.392, 0), SHIN),
+    ball(1, 0, -0.44, 0.025, 0.052, 0.042, 0.1, SHOES, undefined, 14),
+    ball(1, 0, -0.452, 0.1, 0.047, 0.032, 0.06, SHOES, undefined, 12),
+    box(0.03, 0.006, 0.07, 0, -0.402, 0.065, FIXED, 0xe8e6e0),
+    box(0.1, 0.022, 0.255, 0, -0.474, 0.045, FIXED, 0xd8d6d0),
   ]);
   geos = { chest, hips, chestF, hipsF, head, armL: upper(), armR: upper(), foreL: fore(1), foreR: fore(-1), thighL: thigh(), thighR: thigh(), shinL: shin(), shinR: shin(), hair };
   return geos;
