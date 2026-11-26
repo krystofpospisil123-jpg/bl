@@ -127,6 +127,17 @@ export class PhysicsWorld {
     }
   }
 
+  /**
+   * True when a car-sized box (half extents hx, hy, hz, turned by yaw) at `center` touches
+   * nothing but the terrain: parked cars, walls, poles and the like all count.
+   */
+  boxFree(center: { x: number; y: number; z: number }, hx: number, hy: number, hz: number, yaw: number, exclude?: RAPIER.RigidBody): boolean {
+    const rot = { x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) };
+    const hit = this.world.intersectionWithShape(center, rot, new RAPIER.Cuboid(hx, hy, hz), undefined, undefined, undefined, exclude,
+      (c) => c.shape.type !== RAPIER.ShapeType.HeightField && !c.isSensor());
+    return !hit;
+  }
+
   /** Distance along a ray to the first static obstacle (for camera collision), or `max`. */
   castRay(origin: { x: number; y: number; z: number }, dir: { x: number; y: number; z: number }, max: number, exclude?: RAPIER.RigidBody): number {
     const hit = this.world.castRay(new RAPIER.Ray(origin, dir), max, true, undefined, undefined, undefined, exclude);

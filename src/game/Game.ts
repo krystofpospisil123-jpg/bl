@@ -33,10 +33,12 @@ import { Shops } from './Shops.ts';
 import { Interior } from './Interior.ts';
 import { Club, TIP_PRICE } from './Club.ts';
 import { Dealer, OFFERS, type Offer } from './Dealer.ts';
+import { Privat, GIRLS } from './Privat.ts';
 import { BarMenu, type Drink } from './BarMenu.ts';
 import { Bowling, GAME_PRICE } from './Bowling.ts';
 import { Garage } from './Garage.ts';
 import { stockTuning } from '../vehicle/Tuning.ts';
+import { CAR_SPEC } from '../vehicle/CarPhysics.ts';
 import { StartMenu } from '../ui/StartMenu.ts';
 import type { StoreEntrance } from '../world/builders/signs.ts';
 import { Minimap, type MapMark } from '../ui/Minimap.ts';
@@ -89,6 +91,7 @@ export class Game {
   club?: Club;
   bowling?: Bowling;
   dealer?: Dealer;
+  privat?: Privat;
   readonly garage = new Garage(this.arsenal);
   readonly barMenu = new BarMenu(this.arsenal);
   /** Alcohol: 0 sober .. ~1.3 very drunk; wears off slowly. */
@@ -167,7 +170,7 @@ export class Game {
     if (mobile) {
       this.chunks.useMobileProfile();
       this.touch = new TouchControls(this.input, {
-        dealerAction: () => this.dealerAction, clubAction: () => this.clubAction, bowlingAction: () => this.bowlingAction, canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped, nearBin: () => !!this.nearBin && !this.nearEntrance, nearEntrance: () => !!this.nearEntrance,
+        privatScene: () => !!this.privat?.cinematic, dealerAction: () => this.dealerAction, clubAction: () => this.clubAction, bowlingAction: () => this.bowlingAction, canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped, nearBin: () => !!this.nearBin && !this.nearEntrance, nearEntrance: () => !!this.nearEntrance,
       });
     }
     this.scene.add(this.chunks.root);
@@ -307,10 +310,13 @@ export class Game {
         this.say(strike ? 'STRIKE! 🎳' : spare ? 'SPARE!' : n ? `Shozeno: ${n}` : 'Vedle…', 2.5);
       };
       this.bowling.onMessage = (t) => this.say(t, 5);
+      this.privat = new Privat(p);
+      this.privat.money = () => this.arsenal.money;
+      this.privat.onPick = (i) => this.payGirl(i);
       this.dealer = new Dealer(p);
       this.dealer.money = () => this.arsenal.money;
       this.dealer.onBuy = (o, color, test) => this.buyCar(o, color, test);
-      this.scene.add(this.interior.group, this.club.group, this.bowling.group, this.bowling.world, this.dealer.group, this.pickups.group);
+      this.scene.add(this.interior.group, this.club.group, this.bowling.group, this.bowling.world, this.dealer.group, this.privat.group, this.pickups.group);
       this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 104 : 165);
       this.nav = new Navigation(graphs.drive);
       for (const d of this.chunks.loadedData()) this.minimap.paintChunk(d);
@@ -617,10 +623,10 @@ export class Game {
     car.tuning = stockTuning();
     car.applyTuning();
     this.garageCarId = saved?.id ?? null;
-    // On the forecourt in front of the door, parallel to the glass front.
-    const x = e.x + e.nx * 6, z = e.z + e.nz * 6;
-    const yaw = Math.atan2(e.nx, e.nz) + Math.PI / 2;
-    car.reset(new THREE.Vector3(x, this.heights.sample(x, z) + 1.2, z), yaw);
+    // On the forecourt in front of the door, in a free spot (not on top of a parked car).
+    const spot = this.freeCarSpot(e.x, e.z, e.nx, e.nz, car.body);
+    const yaw = spot.yaw;
+    car.reset(new THREE.Vector3(spot.x, this.heights.sample(spot.x, spot.z) + 1.2, spot.z), yaw);
     this.enterCar();
     this.chase?.setYaw(yaw);
     this.sound.pickup();
@@ -629,6 +635,31 @@ export class Game {
       ? `Zkušební jízda: ${o.name}. Až tě omrzí, vrať se do salonu – nebo si ho kup.`
       : `Gratuluju! ${o.name} je tvoje (−${formatKc(o.price)}). Je uložené v garáži.`, 6);
     return '';
+  }
+
+  /**
+   * A free place for a car in front of a door (x, z with the outward normal nx, nz): tries spots
+   * further out and to the sides, along and across the facade, and keeps clear of parked cars,
+   * traffic, walls and poles. Falls back to the spot straight out from the door.
+   */
+  private freeCarSpot(x: number, z: number, nx: number, nz: number, exclude?: RAPIER.RigidBody): { x: number; z: number; yaw: number } {
+    const along = Math.atan2(nx, nz) + Math.PI / 2, out = Math.atan2(nx, nz);
+    const tx = nz, tz = -nx;
+    const half = CAR_SPEC.halfExtents;
+    let fallback: { x: number; z: number; yaw: number } | null = null;
+    for (const d of [6, 8.5, 11, 13.5, 16]) {
+      for (const s of [0, 3, -3, 6, -6, 9, -9]) {
+        for (const yaw of [along, out]) {
+          const px = x + nx * d + tx * s, pz = z + nz * d + tz * s;
+          const g = this.heights.sample(px, pz);
+          fallback ??= { x: px, z: pz, yaw };
+          if (this.traffic?.cars.some((c) => Math.hypot(c.pos.x - px, c.pos.z - pz) < 5.5)) continue;
+          // Box raised off the ground (kerbs and the paving do not count), a little bigger than the car.
+          if (this.physics!.boxFree({ x: px, y: g + 1.05, z: pz }, half.x + 0.35, 0.6, half.z + 0.45, yaw, exclude)) return { x: px, z: pz, yaw };
+        }
+      }
+    }
+    return fallback!;
   }
 
   /** In the bowling hall, at the approach of the free lane (F starts a game). */
@@ -664,8 +695,10 @@ export class Game {
   }
 
   /** Inside the club: what F does here (order at the bar / tip at the stage). */
-  get clubAction(): 'bar' | 'stage' | null {
+  get clubAction(): 'bar' | 'stage' | 'privat' | null {
     if (this.insideStore?.kind !== 'club' || this.mode !== 'foot' || !this.player || !this.club) return null;
+    if (this.privat?.active) return null;
+    if (this.club.atPrivat(this.player.position)) return this.privat?.menuOpen ? null : 'privat';
     if (this.club.atBar(this.player.position)) return 'bar';
     if (this.club.atStage(this.player.position)) return 'stage';
     return null;
@@ -704,7 +737,46 @@ export class Game {
     }
   }
 
-  private clubDo(a: 'bar' | 'stage') {
+  /** Paid the madam: the girl takes you upstairs (a short scene, then the room is yours). */
+  private payGirl(i: number): string {
+    const g = GIRLS[i], pv = this.privat, player = this.player;
+    if (!g || !pv || !player) return 'Chyba';
+    if (this.arsenal.money < g.price) return `${g.name} stojí ${formatKc(g.price)}, tolik nemáš.`;
+    this.arsenal.money -= g.price;
+    this.arsenal.current = null;
+    pv.begin(i);
+    player.teleport(pv.hold.clone(), Math.PI);
+    player.model.root.visible = false;
+    this.sound.pickup();
+    this.saveSoon();
+    return '';
+  }
+
+  /** The private room scene and the way back to the club (every frame while inside it). */
+  private updatePrivat(dt: number, walking: boolean) {
+    const pv = this.privat, player = this.player;
+    if (!pv?.active || !player) return;
+    if (pv.update(dt) === 'after') {
+      player.teleport(pv.stand.clone(), pv.standYaw);
+      player.model.root.visible = true;
+      this.chase?.setYaw(pv.standYaw);
+      this.health = 100;
+      this.drunk = Math.max(0, this.drunk - 0.3);
+      this.say(`${pv.girlName}: „Bylo to krásné, zlato. Přijď zas.“ Zdraví 100. Ven zeleným kruhem u dveří.`, 6);
+    }
+    if (pv.phase === 'after' && walking && pv.near(player.position, pv.exit, 0.6)) {
+      pv.end();
+      const d = this.club!.privatDoor;
+      player.teleport(d.clone(), Math.PI / 2);
+      this.chase?.setYaw(Math.PI / 2);
+    }
+  }
+
+  private clubDo(a: 'bar' | 'stage' | 'privat') {
+    if (a === 'privat') {
+      this.privat?.openMenu();
+      return;
+    }
     if (a === 'bar') {
       if (this.player?.model.drinking) return;
       this.barMenu.open();
@@ -751,6 +823,8 @@ export class Game {
     this.shops?.close();
     if (this.bowling?.active) this.bowling.quit();
     this.dealer?.close();
+    if (this.privat?.active || this.privat?.menuOpen) this.privat.end();
+    this.player.model.root.visible = true;
     this.sound.setClubMusic(false);
     const x = e.x + e.nx * 1.6, z = e.z + e.nz * 1.6;
     const yaw = Math.atan2(e.nx, e.nz);
@@ -1277,6 +1351,7 @@ export class Game {
     if (k.justPressed('KeyF') && this.stun <= 0) {
       if (this.mode === 'car') this.exitCar();
       else if (this.canEnterCar) this.enterCar();
+      else if (this.privat?.cinematic) this.privat.skip();
       else if (this.bowlingAction) this.bowlingDo();
       else if (this.dealerAction) this.dealer!.show(OFFERS.indexOf(this.dealerAction));
       else if (this.clubAction) this.clubDo(this.clubAction);
@@ -1322,6 +1397,7 @@ export class Game {
         : { position: this.player!.position, yaw: this.player!.yaw, speed: this.player!.speed };
       this.chase.update(t, dt);
       if (this.bowling?.active && this.mode === 'foot') this.bowling.placeCamera(this.camera);
+      if (this.privat?.cinematic) this.privat.placeCamera(this.camera);
     } else if (this.mode === 'fly') {
       this.fly.update(dt);
     } else {
@@ -1407,7 +1483,8 @@ export class Game {
         player.yaw = s.yaw;
       }
     }
-    const playingBowling = !!bowlingNow && this.bowling!.active;
+    const playingBowling = (!!bowlingNow && this.bowling!.active) || !!this.privat?.cinematic;
+    if (this.privat?.cinematic) mx = mz = 0;
     const moveInput = { x: mx, z: mz, sprint: walking && !player.stunned && k.down('ShiftLeft', 'ShiftRight'), jump: walking && !player.stunned && !playingBowling && k.down('Space') };
 
     // Traffic and pedestrians move first so their kinematic bodies are placed for this step.
@@ -1517,6 +1594,8 @@ export class Game {
     }
     if (inClub) {
       this.club!.update(dt);
+      this.updatePrivat(dt, walking);
+      if (!this.club!.atPrivat(player.position)) this.privat?.closeMenu();
       if (walking && this.club!.near(player.position, this.club!.exit, 0.9)) this.leaveStore();
     }
     const dmg = car.model.damage;

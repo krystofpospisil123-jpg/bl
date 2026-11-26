@@ -12,6 +12,8 @@ import { HumanCrowd, dancePose, idlePose, sitPose, restPose, type Outfit } from 
 const ORIGIN = new THREE.Vector3(300, 1500, 0);
 const W = 20, D = 24, H = 5;
 const STAGE_H = 0.8;
+/** Curtain to the private rooms in the left wall (z), with the madam beside it. */
+const PRIVAT_Z = -4.6;
 export const TIP_PRICE = 100;
 
 function colored(g: THREE.BufferGeometry, color: number): THREE.BufferGeometry {
@@ -62,7 +64,7 @@ export class Club {
   private beams: THREE.Mesh[] = [];
   private ball: THREE.Mesh;
   private leds: THREE.MeshBasicMaterial[] = [];
-  private crowd = new HumanCrowd(14);
+  private crowd = new HumanCrowd(16);
   private npcs: Npc[] = [];
   private pose = restPose();
   private time = 0;
@@ -136,6 +138,11 @@ export class Club {
     solid(2.6, 1.15, 1.0, 6.5, 0.575, -10.4, 0x121014);
     add(new THREE.BoxGeometry(0.5, 0.05, 0.5).translate(6.0, 1.17, -10.4), 0x333333);
     add(new THREE.BoxGeometry(0.5, 0.05, 0.5).translate(7.0, 1.17, -10.4), 0x333333);
+    // Private rooms: a curtained doorway in the left wall, a little counter for the madam.
+    add(new THREE.BoxGeometry(0.2, 2.8, 2.2).translate(-W / 2 + 0.2, 1.4, PRIVAT_Z), 0x0a0608);
+    for (let k = 0; k < 7; k++) add(new THREE.BoxGeometry(0.06, 2.5, 0.22).translate(-W / 2 + 0.34 + (k % 2) * 0.04, 1.25, PRIVAT_Z - 0.75 + k * 0.25), k % 2 ? 0x7a0a24 : 0x9a1030);
+    solid(0.5, 1.05, 1.1, -W / 2 + 2.0, 0.525, PRIVAT_Z + 1.5, 0x1a1014);
+    add(new THREE.BoxGeometry(0.6, 0.05, 1.2).translate(-W / 2 + 2.0, 1.07, PRIVAT_Z + 1.5), 0x8a6a4a);
     // Entrance: door frame.
     solid(3.4, 0.4, 0.4, 0, 3.0, D / 2 - 0.25, 0x0a0a0a, false);
     colliders.push([0, 1.4, D / 2 - 0.1, 1.6, 1.4, 0.15]);
@@ -195,6 +202,7 @@ export class Club {
     sign(neonText([{ text: 'Velvet', color: '#ff2fa8', size: 170 }, { text: 'CLUB', color: '#7a5cff', size: 90 }]), 6, 1.75, 0, 3.4, -D / 2 + 0.2, 0);
     sign(neonText([{ text: 'Bar', color: '#3ad6ff', size: 200 }], 512, 256), 2.4, 1.2, W / 2 - 0.2, 3.5, 3, -Math.PI / 2);
     sign(neonText([{ text: 'EXIT', color: '#3aff6a', size: 120 }], 512, 160), 1.2, 0.38, 0, 3.4, D / 2 - 0.5, Math.PI);
+    sign(neonText([{ text: 'Privát', color: '#ff3f6a', size: 170 }], 512, 220), 1.8, 0.75, -W / 2 + 0.32, 3.25, PRIVAT_Z, Math.PI / 2);
     // DJ screen.
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), glow(0x4a2a8a));
     screen.position.set(6.5, 2.4, -D / 2 + 0.2);
@@ -234,6 +242,8 @@ export class Club {
     npc({ skin: 0xd6a684, hair: 0x1d1612, top: 0x111111, legs: 0x1a1a1a, shoes: 0x111111, hairStyle: 'short' }, { kind: 'idle', x: 8.6, y: 0, z: 3, yaw: -Math.PI / 2, style: 0 });
     npc({ skin: 0x8d5f45, hair: 0x111111, top: 0x0c0c0c, legs: 0x0c0c0c, shoes: 0x111111, hairStyle: 'bald', build: 0, height: 1.06 }, { kind: 'idle', x: 1.9, y: 0, z: D / 2 - 1.6, yaw: Math.PI - 0.4, style: 0 });
     npc({ skin: 0xe8c0a0, hair: 0x3a2a1e, top: 0x2b2b2b, legs: 0x1e1e22, shoes: 0x111111, hairStyle: 'cap' }, { kind: 'dance', x: 6.5, y: 0, z: -11.2, yaw: 0, style: 1 });
+    // The madam by the curtain to the private rooms.
+    npc({ skin: 0xf1d0b5, hair: 0x14100e, top: 0x0c0c0c, legs: 0x0c0c0c, shoes: 0xb3102e, female: true, hairStyle: 'bun', build: 0.9 }, { kind: 'idle', x: -W / 2 + 1.3, y: 0, z: PRIVAT_Z + 1.5, yaw: Math.PI / 2, style: 0 });
     // Guests: at the tables, on the sofas and at the bar.
     const guest = (k: number): Outfit => ({
       skin: [0xe8c0a0, 0xd6a684, 0xb88466, 0xf1d0b5][k % 4], hair: [0x3a2a1e, 0x1d1612, 0x8a6236][k % 3], top: [0x2f5a8a, 0x8a2f2f, 0x3f6f3a, 0x2b2b2b, 0xd8d4c8, 0x5a4a6a][k % 6],
@@ -260,6 +270,15 @@ export class Club {
     const x = p.x - ORIGIN.x, z = p.z - ORIGIN.z;
     return Math.abs(p.y - ORIGIN.y) < 2 && x > 5.9 && x < 7.2 && z > -2 && z < 8;
   }
+
+  /** Standing at the madam by the curtain to the private rooms. */
+  atPrivat(p: THREE.Vector3): boolean {
+    const x = p.x - ORIGIN.x, z = p.z - ORIGIN.z;
+    return Math.abs(p.y - ORIGIN.y) < 2 && x < -W / 2 + 3.4 && z > PRIVAT_Z - 1.2 && z < PRIVAT_Z + 2.6;
+  }
+
+  /** Back from the private room: in front of the curtain, facing the club. */
+  readonly privatDoor = ORIGIN.clone().add(new THREE.Vector3(-W / 2 + 1.4, 0.1, PRIVAT_Z));
 
   /** Standing by the runway or a stage (tip a dancer). */
   atStage(p: THREE.Vector3): boolean {

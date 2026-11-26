@@ -546,6 +546,16 @@ Spuštění bez otevírání Blenderu: `pip install bpy` a `python scripts/blend
 parkovištích; cheaty `rosso`, `gt` a `rs` je dají hned. Sportovní auta mají silnější motor
 (výkon ×2,1 Rosso, ×1,8 GT, ×1,4 RS) a tuning motoru se k tomu ještě násobí.
 
+## Privát ve Velvet Clubu
+
+Vzadu vlevo v klubu je za rudým závěsem s neonem „Privát“ pult madam Simony. U ní (F) si vybereš
+dívku – Nikol (1 500 Kč), Vanessa (2 500 Kč) nebo Lara (4 000 Kč). Dívka tě odvede do pokoje
+nahoře: velká postel s čalouněným čelem a saténovým povlečením, okvětní lístky růží, lampičky,
+šampaňské, neonové srdce. Posadíš se na postel, ona ti zatančí soukromý tanec, přisedne si, světla
+se ztlumí a obraz zčerná („O hodinu později…“) – víc hra neukazuje. Pak máš zdraví na 100, dívka ti
+z postele zamává a zeleným kruhem u dveří se vrátíš do klubu. F scénu přeskočí. Kód:
+`src/game/Privat.ts`.
+
 ## Autosalon
 
 Ve skutečné budově Top Autosalon Blansko na Svitavské (OSM budova 253974415, A na mapě) je
@@ -554,4 +564,5 @@ třech svítících točnách otáčejí Liftback RS (35 000 Kč), Stoccarda GT 
 (120 000 Kč), u každého stojí cenovka; u recepce prodavač, u aut zákazníci. Když dojdeš k autu,
 otevře se nabídka: parametry, výběr barvy (auto na točně se hned přebarví), **Koupit** (auto se
 uloží do tvé garáže a čeká před salonem, sedíš rovnou za volantem) nebo **Zkušební jízda
-zdarma** (auto se do garáže neuloží). Kód: `src/game/Dealer.ts`.
+zdarma** (auto se do garáže neuloží). Auto se postaví na volné místo (fyzikální test, aby
+nestálo na zaparkovaném autě). Kód: `src/game/Dealer.ts`.
