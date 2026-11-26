@@ -36,11 +36,15 @@ import { stockTuning } from '../vehicle/Tuning.ts';
 import { StartMenu } from '../ui/StartMenu.ts';
 import type { StoreEntrance } from '../world/builders/signs.ts';
 import { Minimap, type MapMark } from '../ui/Minimap.ts';
+import { Phone } from '../ui/Phone.ts';
 import { assets } from '../assets/models.ts';
 import type RAPIER from '@dimforge/rapier3d-compat';
 
 /** Car spawn on náměstí Republiky (on the street, heading along it). */
 const SPAWN = { x: -15.7, z: 184.2, yaw: -2.79 };
+/** The police station (PČR, Na Řadech): where you are let go after an arrest, your car outside. */
+const PHONE_PRICES = { tow: 600, heal: 400, lawyer: 1500 };
+const STATION = { x: -24.6, z: -704, yaw: Math.PI / 2, carX: -21.8, carZ: -709, carYaw: Math.PI };
 /** Max distance (m) from the car centre at which F gets you in. */
 const ENTER_DISTANCE = 3.6;
 /** Max speed (m/s) at which you can get out. */
@@ -131,6 +135,14 @@ export class Game {
       });
     }
     this.scene.add(this.chunks.root);
+    this.phone = new Phone([
+      { name: 'Moje auto', letter: 'A', color: '#2f7bff', info: () => 'přijede na nejbližší silnici · zdarma', call: () => this.callCar(false) },
+      { name: 'Odtahovka', letter: 'O', color: '#f2a530', info: () => `opraví auto a přiveze ho · ${formatKc(PHONE_PRICES.tow)}`, call: () => this.callCar(true) },
+      { name: 'Záchranka', letter: 'Z', color: '#e0453a', info: () => `doplní zdraví · ${formatKc(PHONE_PRICES.heal)}`, call: () => this.callAmbulance() },
+      { name: 'Advokát', letter: '§', color: '#5b6573', info: () => (this.police?.wanted ? `smaže hledanost · ${formatKc(PHONE_PRICES.lawyer * this.police.wanted)}` : `smaže hledanost · ${formatKc(PHONE_PRICES.lawyer)} za hvězdu`), call: () => this.callLawyer() },
+    ], (open) => {
+      if (open) document.exitPointerLock?.();
+    });
     this.mouse = new MouseLook(canvas);
     this.fly = new FlyCamera(this.camera, this.input, this.mouse, canvas, (x, z) => this.heights.sample(x, z));
     this.fly.enabled = false;
@@ -191,8 +203,9 @@ export class Game {
       };
       this.police.onBusted = () => this.busted();
       // Officers on foot shoot at the player; the player can shoot back.
-      this.police.onShootPlayer = (dmg) => this.hurt(dmg);
-      this.police.onGunshot = (pos) => this.sound.gunshot(THREE.MathUtils.clamp(1 - pos.distanceTo(this.focus) / 90, 0.15, 0.7));
+      // Officers on foot use tasers: a hit knocks the player down so they can be cuffed.
+      this.police.onTase = () => this.tase();
+      this.police.onZap = (pos) => this.sound.zap(THREE.MathUtils.clamp(1 - pos.distanceTo(this.focus) / 40, 0.2, 1));
       this.police.onCopKilled = (pos) => this.pickups.drop(pos, 150 + Math.round(Math.random() * 10) * 20);
       this.weapon.onCrime = (amount, reason) => this.police?.report(amount, reason);
       this.weapon.onShot = () => this.sound.gunshot();
@@ -512,15 +525,115 @@ export class Game {
     }
   }
 
-  /** Caught by the police: start again on foot at náměstí Republiky, the car beside you. */
+  /** Caught by the police: driven to the police station, fined, your car parked outside. */
   private busted() {
-    this.respawn(0.2, (fine) => `ZATČEN! Pokuta ${formatKc(fine)}. Začínáš znovu na náměstí Republiky.`);
+    this.fadeTo('ZATČEN', 'Policie tě odváží na služebnu…', () =>
+      this.respawn(0.2, STATION, (fine) => `Propuštěn ze služebny PČR na Řadech. Pokuta ${formatKc(fine)}, auto stojí venku.`));
   }
 
   /** Health ran out: wake up at náměstí Republiky, a bit poorer. */
   private wasted() {
     this.police?.clear();
-    this.respawn(0.1, (fine) => `ZABIT! Nemocnice tě stála ${formatKc(fine)}. Začínáš znovu na náměstí Republiky.`);
+    this.fadeTo('ZRANĚN', 'Záchranka tě veze do nemocnice…', () =>
+      this.respawn(0.1, null, (fine) => `Propuštěn z nemocnice. Léčení stálo ${formatKc(fine)}.`));
+  }
+
+  /** Taser hit: the player drops (out of the car is impossible: officers never tase cars). */
+  private tase() {
+    if (this.mode !== 'foot' || this.stun > 0) return;
+    this.stun = 4.5;
+    this.arsenal.current = null;
+    this.hurtFlash = 0.6;
+    this.say('Zásah taserem! Nemůžeš se hýbat…', 3);
+  }
+
+  readonly phone: Phone;
+  private carCalledAt = -1e9;
+
+  /** Phone: brings your car to the nearest road around you (the tow truck also repairs it). */
+  private callCar(tow: boolean): string {
+    const car = this.car, player = this.player, graph = this.traffic?.graph;
+    if (!car || !player || !graph) return 'Není signál…';
+    if (this.mode === 'car') return 'Už sedíš v autě.';
+    if (this.insideStore) return 'Nejdřív vyjdi z obchodu.';
+    if (this.police?.wanted) return tow ? 'Odtahovka nepřijede, hledá tě policie.' : 'Teď ne – hledá tě policie.';
+    if (tow) {
+      if (this.arsenal.money < PHONE_PRICES.tow) return `Nemáš dost peněz (${formatKc(PHONE_PRICES.tow)}).`;
+    } else {
+      if (car.position.distanceTo(player.position) < 30 && !car.flipped) return 'Auto stojí kousek od tebe.';
+      if (performance.now() - this.carCalledAt < 20000) return 'Auto už je na cestě, počkej chvíli.';
+    }
+    // The road point 14-45 m away closest to 25 m, away from other cars.
+    const p = player.position, t = { x: 0, y: 0, z: 0, dx: 0, dz: 0 };
+    let best: { x: number; y: number; z: number; yaw: number } | null = null, bestScore = Infinity;
+    graph.edges.forEach((e, i) => {
+      if (e.kind === 'track') return;
+      const len = graph.length(i);
+      const lane = { edge: i, dir: e.oneway && e.reverse ? -1 : 1 } as const;
+      for (let s = 2; s < len - 2; s += 6) {
+        graph.sample(lane, s, t);
+        const d = Math.hypot(t.x - p.x, t.z - p.z);
+        if (d < 14 || d > 45) continue;
+        const score = Math.abs(d - 25);
+        if (score >= bestScore) continue;
+        if (this.traffic!.cars.some((c) => Math.hypot(c.pos.x - t.x, c.pos.z - t.z) < 7)) continue;
+        const x = t.x - t.dz * 1.6, z = t.z + t.dx * 1.6;
+        const ground = this.heights.sample(x, z);
+        best = { x, y: (t.y > ground + 1.5 ? t.y : ground) + 1.2, z, yaw: Math.atan2(t.dx, t.dz) };
+        bestScore = score;
+      }
+    });
+    if (!best) return 'Poblíž není žádná silnice, kam by auto mohlo přijet.';
+    const b = best as { x: number; y: number; z: number; yaw: number };
+    car.reset(new THREE.Vector3(b.x, b.y, b.z), b.yaw);
+    this.carCalledAt = performance.now();
+    if (tow) {
+      this.arsenal.money -= PHONE_PRICES.tow;
+      car.setLook(car.look.color, car.look.type);
+      car.applyTuning();
+      return `Odtahovka přivezla opravené auto (je na mapě). −${formatKc(PHONE_PRICES.tow)}`;
+    }
+    return 'Auto přijelo na silnici kousek od tebe (je na mapě).';
+  }
+
+  private callAmbulance(): string {
+    if (this.health >= 100) return 'Jsi zdravý, záchranka nepřijede.';
+    if (this.police?.wanted) return 'Záchranka nepřijede, dokud tě hledá policie.';
+    if (this.arsenal.money < PHONE_PRICES.heal) return `Nemáš dost peněz (${formatKc(PHONE_PRICES.heal)}).`;
+    this.arsenal.money -= PHONE_PRICES.heal;
+    this.health = 100;
+    return `Záchranka tě ošetřila. −${formatKc(PHONE_PRICES.heal)}`;
+  }
+
+  private callLawyer(): string {
+    const w = this.police?.wanted ?? 0;
+    if (!w) return 'Nic na tebe nemají.';
+    const price = PHONE_PRICES.lawyer * w;
+    if (this.arsenal.money < price) return `Advokát chce ${formatKc(price)}, tolik nemáš.`;
+    this.arsenal.money -= price;
+    this.police!.clear();
+    return `Advokát to vyřídil, hledanost smazána. −${formatKc(price)}`;
+  }
+
+  /** Seconds the player lies on the ground after a taser hit. */
+  stun = 0;
+  private fading = false;
+
+  /** Black screen with a title, runs `then` while it is dark, then fades back. */
+  private fadeTo(title: string, text: string, then: () => void) {
+    if (this.fading) return;
+    this.fading = true;
+    const el = document.getElementById('fade') ?? Object.assign(document.createElement('div'), { id: 'fade' });
+    if (!el.parentElement) document.body.append(el);
+    el.innerHTML = `<b>${title}</b><span>${text}</span>`;
+    el.classList.add('on');
+    setTimeout(() => {
+      then();
+      setTimeout(() => {
+        el.classList.remove('on');
+        this.fading = false;
+      }, 1400);
+    }, 1100);
   }
 
   /** Damages the player (shot, crash). Not while loading, flying or inside a store. */
@@ -532,15 +645,23 @@ export class Game {
     if (this.health <= 0) this.wasted();
   }
 
-  private respawn(fineFraction: number, text: (fine: number) => string) {
+  private respawn(fineFraction: number, at: typeof STATION | null, text: (fine: number) => string) {
     if (!this.car || !this.player) return;
-    const g = this.heights.sample(SPAWN.x, SPAWN.z);
-    this.car.reset(new THREE.Vector3(SPAWN.x, g + 1.2, SPAWN.z), SPAWN.yaw);
-    const door = new THREE.Vector3(2.2, 0, 0.3).applyAxisAngle(new THREE.Vector3(0, 1, 0), SPAWN.yaw);
-    const px = SPAWN.x + door.x, pz = SPAWN.z + door.z;
-    this.player.teleport(new THREE.Vector3(px, this.heights.sample(px, pz) + 0.1, pz), SPAWN.yaw);
+    this.stun = 0;
+    this.player.stunned = false;
+    let px: number, pz: number, yaw: number;
+    if (at) {
+      this.car.reset(new THREE.Vector3(at.carX, this.heights.sample(at.carX, at.carZ) + 1.2, at.carZ), at.carYaw);
+      px = at.x; pz = at.z; yaw = at.yaw;
+    } else {
+      const g = this.heights.sample(SPAWN.x, SPAWN.z);
+      this.car.reset(new THREE.Vector3(SPAWN.x, g + 1.2, SPAWN.z), SPAWN.yaw);
+      const door = new THREE.Vector3(2.2, 0, 0.3).applyAxisAngle(new THREE.Vector3(0, 1, 0), SPAWN.yaw);
+      px = SPAWN.x + door.x; pz = SPAWN.z + door.z; yaw = SPAWN.yaw;
+    }
+    this.player.teleport(new THREE.Vector3(px, this.heights.sample(px, pz) + 0.1, pz), yaw);
     this.player.setActive(true);
-    this.chase?.setYaw(SPAWN.yaw);
+    this.chase?.setYaw(yaw);
     this.setMode('foot');
     this.health = 100;
     this.hurtFlash = 0;
@@ -581,7 +702,12 @@ export class Game {
 
   private handleKeys() {
     const k = this.input;
-    VIEWPOINTS.forEach((v, i) => k.justPressed(v.key) && this.goTo(i));
+    if (k.justPressed('Tab') && (this.mode === 'foot' || this.mode === 'car')) this.phone.toggle();
+    if (this.phone.isOpen) {
+      // Digits call the phone's contacts instead of jumping to viewpoints.
+      ['Digit1', 'Digit2', 'Digit3', 'Digit4'].forEach((d, i) => k.justPressed(d) && this.phone.press(i));
+      if (this.mode !== 'foot' && this.mode !== 'car') this.phone.toggle(false);
+    } else VIEWPOINTS.forEach((v, i) => k.justPressed(v.key) && this.goTo(i));
     if (k.justPressed('KeyO')) this.env.sun.castShadow = !this.env.sun.castShadow;
     if (k.justPressed('KeyM') && !k.down('ShiftLeft', 'ShiftRight')) this.minimap?.toggle();
     if (k.justPressed('KeyP') && this.car) {
@@ -591,7 +717,7 @@ export class Game {
         this.setMode('fly');
       }
     }
-    if (k.justPressed('KeyF')) {
+    if (k.justPressed('KeyF') && this.stun <= 0) {
       if (this.mode === 'car') this.exitCar();
       else if (this.canEnterCar) this.enterCar();
       else if (this.mode === 'foot' && this.canSteal) this.steal();
@@ -662,6 +788,7 @@ export class Game {
     }
     this.pipeline.render(dt);
     this.menu?.update();
+    this.phone.update();
     if (!this.paused) this.effects.update(dt);
     this.hud.update(dt);
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 1.4);
@@ -699,7 +826,11 @@ export class Game {
       const len = Math.hypot(mx, mz);
       if (len > 1) { mx /= len; mz /= len; }
     }
-    const moveInput = { x: mx, z: mz, sprint: walking && k.down('ShiftLeft', 'ShiftRight'), jump: walking && k.down('Space') };
+    // Tased: lying on the ground, no control until they get up.
+    this.stun = Math.max(0, this.stun - dt);
+    player.stunned = this.stun > 0;
+    if (player.stunned) mx = mz = 0;
+    const moveInput = { x: mx, z: mz, sprint: walking && !player.stunned && k.down('ShiftLeft', 'ShiftRight'), jump: walking && !player.stunned && k.down('Space') };
 
     // Traffic and pedestrians move first so their kinematic bodies are placed for this step.
     // The town's AI pauses while the player is inside a store.
@@ -714,8 +845,8 @@ export class Game {
       const police = this.police;
       if (police) {
         const target = driving
-          ? { position: car.position, speed: car.speed, inCar: true }
-          : { position: player.position, speed: player.speed, inCar: false };
+          ? { position: car.position, speed: car.speed, inCar: true, stunned: false }
+          : { position: player.position, speed: player.speed, inCar: false, stunned: player.stunned };
         this.guard('police', () => police.update(dt, target), () => police.clear());
       }
     }
@@ -732,7 +863,7 @@ export class Game {
     player.sync(dt, alpha);
 
     // Pistol: aim along the camera while on foot with the weapon out.
-    const aiming = walking && this.weapon.equipped;
+    const aiming = walking && this.weapon.equipped && !player.stunned;
     player.aimYaw = aiming && this.chase ? this.chase.viewYaw : null;
     player.model.aiming = aiming;
     this.crosshair.hidden = !aiming;

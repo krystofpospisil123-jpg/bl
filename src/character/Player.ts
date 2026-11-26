@@ -12,6 +12,8 @@ export class Player {
   /** While aiming the player faces this way (the camera direction) instead of where they walk. */
   aimYaw: number | null = null;
   private active = true;
+  /** Lying on the ground (tased): no movement, the model lies on its back. */
+  stunned = false;
   private prevFeet = new THREE.Vector3();
   private snapNext = true;
 
@@ -74,7 +76,8 @@ export class Player {
       this.yaw += d * (1 - Math.exp(-dt * 12));
     }
     this.model.root.position.copy(this.position);
-    this.model.root.rotation.y = this.yaw;
+    this.model.root.rotation.set(this.stunned ? -Math.PI / 2 + 0.08 : 0, this.yaw, 0, 'YXZ');
+    if (this.stunned) this.model.root.position.y += 0.15;
     this.model.animate(sp, this.physics.grounded, dt);
   }
 }

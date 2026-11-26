@@ -62,6 +62,8 @@ export interface PoliceTarget {
   speed: number;
   /** Driving (police chase faster and ram) or on foot. */
   inCar: boolean;
+  /** Lying on the ground after a taser hit (officers walk up and cuff them). */
+  stunned: boolean;
 }
 
 const tmp = { x: 0, y: 0, z: 0, dx: 0, dz: 0 };
@@ -78,10 +80,10 @@ export class Police {
   arrest = 0;
   readonly arrestTime = 4;
   onBusted?: () => void;
-  /** An officer's bullet hit the player (damage in health points). */
-  onShootPlayer?: (damage: number) => void;
-  /** An officer fired (position, for the sound). */
-  onGunshot?: (pos: THREE.Vector3) => void;
+  /** An officer's taser hit the player (they fall and can be cuffed). */
+  onTase?: () => void;
+  /** An officer fired the taser (position, for the sound). */
+  onZap?: (pos: THREE.Vector3) => void;
   /** An officer was shot dead (position, for the money drop). */
   onCopKilled?: (pos: THREE.Vector3) => void;
   onWanted?: (level: number, reason: string) => void;
@@ -104,7 +106,7 @@ export class Police {
     this.beaconOff = new THREE.MeshStandardMaterial({ color: 0x1b2d66, emissive: 0x0a1433, roughness: 0.2 });
     const tg = new THREE.BufferGeometry();
     tg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(8 * 2 * 3).fill(-1e5), 3));
-    this.tracers = new THREE.LineSegments(tg, new THREE.LineBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.8 }));
+    this.tracers = new THREE.LineSegments(tg, new THREE.LineBasicMaterial({ color: 0xcfe6ff, transparent: true, opacity: 0.9 }));
     this.tracers.frustumCulled = false;
     this.tracers.visible = false;
     this.group.add(this.tracers);
@@ -212,8 +214,11 @@ export class Police {
         this.lostFor = 0;
         this.onWanted?.(this.wanted, 'lost');
       }
-      const close = this.units.some((u) => u.mode === 'chase' && u.pos.distanceTo(tp) < 6.5);
-      this.arrest = close && Math.abs(target.speed) < 2 ? this.arrest + dt : Math.max(0, this.arrest - dt * 2);
+      // A police car next to a stopped player, or an officer standing over them, cuffs them;
+      // a player lying tased on the ground is cuffed quickly.
+      const close = this.units.some((u) => u.mode === 'chase' && (u.pos.distanceTo(tp) < 6.5 || u.cops.some((c) => c.pos.distanceTo(tp) < 2.6)));
+      const rate = target.stunned ? 2.5 : 1;
+      this.arrest = close && Math.abs(target.speed) < 2 ? this.arrest + dt * rate : Math.max(0, this.arrest - dt * 2);
       if (this.arrest > this.arrestTime) {
         this.clear();
         this.onBusted?.();
@@ -412,7 +417,9 @@ export class Police {
       let move = 0;
       const flat = new THREE.Vector3(goal.x - c.pos.x, 0, goal.z - c.pos.z);
       const gd = flat.length();
-      if (c.returning ? gd > 2.2 : !(los && dist < 11) && gd > 4) move = c.returning || this.wanted >= 3 ? 5 : 3.6;
+      // On foot: get within taser range (about 6 m); a tased player or a car: walk right up.
+      const near = target.stunned ? 1.6 : target.inCar ? 3.2 : los && dist < 6.5 ? Infinity : 1.8;
+      if (c.returning ? gd > 2.2 : gd > near) move = c.returning || this.wanted >= 3 ? 5 : 3.8;
       if (move > 0) {
         flat.divideScalar(gd);
         let dir = flat;
@@ -433,7 +440,7 @@ export class Police {
       c.yaw += dy * (1 - Math.exp(-dt * 10));
       c.model.root.position.copy(c.pos);
       c.model.root.rotation.y = c.yaw;
-      c.model.aiming = los;
+      c.model.aiming = los && !target.inCar && dist < 14;
       c.model.animate(c.speed, true, dt);
       if (c.returning && gd <= 2.2) {
         this.group.remove(c.model.root);
@@ -441,17 +448,16 @@ export class Police {
         u.rest = 4;
         continue;
       }
-      // Shoot.
+      // Taser: only at a player on foot, only within about 9 m (never at a car).
       c.shootCd -= dt;
-      if (los && dist < 55 && c.shootCd <= 0) {
-        c.shootCd = Math.max(0.5, 1.1 - this.wanted * 0.08) + Math.random() * 0.6;
-        const moving = target.inCar ? THREE.MathUtils.clamp(1 - Math.abs(target.speed) / 40, 0.45, 1) : 1;
-        const hit = Math.random() < THREE.MathUtils.clamp(0.6 - dist * 0.009, 0.12, 0.5) * moving;
+      if (!target.inCar && !target.stunned && los && dist < 9 && c.shootCd <= 0) {
+        c.shootCd = 2.2 + Math.random() * 1.2;
+        const hit = Math.random() < (Math.abs(target.speed) > 5 ? 0.45 : 0.8);
         const end = chest.clone();
-        if (!hit) end.add(new THREE.Vector3((Math.random() - 0.5) * 5, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 5));
+        if (!hit) end.add(new THREE.Vector3((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 3));
         this.addTracer(c.model.muzzle(), end);
-        this.onGunshot?.(c.pos);
-        if (hit) this.onShootPlayer?.(4 + this.wanted * 1.2 + Math.random() * 2);
+        this.onZap?.(c.pos);
+        if (hit) this.onTase?.();
       }
     }
   }
@@ -464,6 +470,7 @@ export class Police {
       const pos = u.pos.clone().addScaledVector(right, i === 0 ? 2.3 : -2.3).addScaledVector(fwd, 0.6);
       pos.y = this.heights.sample(pos.x, pos.z);
       const model = new CharacterModel({ skin: [0xe0b394, 0xd1a07e, 0xb98a68][i % 3], hair: 0x2a2018, top: 0x24324f, legs: 0x1c2433, shoes: 0x111111 });
+      model.setGunColor(0xf2c230); // yellow taser
       model.root.position.copy(pos);
       this.group.add(model.root);
       u.cops.push({ pos, yaw: u.yaw, model, hp: 50, shootCd: 0.8 + Math.random() * 0.6, returning: false, speed: 0 });
@@ -477,7 +484,7 @@ export class Police {
     pos.setXYZ(k * 2 + 1, to.x, to.y, to.z);
     pos.needsUpdate = true;
     this.tracers.visible = true;
-    this.tracerTtl = 0.09;
+    this.tracerTtl = 0.35;
   }
 
   private tracerIdx = 0;

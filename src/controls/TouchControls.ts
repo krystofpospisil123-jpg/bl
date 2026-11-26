@@ -51,6 +51,7 @@ export class TouchControls {
     tap('Vstoupit', 'KeyF', ['foot'], () => this.extra.nearEntrance() && !this.extra.canEnterCar() && !this.extra.canSteal(), 'accent');
     tap('Prohledat', 'KeyF', ['foot'], () => this.extra.nearBin() && !this.extra.canEnterCar() && !this.extra.canSteal());
     tap('Zbraň', 'KeyQ', ['foot']);
+    tap('Telefon', 'Tab', ['foot', 'car']);
     this.add(pad, 'Střílet', ['foot'], { hold: 'KeyE', when: () => this.extra.armed(), cls: 'big' });
     hold('Sprint', 'ShiftLeft', ['foot']);
     hold('Skok', 'Space', ['foot'], 'big');

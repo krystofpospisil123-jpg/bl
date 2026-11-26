@@ -117,6 +117,11 @@ export class CharacterModel {
     }
   }
 
+  /** Colour of the hand-held gun (police tasers are yellow). */
+  setGunColor(hex: number) {
+    (this.gun.material as THREE.MeshStandardMaterial).color.setHex(hex);
+  }
+
   /** World position of the pistol's muzzle. */
   muzzle(): THREE.Vector3 {
     this.root.updateMatrixWorld(true);

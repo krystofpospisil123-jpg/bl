@@ -154,6 +154,22 @@ export class Sound {
     this.burst(Math.min(0.6, strength / 20), 3500, 0.12);
   }
 
+  /** Taser: an electric buzz with crackle. */
+  zap(volume = 1) {
+    if (!this.ctx) return;
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(70, t);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.22 * volume, t);
+    g.gain.linearRampToValueAtTime(0.0001, t + 0.6);
+    o.connect(g).connect(this.master!);
+    o.start(t);
+    o.stop(t + 0.65);
+    this.burst(0.45 * volume, 9000, 0.5);
+  }
+
   /** Pistol shot: a sharp crack and a lower boom. */
   gunshot(volume = 1) {
     if (!this.ctx) return;
