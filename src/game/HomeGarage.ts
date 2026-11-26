@@ -9,7 +9,7 @@ import { PAINTS, ENGINE } from '../vehicle/Tuning.ts';
 /** Ring in front of the garage: on a short service road ~130 m west of the square. */
 export const HOME_GARAGE = { x: -142.6, z: 224.5, yaw: Math.PI, radius: 3.2 };
 
-const TYPE_NAMES: Record<string, string> = { hatch: 'Hatchback', liftback: 'Liftback', estate: 'Kombi', superb: 'Limuzína', suv: 'SUV', city: 'Městské auto' };
+const TYPE_NAMES: Record<string, string> = { hatch: 'Hatchback', liftback: 'Liftback', estate: 'Kombi', superb: 'Limuzína', suv: 'SUV', city: 'Městské auto', rosso: 'Rosso', gt: 'Stoccarda GT' };
 
 export function carTitle(c: { type: string; color: number }) {
   const paint = PAINTS.find(([, v]) => v === c.color)?.[0];

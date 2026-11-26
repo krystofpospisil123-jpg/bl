@@ -10,10 +10,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-export const CAR_TYPES = ['hatch', 'liftback', 'estate', 'superb', 'suv', 'city'] as const;
+export const CAR_TYPES = ['hatch', 'liftback', 'estate', 'superb', 'suv', 'city', 'rosso', 'gt'] as const;
 export type CarType = (typeof CAR_TYPES)[number];
 /** Relative frequency of each type in traffic and car parks. */
-const TYPE_WEIGHTS: Record<CarType, number> = { hatch: 0.24, liftback: 0.24, estate: 0.18, superb: 0.08, suv: 0.14, city: 0.12 };
+const TYPE_WEIGHTS: Record<CarType, number> = { hatch: 0.235, liftback: 0.235, estate: 0.175, superb: 0.08, suv: 0.14, city: 0.12, rosso: 0.007, gt: 0.008 };
+/** Sports cars (scripts/blender/sportscars.py): rare in traffic. */
+export const SPORTS_TYPES: CarType[] = ['rosso', 'gt'];
 
 /** Road surface in the car frame (the chassis origin used by physics, traffic and car parks). */
 export const CAR_GROUND = -0.71;
@@ -146,9 +148,16 @@ export function useCarAttributes(mat: THREE.MeshStandardMaterial): THREE.MeshSta
   return mat;
 }
 
-export async function loadModels(buffer: ArrayBuffer): Promise<void> {
+export async function loadModels(buffer: ArrayBuffer, sports: ArrayBuffer | null = null): Promise<void> {
   const gltf = await new GLTFLoader().parseAsync(buffer, '');
   const root = gltf.scene;
+  if (sports) {
+    try {
+      root.add((await new GLTFLoader().parseAsync(sports, '')).scene);
+    } catch (err) {
+      console.warn('Sportovní auta se nenačetla', err);
+    }
+  }
   root.updateMatrixWorld(true);
   const find = (name: string) => root.getObjectByName(name);
   const loadCar = (t: string, extraSkip = (_m: string) => false): CarAsset => {
@@ -174,7 +183,15 @@ export async function loadModels(buffer: ArrayBuffer): Promise<void> {
     return { hi, lo, body, tail, wheel, wheelPos, halfLength: Math.max(-bb.min.z, bb.max.z), halfWidth: (bb.max.x - bb.min.x) / 2 - 0.1 };
   };
   const cars = {} as Record<CarType, CarAsset>;
-  for (const t of CAR_TYPES) cars[t] = loadCar(t);
+  for (const t of CAR_TYPES) {
+    try {
+      cars[t] = loadCar(t);
+    } catch (err) {
+      // Missing sports car file: use the liftback instead.
+      if (!SPORTS_TYPES.includes(t)) throw err;
+      cars[t] = cars.liftback;
+    }
+  }
   const policeNode = find('car_police_hi');
   if (policeNode) {
     const beacon = (m: string) => m === 'beaconL' || m === 'beaconR';

@@ -162,7 +162,8 @@ export class StartMenu {
           <b>zbrane</b> – všechny zbraně a 500 nábojů do každé<br>
           <b>hvezdy 0–5</b> – nastaví hledanost (0 = policie tě nechá)<br>
           <b>tuning</b> – plný tuning auta (motor, výfuk, křídlo, neon…)<br>
-          <b>oprava</b> – opraví auto
+          <b>oprava</b> – opraví auto<br>
+          <b>rosso</b> / <b>gt</b> – sportovní auto
         </p>
         <p class="cheat-msg"></p>
         ${back}`;

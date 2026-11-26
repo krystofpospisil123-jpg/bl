@@ -525,3 +525,19 @@ sloup. Cíl jde nastavit i v telefonu (Mapa: klepnutím, nebo tlačítkem ➤ u 
   a pruhované markýzy nad obchody. Stěny sdílené se sousední budovou detaily nedostávají.
 - **Rozmanitost**: šířka okenních os a výška pater podle typu budovy (paneláky nižší patra,
   staré město vyšší, průmysl širší) s náhodnou odchylkou pro každý dům.
+
+## Sportovní auta (Blender)
+
+`scripts/blender/sportscars.py` staví v Blenderu dvě sportovní auta (vlastní návrhy bez log
+a značek) a exportuje `public/data/models/sportscars.glb`:
+
+- **Rosso** – supersport s motorem uprostřed: nízká dlouhá příď, kabina posunutá dopředu,
+  široké zadní blatníky, boční sání, žaluzie na víku motoru, kulatá zadní světla, 4 výfuky.
+- **Stoccarda GT** – kupé s motorem vzadu: kulatá světla na zvednutých předních blatnících,
+  splývavá záď, široké zadní boky, ducktail spoiler, světelný pás přes celou záď.
+
+Karoserie je lisovaná z příčných řezů a vyhlazená subdivision surface, detaily (světla, sání,
+mřížky, linie dveří) se promítají na hotový povrch; kola mají paprsky, kotouče a třmeny.
+Spuštění bez otevírání Blenderu: `pip install bpy` a `python scripts/blender/sportscars.py`
+(`PREVIEW_DIR=složka` vyrenderuje náhledy). Ve hře jezdí vzácně v provozu a stojí na
+parkovištích; cheaty `rosso` a `gt` je dají hned.

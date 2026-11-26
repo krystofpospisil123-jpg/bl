@@ -225,7 +225,7 @@ export class Game {
       (err) => console.warn('Fotky fasád se nenačetly, zůstávají kreslené', err),
     );
     // Car and pedestrian models are needed before the first chunks (parked cars) and traffic.
-    const models = world.loadModelsFile().then((buf) => loadModels(buf)).catch((err) => {
+    const models = Promise.all([world.loadModelsFile(), world.loadSportsCarsFile()]).then(([buf, sports]) => loadModels(buf, sports)).catch((err) => {
       console.error('Modely aut a postav se nenačetly, používám jednoduché tvary', err);
     }).finally(() => (this.modelsReady = true));
     Promise.all([world.loadGroundPhoto().catch(() => null), models]).then(([photo]) => {
@@ -516,6 +516,15 @@ export class Game {
       case 'heal':
         this.health = 100;
         return 'Zdraví doplněno';
+      case 'rosso':
+      case 'gt': {
+        if (!this.car) return 'Auto ještě není';
+        this.car.setLook(cmd === 'rosso' ? 0xc4161c : 0xd8dcde, cmd);
+        this.car.tuning = stockTuning();
+        this.car.applyTuning();
+        this.garageCarId = null;
+        return cmd === 'rosso' ? 'Máš Rosso (supersport s motorem uprostřed)' : 'Máš Stoccarda GT (kupé s motorem vzadu)';
+      }
       case 'oprava':
         if (!this.car) return 'Auto ještě není';
         this.car.setLook(this.car.look.color, this.car.look.type);

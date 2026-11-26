@@ -62,6 +62,12 @@ export class WorldData {
   }
 
   /** Cars and pedestrians made in Blender (GLB). */
+  /** Sports cars (scripts/blender/sportscars.py); optional. */
+  async loadSportsCarsFile(): Promise<ArrayBuffer | null> {
+    const res = await this.get('models/sportscars.glb').catch(() => null);
+    return res && res.ok ? res.arrayBuffer() : null;
+  }
+
   async loadModelsFile(): Promise<ArrayBuffer> {
     const res = await this.get('models/vehicles.glb');
     if (!res.ok) throw new Error(`models/vehicles.glb: ${res.status}`);
