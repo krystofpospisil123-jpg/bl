@@ -52,6 +52,39 @@ export class CharacterModel {
     this.crowd.commit();
   }
 
+  /** Bowling throw: seconds since it started (-1 = none). */
+  private bowlT = -1;
+
+  /** Plays the bowling throw: back swing, step and lunge, release, follow-through. */
+  bowl() {
+    this.bowlT = 0;
+  }
+
+  private bowlPose(p: Pose, dt: number) {
+    this.bowlT += dt;
+    const t = this.bowlT;
+    if (t > 1.6) {
+      this.bowlT = -1;
+      return;
+    }
+    // 0-0.45 back swing, 0.45-0.8 forward swing to release, then hold the follow-through.
+    const back = Math.min(1, t / 0.45), fwd = THREE.MathUtils.clamp((t - 0.45) / 0.35, 0, 1);
+    const ease = (v: number) => v * v * (3 - 2 * v);
+    p.rSh = [THREE.MathUtils.lerp(1.1 * ease(back), -1.5, ease(fwd)), 0, -0.12];
+    p.rEl = -0.15;
+    p.lSh = [-0.4, 0, 0.9];
+    p.lEl = -0.4;
+    // Lunge: left leg forward and bent, right leg trailing.
+    const l = ease(Math.min(1, t / 0.7));
+    p.lHip = [-0.7 * l, 0.05];
+    p.lKnee = 0.9 * l;
+    p.rHip = [0.45 * l, -0.1];
+    p.rKnee = 0.3 * l;
+    p.y = -0.2 * l;
+    p.lean = 0.35 * l;
+    p.headX = -0.25 * l;
+  }
+
   get drinking() {
     return this.drinkT >= 0;
   }
@@ -107,6 +140,7 @@ export class CharacterModel {
     if (this.aiming) aimArms(p);
     if (this.drunk > 0.02) this.stagger(p);
     if (this.drinkT >= 0) this.drinkArms(p, dt);
+    if (this.bowlT >= 0) this.bowlPose(p, dt);
     this.crowd.setPose(0, this.identity, p);
     this.crowd.commit();
     if (this.aiming) this.gun.matrix.copy(this.crowd.foreR[0]);

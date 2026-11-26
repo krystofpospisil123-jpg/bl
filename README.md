@@ -493,3 +493,12 @@ i během hry v pauze (Esc). Žádné přihlašování: přezdívku si nastavíš
   (dýchání, rozhlížení), skok, míření, tanec, sezení, ležení. Chodci se kreslí instancovaně
   (jeden instancovaný mesh na část těla pro všechny).
 - **Značky** nemají kolizi: auto je při přejetí povalí (animace pádu) a za 45 s se zase postaví.
+
+## Bowling Blansko
+
+Skutečná budova bowlingu (Dvorská 2388/4, OSM budova 253809813, B na mapě) má na fasádě oranžovou
+ceduli a vchod. Hala uvnitř je podle fotek: 8 drah, malba moře se západem slunce nad kuželkami,
+vracečky s barevnými koulemi, monitory se skóre, červený běhoun, šedý koberec s oranžovými stolky
+a dřevěnými židlemi, bar a hosté. Dráha 6 je hratelná (F u dráhy, 120 Kč): A/D posun, Q/E míření,
+podržet mezerník = síla, pustit = hod. Koule a kuželky jsou fyzikální tělesa (Rapier), skóre podle
+pravidel (10 kol, strike, spare, bonusy v 10. kole). Kód: `src/game/Bowling.ts`.

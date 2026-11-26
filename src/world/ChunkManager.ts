@@ -181,7 +181,7 @@ export class ChunkManager {
   }
 
   /** Walk-in store entrances within `radius` of a point. */
-  entrancesNear(p: THREE.Vector3, radius: number, kind: 'store' | 'garage' | 'club' = 'store'): (StoreEntrance & { y: number })[] {
+  entrancesNear(p: THREE.Vector3, radius: number, kind: 'store' | 'garage' | 'club' | 'bowling' = 'store'): (StoreEntrance & { y: number })[] {
     const out: (StoreEntrance & { y: number })[] = [];
     for (const st of this.states.values()) for (const e of st.entrances ?? []) if (e.kind === kind && Math.hypot(e.x - p.x, e.z - p.z) < radius) out.push(e);
     return out;

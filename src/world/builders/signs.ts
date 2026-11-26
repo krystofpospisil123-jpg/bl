@@ -166,7 +166,7 @@ export interface StoreEntrance {
   id: number;
   name: string;
   /** Walk-in store (gun counter), a tuning garage you drive into, or the night club. */
-  kind: 'store' | 'garage' | 'club';
+  kind: 'store' | 'garage' | 'club' | 'bowling';
   /** Door position on the pavement and the outward direction of the facade. */
   x: number;
   z: number;
@@ -182,12 +182,21 @@ const GARAGES: Record<number, string> = { 253879043: 'Tuning Blansko', 253791939
 /** The night club (an unnamed building near the square, OSM id) and its name. */
 export const CLUB_BUILDING = 253879015;
 export const CLUB_NAME = 'Velvet Club';
+/** Bowling Blansko, Dvorská 2388/4 (the building around the OSM point of the bowling). */
+export const BOWLING_BUILDING = 253809813;
 
 /** Walk-in stores of a chunk. */
 export function storeEntrances(data: ChunkData): StoreEntrance[] {
   const out: StoreEntrance[] = [];
   for (const b of data.buildings) {
     const garage = GARAGES[b.id];
+    if (b.id === BOWLING_BUILDING) {
+      const wall = wallTowardRoad(b, data);
+      if (!wall) continue;
+      const mx = (wall.ax + wall.bx) / 2, mz = (wall.az + wall.bz) / 2;
+      out.push({ id: b.id, name: 'Bowling Blansko', kind: 'bowling', x: mx + wall.nx * 0.9, z: mz + wall.nz * 0.9, nx: wall.nx, nz: wall.nz });
+      continue;
+    }
     if (b.id === CLUB_BUILDING) {
       const wall = wallTowardRoad(b, data);
       if (!wall) continue;
@@ -216,6 +225,11 @@ export function buildSigns(data: ChunkData, groundAt?: (x: number, z: number) =>
     if (b.id === CLUB_BUILDING) {
       const wall = wallTowardRoad(b, data);
       if (wall) group.add(buildClubFront(wall, resolveStyle(b), disposables));
+      continue;
+    }
+    if (b.id === BOWLING_BUILDING) {
+      const wall = wallTowardRoad(b, data);
+      if (wall) group.add(buildBowlingFront(wall, resolveStyle(b), disposables));
       continue;
     }
     const text = signText(b);
@@ -316,6 +330,64 @@ function buildClubFront(
   carpet.position.set(0, base + 0.03, 1.4);
   g.add(sign, canopy, frame, door, carpet);
   disposables.push(tex, signMat, signGeo, canopyGeo, black, bulbMat, bulbGeo, doorGeo, doorMat, frameGeo, stripeMat, stripeGeo, carpetGeo);
+  const mx = (wall.ax + wall.bx) / 2 + wall.nx * 0.08, mz = (wall.az + wall.bz) / 2 + wall.nz * 0.08;
+  g.position.set(mx, 0, mz);
+  g.rotation.y = Math.atan2(wall.nx, wall.nz);
+  return g;
+}
+
+/** Bowling facade: a big orange "BOWLING" board with a pin and ball, and a glass door. */
+function buildBowlingFront(
+  wall: { ax: number; az: number; bx: number; bz: number; nx: number; nz: number; len: number },
+  st: { top: number; h: number },
+  disposables: { dispose(): void }[],
+): THREE.Group {
+  const g = new THREE.Group();
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 256;
+  const x = c.getContext('2d')!;
+  x.fillStyle = '#f26a1b';
+  x.beginPath();
+  x.roundRect(0, 0, 1024, 256, 40);
+  x.fill();
+  // Pin and ball icon.
+  x.fillStyle = '#fff';
+  x.beginPath();
+  x.ellipse(120, 150, 34, 70, 0, 0, Math.PI * 2);
+  x.ellipse(120, 70, 20, 30, 0, 0, Math.PI * 2);
+  x.fill();
+  x.fillStyle = '#c8102e';
+  x.fillRect(100, 92, 40, 8);
+  x.fillStyle = '#1d2a50';
+  x.beginPath();
+  x.arc(200, 178, 50, 0, Math.PI * 2);
+  x.fill();
+  x.fillStyle = '#fff';
+  x.font = 'italic 900 132px system-ui, sans-serif';
+  x.textBaseline = 'middle';
+  x.fillText('BOWLING', 280, 110);
+  x.font = 'bold 50px system-ui, sans-serif';
+  x.fillText('BLANSKO · RESTAURACE', 284, 205);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.25, roughness: 0.5 });
+  const w = Math.min(7, wall.len * 0.7);
+  const geo = new THREE.BoxGeometry(w, w / 4, 0.12);
+  const base = st.top - st.h;
+  const sign = new THREE.Mesh(geo, [mat, mat, mat, mat, mat, mat].map((m, i) => (i === 4 ? m : new THREE.MeshStandardMaterial({ color: 0xd0581a }))));
+  sign.position.set(0, Math.max(base + 3.2, st.top - w / 8 - 0.4), 0.1);
+  sign.castShadow = true;
+  const doorGeo = new THREE.PlaneGeometry(2.2, 2.4);
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x9fc3d8, roughness: 0.05, metalness: 0.4 });
+  const door = new THREE.Mesh(doorGeo, doorMat);
+  door.position.set(0, base + 1.2, 0.05);
+  const frameGeo = new THREE.BoxGeometry(2.4, 2.6, 0.06);
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x5a5e66, metalness: 0.5, roughness: 0.4 });
+  const frame = new THREE.Mesh(frameGeo, frameMat);
+  frame.position.set(0, base + 1.3, 0.02);
+  g.add(sign, frame, door);
+  disposables.push(tex, mat, geo, doorGeo, doorMat, frameGeo, frameMat);
   const mx = (wall.ax + wall.bx) / 2 + wall.nx * 0.08, mz = (wall.az + wall.bz) / 2 + wall.nz * 0.08;
   g.position.set(mx, 0, mz);
   g.rotation.y = Math.atan2(wall.nx, wall.nz);
