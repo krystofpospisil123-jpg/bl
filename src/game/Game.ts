@@ -78,6 +78,7 @@ export class Game {
   interior?: Interior;
   readonly garage = new Garage(this.arsenal);
   private lastThrottle = 0;
+  private tmpSize = new THREE.Vector2();
   /** The player's health (0-100); at zero they are taken to hospital (wasted). */
   health = 100;
   /** Red screen flash after a hit (0-1, fades out). */
@@ -789,7 +790,7 @@ export class Game {
     this.pipeline.render(dt);
     this.menu?.update();
     this.phone.update();
-    if (!this.paused) this.effects.update(dt);
+    if (!this.paused) this.effects.update(dt, this.renderer.getDrawingBufferSize(this.tmpSize).y);
     this.hud.update(dt);
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 1.4);
     // Slow recovery when nobody has hurt the player for a while.

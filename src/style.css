@@ -136,7 +136,7 @@ body.menu-open #health, body.menu-open #hurt, body.menu-open #hud, body.menu-ope
 #fade span { font-size: 17px; color: #a9b4c2; }
 
 /* Mobile phone (Tab). */
-#phone { position: fixed; right: calc(20px + env(safe-area-inset-right, 0px)); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: 250px; padding: 14px 12px 12px; border-radius: 30px; background: linear-gradient(160deg, #1f2733, #0e131a); border: 3px solid #2b3442; box-shadow: 0 14px 40px rgba(0,0,0,0.55), inset 0 0 0 2px #0a0d12; z-index: 30; font-size: 14px; }
+#phone { position: fixed; right: calc(20px + env(safe-area-inset-right, 0px)); bottom: calc(96px + env(safe-area-inset-bottom, 0px)); width: 250px; padding: 14px 12px 12px; border-radius: 30px; background: linear-gradient(160deg, #1f2733, #0e131a); border: 3px solid #2b3442; box-shadow: 0 14px 40px rgba(0,0,0,0.55), inset 0 0 0 2px #0a0d12; z-index: 30; font-size: 14px; max-height: calc(100vh - 120px); overflow-y: auto; }
 #phone .bar { display: flex; justify-content: space-between; font-size: 12px; opacity: 0.8; padding: 0 8px 10px; }
 #phone .apps { display: flex; flex-direction: column; gap: 6px; }
 #phone .app { display: flex; align-items: center; gap: 10px; text-align: left; background: rgba(255,255,255,0.06); border: 0; border-radius: 14px; padding: 8px 10px; color: inherit; cursor: pointer; font: inherit; }

@@ -65,7 +65,7 @@ export class Phone {
     if (!a || !this.isOpen) return;
     this.answer.textContent = a.call();
     this.answer.hidden = false;
-    this.answerUntil = performance.now() + 3500;
+    this.answerUntil = performance.now() + 5000;
     this.refresh();
   }
 

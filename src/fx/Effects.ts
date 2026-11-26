@@ -4,6 +4,13 @@ import * as THREE from 'three';
 
 const MAX = 600;
 
+/**
+ * Largest size of one particle on screen in pixels (set from the viewport height). Smoke and
+ * flames right in front of the camera used to cover the whole screen many times over and
+ * made the frame rate collapse on weaker graphics chips.
+ */
+const maxPointSize = { value: 120 };
+
 function softDot(): THREE.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
@@ -34,6 +41,16 @@ class Cloud {
       size, map: softDot(), vertexColors: true, transparent: true, depthWrite: false,
       blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, opacity: additive ? 0.9 : 0.55,
     });
+    // Cap the on-screen size and fade out particles very close to the camera.
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.maxPointSize = maxPointSize;
+      sh.vertexShader = sh.vertexShader
+        .replace('void main() {', 'uniform float maxPointSize;\nvarying float vNear;\nvoid main() {')
+        .replace('#include <fog_vertex>', '#include <fog_vertex>\ngl_PointSize = min(gl_PointSize, maxPointSize);\nvNear = smoothstep(1.5, 6.0, -mvPosition.z);');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('void main() {', 'varying float vNear;\nvoid main() {')
+        .replace('#include <premultiplied_alpha_fragment>', 'gl_FragColor.a *= vNear;\n#include <premultiplied_alpha_fragment>');
+    };
     this.points = new THREE.Points(g, m);
     this.points.frustumCulled = false;
     this.pos.fill(-1e5);
@@ -106,13 +123,15 @@ export class Effects {
   }
 
   explosion(p: THREE.Vector3) {
-    for (let i = 0; i < 60; i++) this.fire.emit(p, 1.5, 7, 0.9);
-    for (let i = 0; i < 40; i++) this.smoke.emit(p, 2, 3, 3.5);
+    for (let i = 0; i < 36; i++) this.fire.emit(p, 1.5, 7, 0.9);
+    for (let i = 0; i < 22; i++) this.smoke.emit(p, 2, 3, 3.5);
     this.flash.position.copy(p).add(new THREE.Vector3(0, 1.5, 0));
     this.flashTime = 0.35;
   }
 
-  update(dt: number) {
+  /** @param viewportHeight drawing buffer height in pixels (caps the particle size) */
+  update(dt: number, viewportHeight = 900) {
+    maxPointSize.value = viewportHeight * 0.16;
     this.acc += dt;
     while (this.acc > 0.05) {
       this.acc -= 0.05;
@@ -124,10 +143,7 @@ export class Effects {
         }
         if (s.ttl < 15) s.fire = false; // flames die down, smoke goes on
         if (Math.random() < s.smoke) this.smoke.emit(s.pos, 0.6, 0.4, 3);
-        if (s.fire) {
-          this.fire.emit(s.pos, 1.0, 0.6, 0.6);
-          this.fire.emit(s.pos, 1.0, 0.6, 0.6);
-        }
+        if (s.fire) this.fire.emit(s.pos, 1.0, 0.6, 0.6);
       }
     }
     this.smoke.update(dt);
