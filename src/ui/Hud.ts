@@ -15,7 +15,7 @@ const HELP: Record<Mode, [string, string][]> = {
     ['Myš / E', 'střelba'],
     ['F u popelnice', 'prohledat (peníze, náboje)'],
     ['Myš', 'rozhlížení (klik zamkne myš)'],
-    ['Tab', 'telefon (auto, odtahovka, záchranka, advokát)'],
+    ['Tab', 'telefon (hovory, zprávy, mapa, foťák…)'],
     ['P', 'volná kamera'],
   ],
   car: [

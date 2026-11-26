@@ -208,6 +208,27 @@ export class Sound {
     });
   }
 
+  /** Phone tones: all `freqs` together for `seconds`, starting `delay` s from now. */
+  tone(freqs: number[], seconds: number, volume = 0.08, delay = 0) {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return;
+    const t = ctx.currentTime + delay;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(volume, t + 0.01);
+    g.gain.setValueAtTime(volume, t + Math.max(0.01, seconds - 0.02));
+    g.gain.linearRampToValueAtTime(0.0001, t + seconds);
+    g.connect(this.master);
+    for (const f of freqs) {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = f;
+      o.connect(g);
+      o.start(t);
+      o.stop(t + seconds + 0.02);
+    }
+  }
+
   /** Empty gun: a dry click. */
   click() {
     if (this.ctx) this.burst(0.25, 3000, 0.03);

@@ -44,6 +44,8 @@ import type RAPIER from '@dimforge/rapier3d-compat';
 const SPAWN = { x: -15.7, z: 184.2, yaw: -2.79 };
 /** The police station (PČR, Na Řadech): where you are let go after an arrest, your car outside. */
 const PHONE_PRICES = { tow: 600, heal: 400, lawyer: 1500 };
+/** Keys the open phone takes (quick dial, keypad, back, shutter). */
+const PHONE_KEYS = [...Array.from({ length: 10 }, (_, i) => `Digit${i}`), ...Array.from({ length: 10 }, (_, i) => `Numpad${i}`), 'NumpadMultiply', 'Backspace', 'Enter', 'NumpadEnter'];
 const STATION = { x: -24.6, z: -704, yaw: Math.PI / 2, carX: -21.8, carZ: -709, carYaw: Math.PI };
 /** Max distance (m) from the car centre at which F gets you in. */
 const ENTER_DISTANCE = 3.6;
@@ -136,14 +138,7 @@ export class Game {
       });
     }
     this.scene.add(this.chunks.root);
-    this.phone = new Phone([
-      { name: 'Moje auto', letter: 'A', color: '#2f7bff', info: () => 'přijede na nejbližší silnici · zdarma', call: () => this.callCar(false) },
-      { name: 'Odtahovka', letter: 'O', color: '#f2a530', info: () => `opraví auto a přiveze ho · ${formatKc(PHONE_PRICES.tow)}`, call: () => this.callCar(true) },
-      { name: 'Záchranka', letter: 'Z', color: '#e0453a', info: () => `doplní zdraví · ${formatKc(PHONE_PRICES.heal)}`, call: () => this.callAmbulance() },
-      { name: 'Advokát', letter: '§', color: '#5b6573', info: () => (this.police?.wanted ? `smaže hledanost · ${formatKc(PHONE_PRICES.lawyer * this.police.wanted)}` : `smaže hledanost · ${formatKc(PHONE_PRICES.lawyer)} za hvězdu`), call: () => this.callLawyer() },
-    ], (open) => {
-      if (open) document.exitPointerLock?.();
-    });
+    this.phone = this.createPhone();
     this.mouse = new MouseLook(canvas);
     this.fly = new FlyCamera(this.camera, this.input, this.mouse, canvas, (x, z) => this.heights.sample(x, z));
     this.fly.enabled = false;
@@ -200,7 +195,13 @@ export class Game {
       this.traffic.onRam = () => this.police?.report(0.25, 'ramming');
       this.police.onWanted = (level, reason) => {
         if (reason === 'lost') this.say(level ? `Policie tě ztrácí: ${'★'.repeat(level)}` : 'Policie tě ztratila');
-        else this.say(`Hledanost ${'★'.repeat(level)}`);
+        else {
+          this.say(`Hledanost ${'★'.repeat(level)}`);
+          if (level >= 2 && !this.warnedWanted) {
+            this.warnedWanted = true;
+            setTimeout(() => this.phone.message('Petr', 'Kámo, fízlové tě hledaj po celým Blansku! Zavolej advokáta, ať to smaže.', { color: '#8a5cf6', replies: ['Jsi blázen 😂', 'Hlavně se nenech chytit!'] }), 4000);
+          }
+        }
       };
       this.police.onBusted = () => this.busted();
       // Officers on foot shoot at the player; the player can shoot back.
@@ -428,13 +429,17 @@ export class Game {
 
   /** Play pressed in the menu. */
   start() {
-    if (this.mode === 'loading' && this.ready) this.setMode('foot');
+    if (this.mode !== 'loading' || !this.ready) return;
+    this.setMode('foot');
+    setTimeout(() => this.phone.message('Blansko·Net', 'Vítejte v síti Blansko·Net 5G! Telefon otevřete klávesou Tab.', { color: '#2f7bff' }), 3000);
+    setTimeout(() => this.phone.message('Mamka', 'Ahoj, dojeď se ukázat, ať vím, že jsi v pořádku. A jezdi opatrně!', { color: '#d0569a', replies: ['To ráda slyším ❤️', 'Tak jo, pa pa!'] }), 15000);
+    setTimeout(() => this.phone.message('Petr', 'Čau, jsi ve městě? Zbraně mají v obchodech se žlutým Z na mapě, auto vyladíš v garáži s G.', { color: '#8a5cf6', replies: ['Pohoda, kdyžtak volej.', 'Jo a prohledávej popelnice 😄'] }), 40000);
   }
 
   /** Places on the map: gun shops (Z) and tuning garages (G). */
   private mapMarks(): MapMark[] {
-    const marks: MapMark[] = this.chunks.entrancesNear(this.focus, 3000).map((e) => ({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'Z', color: '#f1c232' }));
-    for (const e of this.chunks.entrancesNear(this.focus, 3000, 'garage')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'G', color: '#ff9a2e' });
+    const marks: MapMark[] = this.chunks.entrancesNear(this.focus, 3000).map((e) => ({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'Z', color: '#f1c232', name: e.name }));
+    for (const e of this.chunks.entrancesNear(this.focus, 3000, 'garage')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'G', color: '#ff9a2e', name: e.name });
     return marks;
   }
 
@@ -530,6 +535,7 @@ export class Game {
   private busted() {
     this.fadeTo('ZATČEN', 'Policie tě odváží na služebnu…', () =>
       this.respawn(0.2, STATION, (fine) => `Propuštěn ze služebny PČR na Řadech. Pokuta ${formatKc(fine)}, auto stojí venku.`));
+    setTimeout(() => this.phone.message('Mamka', 'Volali mi z policie?! Co zase vyvádíš?? Okamžitě mi zavolej!', { color: '#d0569a', replies: ['No to si piš, že si promluvíme.', 'Já se z tebe zblázním.'] }), 7000);
   }
 
   /** Health ran out: wake up at náměstí Republiky, a bit poorer. */
@@ -537,6 +543,7 @@ export class Game {
     this.police?.clear();
     this.fadeTo('ZRANĚN', 'Záchranka tě veze do nemocnice…', () =>
       this.respawn(0.1, null, (fine) => `Propuštěn z nemocnice. Léčení stálo ${formatKc(fine)}.`));
+    setTimeout(() => this.phone.message('Mamka', 'Pane bože, ty jsi byl v nemocnici?! Jsi v pořádku?', { color: '#d0569a', replies: ['Tak buď opatrnej, prosím tě.', 'Přinesu ti vývar.'] }), 7000);
   }
 
   /** Taser hit: the player drops (out of the car is impossible: officers never tase cars). */
@@ -550,6 +557,79 @@ export class Game {
 
   readonly phone: Phone;
   private carCalledAt = -1e9;
+  private warnedWanted = false;
+
+  private createPhone(): Phone {
+    const lawyerInfo = () => (this.police?.wanted ? `smaže hledanost · ${formatKc(PHONE_PRICES.lawyer * this.police.wanted)}` : `smaže hledanost · ${formatKc(PHONE_PRICES.lawyer)} za hvězdu`);
+    const pick = (lines: string[]) => lines[Math.floor(Math.random() * lines.length)];
+    return new Phone({
+      contacts: [
+        { name: 'Moje auto', number: '+420 604 118 302', letter: 'A', color: '#2f7bff', info: () => 'přijede na nejbližší silnici · zdarma', call: () => this.callCar(false) },
+        { name: 'Odtahovka Blansko', number: '+420 516 412 600', letter: 'O', color: '#f2a530', info: () => `opraví auto a přiveze ho · ${formatKc(PHONE_PRICES.tow)}`, call: () => this.callCar(true) },
+        { name: 'Záchranka', number: '155', letter: 'Z', color: '#e0453a', info: () => `doplní zdraví · ${formatKc(PHONE_PRICES.heal)}`, call: () => this.callAmbulance() },
+        { name: 'Advokát JUDr. Novák', number: '+420 516 410 155', letter: '§', color: '#5b6573', info: lawyerInfo, call: () => this.callLawyer() },
+        { name: 'Mamka', number: '+420 737 205 914', letter: 'M', color: '#d0569a', info: () => 'mobil',
+          call: () => pick(['Ahoj, zlatíčko! Jíš pořádně?', 'Nemám teď čas, jsem v Kauflandu. Zavolám ti.', 'Hlavně ať tě zase nehledá policie, jo?', this.health < 60 ? 'Ty zníš nějak špatně. Zavolej si záchranku!' : 'Přijď v neděli na oběd, bude svíčková.']) },
+        { name: 'Petr', number: '+420 721 664 087', letter: 'P', color: '#8a5cf6', info: () => 'kámoš · ví, kde co je',
+          call: () => pick(['Čau! Zbraně koupíš v obchodech se žlutým Z na mapě.', 'Brácho, v garáži s oranžovým G ti vyladí auto.', 'Prohledej popelnice, lidi tam vyhazujou prachy.', 'Když tě honěj fízlové, zmiz jim z dohledu a ztratí tě.', 'Z rozhledny na Hořici je nejlepší výhled na celý Blansko.']) },
+      ],
+      numbers: {
+        '155': { name: 'Záchranka', letter: 'Z', color: '#e0453a', call: () => this.callAmbulance() },
+        '112': { name: 'Tísňová linka 112', letter: '!', color: '#e0453a', call: () => `Přepojuji na záchranku… ${this.callAmbulance()}` },
+        '158': { name: 'Policie ČR', letter: 'P', color: '#2a4fa8', call: () => (this.police?.wanted ? 'Policie, prosím? … Počkejte, vy jste ten hledaný! Zůstaňte, kde jste.' : 'Policie ČR, Blansko. Nic nehlásíte? Tak neblokujte linku.') },
+        '150': { name: 'Hasiči', letter: 'H', color: '#d9480f', call: () => 'Hasiči Blansko. Nic nehoří? Tak na shledanou.' },
+        '156': { name: 'Městská policie', letter: 'M', color: '#2a4fa8', call: () => 'Městská policie Blansko, co potřebujete? Aha, nic. Dobře.' },
+      },
+      settings: [
+        { label: 'Zvuk', value: () => !settings.muted, change: () => this.toggleSound() },
+        { label: 'Provoz a chodci', value: () => this.traffic?.enabled ?? true, change: () => this.toggleTraffic() },
+        { label: 'Stíny', value: () => this.env.sun.castShadow, change: () => (this.env.sun.castShadow = !this.env.sun.castShadow) },
+        { label: 'Kvalita grafiky', value: () => QUALITY_LABEL[this.pipeline.quality], change: () => this.cycleQuality() },
+        { label: 'Skutečné názvy obchodů', value: () => settings.realNames, change: () => this.toggleNames() },
+      ],
+      money: () => this.arsenal.money,
+      charging: () => this.mode === 'car',
+      weakSignal: () => !!this.insideStore,
+      map: () => {
+        if (!this.player || (this.mode !== 'foot' && this.mode !== 'car')) return null;
+        return {
+          pos: this.focus, yaw: this.chase?.viewYaw ?? 0, car: this.mode === 'foot' ? this.car?.position ?? null : null,
+          police: this.police?.units.map((u) => u.pos) ?? [], wanted: this.police?.wanted ?? 0, marks: this.mapMarks(),
+        };
+      },
+      drawMap: (c, st, range) => this.minimap?.drawRect(c, st.pos, st.yaw, range, st.car, st.police, st.wanted, st.marks),
+      view: this.canvas,
+      tone: (f, sec, vol, delay) => this.sound.tone(f, sec, vol, delay),
+      onToggle: (open) => {
+        if (open) document.exitPointerLock?.();
+      },
+    });
+  }
+
+  private toggleSound() {
+    settings.muted = !settings.muted;
+    saveSettings();
+    this.sound.setMuted(settings.muted);
+    this.say(settings.muted ? 'Zvuk vypnut' : 'Zvuk zapnut');
+  }
+
+  private toggleTraffic() {
+    if (!this.traffic || !this.pedestrians) return;
+    this.traffic.enabled = this.pedestrians.enabled = !this.traffic.enabled;
+    this.say(this.traffic.enabled ? 'Provoz zapnut' : 'Provoz vypnut');
+  }
+
+  private cycleQuality() {
+    this.pipeline.cycle();
+    this.pipeline.resetAuto(false);
+  }
+
+  private toggleNames() {
+    settings.realNames = !settings.realNames;
+    saveSettings();
+    this.chunks.rebuildSigns();
+    this.say(settings.realNames ? 'Skutečné názvy obchodů' : 'Obecné názvy obchodů');
+  }
 
   /** Phone: brings your car to the nearest road around you (the tow truck also repairs it). */
   private callCar(tow: boolean): string {
@@ -705,8 +785,8 @@ export class Game {
     const k = this.input;
     if (k.justPressed('Tab') && (this.mode === 'foot' || this.mode === 'car')) this.phone.toggle();
     if (this.phone.isOpen) {
-      // Digits call the phone's contacts instead of jumping to viewpoints.
-      ['Digit1', 'Digit2', 'Digit3', 'Digit4'].forEach((d, i) => k.justPressed(d) && this.phone.press(i));
+      // Digits, Enter and Backspace go to the phone (quick dial, keypad, back) instead of viewpoints.
+      for (const code of PHONE_KEYS) if (k.justPressed(code)) this.phone.key(code);
       if (this.mode !== 'foot' && this.mode !== 'car') this.phone.toggle(false);
     } else VIEWPOINTS.forEach((v, i) => k.justPressed(v.key) && this.goTo(i));
     if (k.justPressed('KeyO')) this.env.sun.castShadow = !this.env.sun.castShadow;
@@ -726,30 +806,14 @@ export class Game {
       else if (this.mode === 'foot') this.searchBin();
     }
     if (k.justPressed('KeyR') && this.car && this.mode === 'car') this.car.reset(undefined, this.car.yaw);
-    if (k.justPressed('KeyG')) {
-      this.pipeline.cycle();
-      this.pipeline.resetAuto(false);
-    }
-    if (k.justPressed('KeyN')) {
-      settings.realNames = !settings.realNames;
-      saveSettings();
-      this.chunks.rebuildSigns();
-      this.say(settings.realNames ? 'Skutečné názvy obchodů' : 'Obecné názvy obchodů');
-    }
+    if (k.justPressed('KeyG')) this.cycleQuality();
+    if (k.justPressed('KeyN')) this.toggleNames();
     if (k.justPressed('KeyQ') && this.mode === 'foot') {
       const w = this.arsenal.cycle();
       this.say(w ? `${WEAPONS[w].name} (náboje ${this.arsenal.ammo[w]}) – střílej myší nebo E` : 'Zbraň schovaná');
     }
-    if (k.justPressed('KeyU')) {
-      settings.muted = !settings.muted;
-      saveSettings();
-      this.sound.setMuted(settings.muted);
-      this.say(settings.muted ? 'Zvuk vypnut' : 'Zvuk zapnut');
-    }
-    if (k.justPressed('KeyT') && this.traffic && this.pedestrians) {
-      this.traffic.enabled = this.pedestrians.enabled = !this.traffic.enabled;
-      this.say(this.traffic.enabled ? 'Provoz zapnut' : 'Provoz vypnut');
-    }
+    if (k.justPressed('KeyU')) this.toggleSound();
+    if (k.justPressed('KeyT')) this.toggleTraffic();
   }
 
   private frame() {

@@ -450,7 +450,14 @@ Token k Mapillary API je uložený jen v nastavení prostředí (síťové tajem
 
 ## Telefon, taser, služebna
 
-- **Tab** (nebo tlačítko *Telefon*) otevře mobil: *Moje auto* (přijede na nejbližší silnici), *Odtahovka* (opraví a přiveze auto, 600 Kč), *Záchranka* (doplní zdraví, 400 Kč), *Advokát* (smaže hledanost, 1 500 Kč za hvězdu). Kontakty volají klávesy 1–4 nebo klik.
+- **Tab** (nebo tlačítko *Telefon*) otevře chytrý telefon s plochou (hodiny, počasí, zůstatek) a aplikacemi:
+  - *Telefon*: kontakty *Moje auto* (přijede na nejbližší silnici), *Odtahovka* (opraví a přiveze auto, 600 Kč), *Záchranka* (doplní zdraví, 400 Kč), *Advokát* (smaže hledanost, 1 500 Kč za hvězdu), *Mamka* a *Petr* (rady). Hovor se vytáčí, spojí a ukončí; záložky *Nedávné* a *Klávesnice* (fungují 155, 112, 158, 150, 156). Klávesy 1–4 jsou rychlá volba.
+  - *Zprávy*: SMS, které hra posílá při událostech (začátek hry, hledanost, zatčení, nemocnice), s rychlými odpověďmi. Když je telefon zavřený, ukáže se upozornění v rohu.
+  - *Banka*: zůstatek a výpis všech pohybů peněz (platby za hovory, nákupy, nalezené peníze).
+  - *Mapa*: mapa severem nahoru se zoomem a seznam nejbližších obchodů se zbraněmi a garáží se vzdáleností a směrem.
+  - *Fotoaparát* a *Galerie*: snímky hry s datem, uložení do počítače.
+  - *Počasí* a *Nastavení* (zvuk, provoz, stíny, kvalita, názvy obchodů, tapeta). Baterie se v autě nabíjí.
+  - Backspace = zpět, Enter = vyfotit / vytočit číslo.
 - Policisté pěšky nosí taser (dosah asi 9 m) a nikdy nestřílí na auto. Zásah tě na pár sekund složí na zem a policista ti nasadí pouta.
 - Po zatčení tě odvezou na služebnu PČR Na Řadech (pokuta 20 %, auto stojí venku). Při nule zdraví se probudíš z nemocnice na náměstí Republiky.
 - Částice ohně a kouře mají omezenou velikost na obrazovce a u kamery mizí (dřív ji zahltily a hra se při výbuchu sekala).

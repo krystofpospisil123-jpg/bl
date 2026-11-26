@@ -14,6 +14,8 @@ export interface MapMark {
   pos: THREE.Vector3;
   label: string;
   color: string;
+  /** Place name (shown in the phone's map app). */
+  name?: string;
 }
 
 export class Minimap {
@@ -68,6 +70,71 @@ export class Minimap {
     this.canvas.width = this.canvas.height = Math.round(size * dpr);
     this.canvas.style.width = this.canvas.style.height = `${size}px`;
     this.frame = 0;
+  }
+
+  /** North-up rectangular map for the phone's Mapa app; `range` = metres from centre to the shorter edge. */
+  drawRect(canvas: HTMLCanvasElement, player: THREE.Vector3, viewYaw: number, range: number,
+    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, marks: MapMark[]) {
+    const c = canvas.getContext('2d')!;
+    const W = canvas.width, H = canvas.height;
+    const k = Math.min(W, H) / 2 / range;
+    const ui = W / 260;
+    c.save();
+    c.fillStyle = '#3c4733';
+    c.fillRect(0, 0, W, H);
+    c.translate(W / 2, H / 2);
+    const s = k / this.scale;
+    c.drawImage(this.base, -(player.x + this.half) * this.scale * s, -(player.z + this.half) * this.scale * s, BASE * s, BASE * s);
+    const toMap = (p: THREE.Vector3) => [(p.x - player.x) * k, (p.z - player.z) * k];
+    const inside = (x: number, y: number, pad: number) => [Math.max(-W / 2 + pad, Math.min(W / 2 - pad, x)), Math.max(-H / 2 + pad, Math.min(H / 2 - pad, y))];
+    for (const m of marks) {
+      const [x, y] = inside(...(toMap(m.pos) as [number, number]), 11 * ui);
+      c.fillStyle = m.color;
+      c.strokeStyle = '#000';
+      c.lineWidth = 1.5 * ui;
+      c.fillRect(x - 8 * ui, y - 8 * ui, 16 * ui, 16 * ui);
+      c.strokeRect(x - 8 * ui, y - 8 * ui, 16 * ui, 16 * ui);
+      c.fillStyle = '#111';
+      c.font = `bold ${12 * ui}px system-ui, sans-serif`;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(m.label, x, y + ui);
+    }
+    if (car) {
+      const [x, y] = inside(...(toMap(car) as [number, number]), 8 * ui);
+      c.fillStyle = '#fff';
+      c.strokeStyle = '#222';
+      c.lineWidth = 2 * ui;
+      c.fillRect(x - 5 * ui, y - 5 * ui, 10 * ui, 10 * ui);
+      c.strokeRect(x - 5 * ui, y - 5 * ui, 10 * ui, 10 * ui);
+    }
+    const blink = Math.floor(performance.now() / 250) % 2 === 0;
+    for (const p of police) {
+      const [x, y] = inside(...(toMap(p) as [number, number]), 7 * ui);
+      c.fillStyle = wanted > 0 && blink ? '#ff3b3b' : '#3b6bff';
+      c.beginPath();
+      c.arc(x, y, 5 * ui, 0, Math.PI * 2);
+      c.fill();
+    }
+    // You are here: a blue dot with a view cone, like a phone map.
+    const heading = Math.atan2(Math.cos(viewYaw), Math.sin(viewYaw));
+    const g = c.createRadialGradient(0, 0, 0, 0, 0, 34 * ui);
+    g.addColorStop(0, 'rgba(60, 150, 255, 0.55)');
+    g.addColorStop(1, 'rgba(60, 150, 255, 0)');
+    c.fillStyle = g;
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.arc(0, 0, 34 * ui, heading - 0.55, heading + 0.55);
+    c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath();
+    c.arc(0, 0, 8 * ui, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#1a7cff';
+    c.beginPath();
+    c.arc(0, 0, 5.5 * ui, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
   }
 
   update(
