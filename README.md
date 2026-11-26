@@ -464,15 +464,16 @@ Token k Mapillary API je uložený jen v nastavení prostředí (síťové tajem
 
 ## Účty, ukládání, garáž a multiplayer (Supabase)
 
-Hrát jde i bez přihlášení (offline, nic se neukládá). Přihlášení je v hlavním menu (*Přihlásit se*):
-hráč zadá e-mail, přijde mu magic link, po kliknutí je přihlášený a zvolí si přezdívku.
+Multiplayer běží pro všechny i bez přihlášení: host dostane náhodné ID a přezdívku (*Host 1234*),
+kterou si změní v hlavním menu (*změnit*); obojí si pamatuje prohlížeč. Přihlášení (*Přihlásit se*,
+magic link na e-mail) přidá uložení hry a vlastní garáž a v multiplayeru se pak hraje pod přezdívkou z profilu.
 
 - **Uložení hry** (tabulka `profiles`): peníze, zbraně, náboje, zdraví, poloha a auto, kterým jezdíš.
   Ukládá se samo každých 20 s, po nákupu nebo tuningu a při zavření karty.
 - **Vlastní garáž** (tabulka `cars`, 5 míst): zelený kroužek kousek západně od náměstí (**D** na mapě).
   Zastav v něm autem a můžeš auto zaparkovat (i ukradené, uloží se s tuningem) nebo vyjet s jiným.
   V telefonu aplikace *Garáž* přistaví kterékoli auto z garáže. Tuning auta z garáže se ukládá sám.
-- **Multiplayer** (Supabase Realtime, kanál `blansko-world`): přihlášení hráči se vidí navzájem
+- **Multiplayer** (Supabase Realtime, kanál `blansko-world`): hráči (hosté i přihlášení) se vidí navzájem
   (postava nebo auto s tuningem, jmenovka se zdravím, zelené tečky na mapě, aplikace *Hráči*).
   Hráči se můžou střílet a srazit autem; zabití jiného hráče dá 250 Kč. Provoz, chodci a policie
   jsou u každého hráče vlastní.

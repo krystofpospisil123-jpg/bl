@@ -52,7 +52,7 @@ export class CarModel {
   private rims: THREE.InstancedMesh[] = [];
   private type: CarType = 'liftback';
   private spoiler?: THREE.Object3D;
-  private neon?: THREE.Mesh;
+  private neon?: THREE.Object3D;
 
   /** Tuning: rim colour. */
   setRimColor(hex: number) {
@@ -87,17 +87,42 @@ export class CarModel {
     this.root.add(g);
   }
 
-  /** Tuning: coloured glow under the car. */
+  /** Tuning: neon tubes under the sills and a soft coloured glow on the road below the car. */
   setNeon(color: number | null) {
-    if (this.neon) this.root.remove(this.neon);
+    if (this.neon) {
+      this.root.remove(this.neon);
+      this.neon.traverse((o) => {
+        if (o instanceof THREE.Mesh) (o.material as THREE.Material).dispose();
+      });
+    }
     this.neon = undefined;
     if (color === null) return;
-    this.neon = new THREE.Mesh(
-      new THREE.PlaneGeometry(this.halfWidth * 2 + 0.6, this.halfLength * 2 + 0.4).rotateX(-Math.PI / 2),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
+    const g = new THREE.Group();
+    const w = this.halfWidth, l = this.halfLength;
+    // Glow: a texture that fades out softly around the car's footprint (no hard edges).
+    const glow = new THREE.Mesh(
+      new THREE.PlaneGeometry(w * 2 + 2.4, l * 2 + 2.4).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color, map: neonGlowTexture(), transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2 }),
     );
-    this.neon.position.y = -0.69;
-    this.root.add(this.neon);
+    glow.position.y = -0.7;
+    glow.renderOrder = 2;
+    // Tubes: thin bright strips along both sills and across the front and back.
+    const tube = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(1.6), toneMapped: false });
+    const side = new THREE.BoxGeometry(0.035, 0.035, l * 1.25);
+    const end = new THREE.BoxGeometry(w * 1.3, 0.035, 0.035);
+    for (const x of [-1, 1]) {
+      const m = new THREE.Mesh(side, tube);
+      m.position.set(x * (w - 0.12), -0.5, 0);
+      g.add(m);
+    }
+    for (const z of [-1, 1]) {
+      const m = new THREE.Mesh(end, tube);
+      m.position.set(0, -0.5, z * (l - 0.45));
+      g.add(m);
+    }
+    g.add(glow);
+    this.neon = g;
+    this.root.add(g);
   }
 
   /** Accumulated damage 0..1 (smoke from the bonnet when high). */
@@ -238,6 +263,34 @@ const tailOff = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 
 const tailOn = new THREE.MeshStandardMaterial({ color: 0xff3030, roughness: 0.3, emissive: 0xdd0000 });
 let sharedCarMat: THREE.MeshStandardMaterial | null = null;
 export const RIM_STOCK = 0xa9adb2;
+
+let neonTex: THREE.CanvasTexture | undefined;
+/** White glow mask for neon: strong right under the car, fading smoothly ~1 m around it. */
+function neonGlowTexture(): THREE.CanvasTexture {
+  if (neonTex) return neonTex;
+  const W = 64, H = 128;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(W, H);
+  // The plane is 2.4 m larger than the car: the footprint is the inner box, the rest is falloff.
+  const fx = 0.36, fz = 0.42; // footprint half-size as a fraction of the texture
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const u = Math.abs((x + 0.5) / W - 0.5) , v = Math.abs((y + 0.5) / H - 0.5);
+      const dx = Math.max(0, u - fx + 0.08) / (0.5 - fx + 0.08), dz = Math.max(0, v - fz + 0.04) / (0.5 - fz + 0.04);
+      const d = Math.min(1, Math.hypot(dx, dz));
+      const a = Math.pow(1 - d, 2.2) * 255;
+      const i = (y * W + x) * 4;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+      img.data[i + 3] = a;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  neonTex = new THREE.CanvasTexture(c);
+  return neonTex;
+}
 function carMaterial() {
   sharedCarMat ??= useCarAttributes(new THREE.MeshStandardMaterial({ metalness: 0.3 }));
   return sharedCarMat;

@@ -183,7 +183,7 @@ export class Game {
       this.hurt(dmg);
     };
     this.mp.onKill = (victim, killer) => {
-      if (killer === this.account.profile?.nickname) {
+      if (killer === this.mp.nick) {
         this.arsenal.money += 250;
         this.sound.pickup();
         this.say(`Zabil jsi hráče ${victim} (+${formatKc(250)})`, 4);
@@ -619,19 +619,17 @@ export class Game {
   private warnedWanted = false;
 
   /** Login state changed (or the game started): load the save, join or leave multiplayer. */
-  private onAccountChange() {
+  onAccountChange() {
     const prof = this.account.profile;
-    if (!prof) {
-      this.mp.leave();
-      this.loadedSaveFor = null;
-      return;
-    }
+    if (!prof) this.loadedSaveFor = null;
     if (this.mode === 'loading' || !this.player || !this.car) return;
-    if (this.loadedSaveFor !== prof.id) {
+    if (prof && this.loadedSaveFor !== prof.id) {
       this.loadedSaveFor = prof.id;
       this.applySave();
     }
-    if (!this.mp.online) this.mp.join(prof.id, prof.nickname);
+    // Everyone plays together: logged in under their profile, otherwise as a guest.
+    const id = this.account.netId, nick = this.account.netNick;
+    if (this.mp.id !== id || this.mp.nick !== nick) this.mp.join(id, nick);
   }
 
   /** Puts the saved money, weapons, health, car and position into the game. */
@@ -816,7 +814,7 @@ export class Game {
       }),
       deliverCar: (id) => this.deliverGarageCar(id),
       players: () => ({
-        loggedIn: !!this.account.profile, online: this.mp.online, me: this.account.profile?.nickname ?? '',
+        loggedIn: true, online: this.mp.online, me: this.mp.nick || this.account.netNick,
         list: [...this.mp.players.values()].map((p) => ({ nick: p.nick, dist: p.position.distanceTo(this.focus), inCar: p.mode === 'car', health: p.health })),
       }),
       view: this.canvas,

@@ -25,7 +25,7 @@ export class StartMenu {
   private label: HTMLElement;
   private body: HTMLElement;
   private tip: HTMLElement;
-  private shown: 'loading' | 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'login' | null = 'loading';
+  private shown: 'loading' | 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'login' | 'guestnick' | null = 'loading';
   private loginNote = '';
   private started = false;
   private tipIndex = Math.floor(Math.random() * TIPS.length);
@@ -110,7 +110,10 @@ export class StartMenu {
     const acc = this.game.account;
     const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
     if (!acc.ready) return '<p class="account">Ověřuji přihlášení…</p>';
-    if (!acc.loggedIn) return '<button data-go="login">Přihlásit se</button><p class="note">Uložení hry, vlastní garáž a hra s ostatními</p>';
+    if (!acc.loggedIn) {
+      return `<p class="account">V multiplayeru jako <b>${esc(acc.guestNick)}</b> · <a data-rename>změnit</a></p>
+        <button data-go="login">Přihlásit se</button><p class="note">Přihlášení přidá uložení hry a vlastní garáž</p>`;
+    }
     if (!acc.profile) {
       return `<h3>Vyber si přezdívku</h3><input class="field nick" type="text" maxlength="16" placeholder="přezdívka (2–16 znaků)" autocomplete="nickname" spellcheck="false" />
         <button data-nick>Uložit přezdívku</button><p class="note ${this.loginNote.startsWith('!') ? 'err' : ''}">${esc(this.loginNote.replace(/^!/, '')) || esc(acc.email)}</p>`;
@@ -118,7 +121,7 @@ export class StartMenu {
     return `<p class="account">Hraješ jako <b>${esc(acc.profile.nickname)}</b> · <a data-logout>Odhlásit</a></p>`;
   }
 
-  private show(view: 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'login') {
+  private show(view: 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'login' | 'guestnick') {
     this.shown = view;
     this.el.classList.add('ready');
     const back = '<button data-go="main" class="ghost">Zpět</button>';
@@ -130,6 +133,14 @@ export class StartMenu {
         <button data-go="about">O hře</button>
         ${this.started ? '<button data-go="cheats">Cheaty</button>' : ''}
         ${this.accountHtml()}`;
+    } else if (view === 'guestnick') {
+      this.body.innerHTML = `
+        <h3>Přezdívka v multiplayeru</h3>
+        <input class="field nick" type="text" maxlength="16" value="${this.game.account.guestNick.replace(/"/g, '&quot;')}" autocomplete="nickname" spellcheck="false" />
+        <button data-nick class="primary">Uložit</button>
+        <p class="note ${this.loginNote.startsWith('!') ? 'err' : ''}">${this.loginNote.replace(/^!/, '').replace(/[<>&]/g, '')}</p>
+        ${back}`;
+      setTimeout(() => this.body.querySelector<HTMLInputElement>('input.nick')?.select(), 50);
     } else if (view === 'login') {
       const n = this.loginNote;
       this.body.innerHTML = `
@@ -186,6 +197,10 @@ export class StartMenu {
         zvuky se syntetizují v prohlížeči. Všechna jména obchodů jsou jen popisky bez log.</p>${back}`;
     }
     this.body.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.addEventListener('click', () => this.click(b)));
+    this.body.querySelector('[data-rename]')?.addEventListener('click', () => {
+      this.loginNote = '';
+      this.show('guestnick');
+    });
     this.body.querySelector('[data-logout]')?.addEventListener('click', () => {
       void this.game.saveGame().finally(() => this.game.account.signOut());
     });
@@ -213,9 +228,14 @@ export class StartMenu {
     const nick = raw.trim();
     if (nick.length < 2 || nick.length > 16) {
       this.loginNote = '!Přezdívka musí mít 2 až 16 znaků.';
-      return this.show('main');
+      return this.show(this.game.account.loggedIn ? 'main' : 'guestnick');
     }
     this.loginNote = '';
+    if (!this.game.account.loggedIn) {
+      this.game.account.setGuestNick(nick);
+      this.game.onAccountChange();
+      return this.show('main');
+    }
     const err = await this.game.createProfile(nick);
     this.loginNote = err ? `!${err}` : '';
     this.show('main');

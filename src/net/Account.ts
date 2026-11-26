@@ -46,8 +46,32 @@ export class Account {
   /** Logged in, profile loaded or missing (then the player must pick a nickname). */
   onChange?: () => void;
 
+  /** Multiplayer identity for players who are not logged in (kept in this browser). */
+  readonly guestId: string;
+  guestNick: string;
+
   constructor() {
+    const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+    const write = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } };
+    this.guestId = read('blansko-guest-id') ?? crypto.randomUUID();
+    write('blansko-guest-id', this.guestId);
+    this.guestNick = read('blansko-guest-nick') ?? `Host ${1000 + Math.floor(Math.random() * 9000)}`;
+    write('blansko-guest-nick', this.guestNick);
     void this.init();
+  }
+
+  setGuestNick(nick: string) {
+    this.guestNick = nick;
+    try { localStorage.setItem('blansko-guest-nick', nick); } catch { /* private mode */ }
+  }
+
+  /** Who we are in multiplayer: the profile when logged in, otherwise the guest. */
+  get netId() {
+    return this.profile?.id ?? this.guestId;
+  }
+
+  get netNick() {
+    return this.profile?.nickname ?? this.guestNick;
   }
 
   private async init() {

@@ -246,6 +246,14 @@ export class Multiplayer {
   private myId = '';
   private myNick = '';
 
+  get id() {
+    return this.myId;
+  }
+
+  get nick() {
+    return this.myNick;
+  }
+
   leave() {
     if (this.channel) void supabase.removeChannel(this.channel);
     this.channel = null;

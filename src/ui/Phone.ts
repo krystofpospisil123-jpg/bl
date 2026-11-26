@@ -785,7 +785,7 @@ export class Phone {
       <ul class="list"><li><div><i class="av" style="background:#0a84ff">${esc(p.me[0] ?? '?')}</i><span><b>${esc(p.me)} (ty)</b><small>tady</small></span></div></li>
       ${list.map((o) => `<li><div><i class="av" style="background:#34c759">${esc(o.nick[0] ?? '?')}</i><span><b>${esc(o.nick)}</b><small>${o.inCar ? 'v autě' : 'pěšky'} · zdraví ${Math.round(o.health)}</small></span><time>${dist(o.dist)}</time></div></li>`).join('')}</ul>
       ${list.length ? '' : '<p class="empty small">Nikdo další zrovna nehraje.</p>'}
-      <p class="empty small">Ostatní hráči jsou na mapě zeleně. Můžete se střílet i srazit autem.</p></div>`;
+      <p class="empty small">Ostatní hráči jsou na mapě zeleně. Můžete se střílet i srazit autem. Přezdívku změníš v menu (Esc).</p></div>`;
   }
 
   private weatherHtml() {
