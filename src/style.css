@@ -397,3 +397,8 @@ body.menu-open #home-garage { visibility: hidden; }
 #shop footer .msg.bad { color: #ff7a6e; }
 #shop footer .hint { opacity: 0.5; margin-left: auto; }
 body.menu-open #shop { visibility: hidden; }
+#start .body .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#start .body button.mode { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 14px 10px; font-size: 20px; }
+#start .body button.mode small { font-size: 12px; font-weight: 600; letter-spacing: 0.5px; text-transform: none; opacity: 0.75; }
+#start .body button.mode.mp { background: linear-gradient(180deg, #5aa8ff, #2f6fe0); border-color: #9cc7ff; color: #fff; }
+#start .body button.mode-switch { font-size: 14px; padding: 10px; }

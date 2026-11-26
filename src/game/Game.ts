@@ -176,7 +176,6 @@ export class Game {
       },
     });
     this.scene.add(this.homeGarage.group, this.mp.group);
-    this.account.onChange = () => this.onAccountChange();
     this.mp.onHit = (dmg, from, kind) => {
       this.lastAttacker = { nick: from, at: performance.now() };
       if (kind === 'car' && this.mode === 'foot') this.say(`${from} tě srazil!`);
@@ -478,11 +477,18 @@ export class Game {
     }
   }
 
-  /** Play pressed in the menu. */
-  start() {
+  /** Multiplayer chosen in the menu (otherwise the game runs offline). */
+  multiplayer = false;
+
+  /** Play pressed in the menu: offline, or together with other players. */
+  start(multiplayer: boolean) {
     if (this.mode !== 'loading' || !this.ready) return;
     this.setMode('foot');
-    this.onAccountChange();
+    if (!this.loadedSaveFor) {
+      this.loadedSaveFor = this.account.profile.id;
+      this.applySave();
+    }
+    this.setMultiplayer(multiplayer);
     setTimeout(() => this.phone.message('Blansko·Net', 'Vítejte v síti Blansko·Net 5G! Telefon otevřete klávesou Tab.', { color: '#2f7bff' }), 3000);
     setTimeout(() => this.phone.message('Mamka', 'Ahoj, dojeď se ukázat, ať vím, že jsi v pořádku. A jezdi opatrně!', { color: '#d0569a', replies: ['To ráda slyším ❤️', 'Tak jo, pa pa!'] }), 15000);
     setTimeout(() => this.phone.message('Petr', 'Čau, jsi ve městě? Zbraně mají v obchodech se žlutým Z na mapě, auto vyladíš v garáži s G.', { color: '#8a5cf6', replies: ['Pohoda, kdyžtak volej.', 'Jo a prohledávej popelnice 😄'] }), 40000);
@@ -618,23 +624,25 @@ export class Game {
   private carCalledAt = -1e9;
   private warnedWanted = false;
 
-  /** Login state changed (or the game started): load the save, join or leave multiplayer. */
-  onAccountChange() {
-    const prof = this.account.profile;
-    if (!prof) this.loadedSaveFor = null;
-    if (this.mode === 'loading' || !this.player || !this.car) return;
-    if (prof && this.loadedSaveFor !== prof.id) {
-      this.loadedSaveFor = prof.id;
-      this.applySave();
+  /** Switches between offline and multiplayer (also after a nickname change). */
+  setMultiplayer(on: boolean) {
+    this.multiplayer = on;
+    if (!on) {
+      if (this.mp.id) this.say('Hraješ offline');
+      this.mp.leave();
+      return;
     }
-    // Everyone plays together: logged in under their profile, otherwise as a guest.
+    if (this.mode === 'loading') return;
     const id = this.account.netId, nick = this.account.netNick;
-    if (this.mp.id !== id || this.mp.nick !== nick) this.mp.join(id, nick);
+    if (this.mp.id !== id || this.mp.nick !== nick || !this.mp.online) {
+      this.mp.join(id, nick);
+      this.say(`Multiplayer: hraješ jako ${nick}`, 3);
+    }
   }
 
   /** Puts the saved money, weapons, health, car and position into the game. */
   private applySave() {
-    const p = this.account.profile!, car = this.car!, player = this.player!;
+    const p = this.account.profile, car = this.car!, player = this.player!;
     this.arsenal.money = p.money;
     this.arsenal.owned = new Set((p.weapons as string[]).filter((w): w is keyof typeof WEAPONS => w in WEAPONS));
     for (const w of Object.keys(this.arsenal.ammo) as (keyof typeof WEAPONS)[]) this.arsenal.ammo[w] = Math.max(0, Number(p.ammo?.[w]) || 0);
@@ -657,7 +665,7 @@ export class Game {
       }
       this.chase?.setYaw(yaw);
     }
-    this.say(`Vítej zpátky, ${p.nickname}! Hra načtena.`, 4);
+    if (this.account.returning) setTimeout(() => this.say('Hra načtena, pokračuješ tam, kde jsi skončil.', 4), 3000);
   }
 
   /** Changes the car to one from the garage (look and tuning). */
@@ -687,7 +695,7 @@ export class Game {
   /** Saves the profile (and the tuning of the garage car you drive). */
   async saveGame() {
     this.saveClock = 0;
-    if (!this.account.profile || !this.player || !this.car || this.mode === 'loading' || this.fading) return;
+    if (!this.player || !this.car || this.mode === 'loading' || this.fading) return;
     const jobs: Promise<unknown>[] = [this.account.save({ ...this.saveState(), active_car: this.garageCarId })];
     const key = this.carKey();
     if (this.garageCarId && key !== this.lastSavedCar) {
@@ -700,15 +708,6 @@ export class Game {
   /** Save in a moment (after a purchase or tuning). */
   saveSoon() {
     this.saveClock = Math.max(this.saveClock, 18);
-  }
-
-  /** First login: create the profile from the current game. */
-  async createProfile(nickname: string): Promise<string | null> {
-    const err = await this.account.createProfile(nickname, { ...this.saveState(), health: Math.round(this.health) });
-    if (err) return err.includes('duplicate') ? 'Profil už existuje.' : err;
-    this.loadedSaveFor = this.account.profile!.id;
-    this.onAccountChange();
-    return null;
   }
 
   private async parkInGarage(): Promise<string> {
@@ -809,12 +808,12 @@ export class Game {
       },
       drawMap: (c, st, range) => this.minimap?.drawRect(c, st.pos, st.yaw, range, st.car, st.police, st.wanted, st.marks, this.otherPlayers()),
       garage: () => ({
-        loggedIn: !!this.account.profile, spaces: 5,
+        spaces: 5,
         cars: this.account.cars.map((c) => ({ id: c.id, title: carTitle(c), color: c.color, active: c.id === this.garageCarId })),
       }),
       deliverCar: (id) => this.deliverGarageCar(id),
       players: () => ({
-        loggedIn: true, online: this.mp.online, me: this.mp.nick || this.account.netNick,
+        multiplayer: this.multiplayer, online: this.mp.online, me: this.mp.nick || this.account.netNick,
         list: [...this.mp.players.values()].map((p) => ({ nick: p.nick, dist: p.position.distanceTo(this.focus), inCar: p.mode === 'car', health: p.health })),
       }),
       view: this.canvas,
@@ -1075,7 +1074,7 @@ export class Game {
     this.phone.update();
     this.homeGarage.update(timeUniform.value);
     this.mp.update(dt, this.netState());
-    if (this.account.profile && (this.mode === 'foot' || this.mode === 'car') && (this.saveClock += dt) > 20) void this.saveGame();
+    if ((this.mode === 'foot' || this.mode === 'car') && (this.saveClock += dt) > 20) void this.saveGame();
     if (!this.paused) this.effects.update(dt, this.renderer.getDrawingBufferSize(this.tmpSize).y);
     this.hud.update(dt);
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 1.4);

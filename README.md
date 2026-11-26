@@ -462,22 +462,17 @@ Token k Mapillary API je uložený jen v nastavení prostředí (síťové tajem
 - Po zatčení tě odvezou na služebnu PČR Na Řadech (pokuta 20 %, auto stojí venku). Při nule zdraví se probudíš z nemocnice na náměstí Republiky.
 - Částice ohně a kouře mají omezenou velikost na obrazovce a u kamery mizí (dřív ji zahltily a hra se při výbuchu sekala).
 
-## Účty, ukládání, garáž a multiplayer (Supabase)
+## Offline / multiplayer, ukládání a garáž
 
-Multiplayer běží pro všechny i bez přihlášení: host dostane náhodné ID a přezdívku (*Host 1234*),
-kterou si změní v hlavním menu (*změnit*); obojí si pamatuje prohlížeč. Přihlášení (*Přihlásit se*,
-magic link na e-mail) přidá uložení hry a vlastní garáž a v multiplayeru se pak hraje pod přezdívkou z profilu.
+V hlavním menu se vybírá **Offline** (hraješ sám) nebo **Multiplayer** (s ostatními). Přepnout jde
+i během hry v pauze (Esc). Žádné přihlašování: přezdívku si nastavíš v menu (*změnit*).
 
-- **Uložení hry** (tabulka `profiles`): peníze, zbraně, náboje, zdraví, poloha a auto, kterým jezdíš.
-  Ukládá se samo každých 20 s, po nákupu nebo tuningu a při zavření karty.
-- **Vlastní garáž** (tabulka `cars`, 5 míst): zelený kroužek kousek západně od náměstí (**D** na mapě).
-  Zastav v něm autem a můžeš auto zaparkovat (i ukradené, uloží se s tuningem) nebo vyjet s jiným.
-  V telefonu aplikace *Garáž* přistaví kterékoli auto z garáže. Tuning auta z garáže se ukládá sám.
-- **Multiplayer** (Supabase Realtime, kanál `blansko-world`): hráči (hosté i přihlášení) se vidí navzájem
-  (postava nebo auto s tuningem, jmenovka se zdravím, zelené tečky na mapě, aplikace *Hráči*).
-  Hráči se můžou střílet a srazit autem; zabití jiného hráče dá 250 Kč. Provoz, chodci a policie
-  jsou u každého hráče vlastní.
-- Databázi chrání RLS: každý hráč čte a mění jen svůj profil a svoje auta. Klíč v `src/net/Account.ts`
-  je veřejný (publishable). Hra běží celá v prohlížeči, takže stav hráče není ověřovaný serverem.
-- V Supabase je potřeba mít v *Authentication → URL Configuration* adresu hry (GitHub Pages)
-  a `http://localhost:5173`, jinak magic link nepřesměruje zpět do hry.
+- **Uložení hry** je v prohlížeči (localStorage): peníze, zbraně, náboje, zdraví, poloha a auto,
+  kterým jezdíš. Ukládá se samo každých 20 s, po nákupu nebo tuningu a při zavření karty.
+- **Vlastní garáž** (5 míst, taky v prohlížeči): zelený kroužek kousek západně od náměstí (**D** na
+  mapě). Zastav v něm autem a můžeš auto zaparkovat (i ukradené, uloží se s tuningem) nebo vyjet
+  s jiným. V telefonu aplikace *Garáž* přistaví kterékoli auto z garáže.
+- **Multiplayer** (Supabase Realtime, kanál `blansko-world`): hráči se vidí navzájem (postava nebo
+  auto s tuningem, jmenovka se zdravím, zelené tečky na mapě, aplikace *Hráči*). Můžou se střílet
+  a srazit autem; zabití jiného hráče dá 250 Kč. Provoz, chodci a policie jsou u každého vlastní.
+  Hra běží celá v prohlížeči, takže stav hráče není ověřovaný serverem.

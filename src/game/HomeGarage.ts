@@ -1,6 +1,6 @@
 // The player's own garage: a fixed spot west of náměstí Republiky (D on the map). Stop in the
 // green ring in a car to park it (saved with its tuning) or drive out another of your cars.
-// Each logged-in player has their own garage; the cars are stored in Supabase.
+// The cars are saved in this browser (see Account).
 import * as THREE from 'three';
 import type { Account, GarageCar } from '../net/Account.ts';
 import { GARAGE_SPACES } from '../net/Account.ts';
@@ -143,11 +143,6 @@ export class HomeGarage {
   render() {
     const acc = this.account;
     const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-    if (!acc.loggedIn || !acc.profile) {
-      this.panel.innerHTML = `<h2>Moje garáž</h2><p>Garáž mají jen přihlášení hráči. Přihlas se v menu (Esc → Přihlásit se) a auta se ti budou ukládat.</p>
-        <button data-a="close" class="opt">Zavřít</button>`;
-      return;
-    }
     const cur = this.actions.current();
     const saved = cur.garageId && acc.cars.some((c) => c.id === cur.garageId);
     const full = acc.cars.length >= GARAGE_SPACES;
@@ -160,7 +155,6 @@ export class HomeGarage {
     }).join('');
     const empty = Array.from({ length: GARAGE_SPACES - acc.cars.length }, () => '<div class="car empty"><span><small>volné místo</small></span></div>').join('');
     this.panel.innerHTML = `<h2>Moje garáž <small>${acc.cars.length}/${GARAGE_SPACES}</small></h2>
-      <p class="who">${esc(acc.profile.nickname)}</p>
       <div class="cars">${rows}${empty}</div>
       ${saved ? '<p class="hint">Auto, ve kterém sedíš, je tvoje: tuning se ukládá sám.</p>'
         : `<button data-a="park" class="opt main" ${full ? 'disabled' : ''}>Zaparkovat toto auto (${esc(carTitle(cur))})</button>${full ? '<p class="hint">Garáž je plná, nejdřív nějaké auto vyhoď.</p>' : ''}`}

@@ -56,11 +56,11 @@ export interface PhoneHost {
   tone: (freqs: number[], seconds: number, volume?: number, delay?: number) => void;
   onToggle: (open: boolean) => void;
   /** Your garage (logged-in players). */
-  garage: () => { loggedIn: boolean; spaces: number; cars: { id: string; title: string; color: number; active: boolean }[] };
+  garage: () => { spaces: number; cars: { id: string; title: string; color: number; active: boolean }[] };
   /** Has a garage car brought to the nearest road; returns the answer. */
   deliverCar: (id: string) => string;
   /** Other players online. */
-  players: () => { loggedIn: boolean; online: boolean; me: string; list: { nick: string; dist: number; inCar: boolean; health: number }[] };
+  players: () => { multiplayer: boolean; online: boolean; me: string; list: { nick: string; dist: number; inCar: boolean; health: number }[] };
 }
 
 type Screen = 'home' | 'garage' | 'players' | 'phone' | 'call' | 'messages' | 'thread' | 'bank' | 'map' | 'camera' | 'gallery' | 'photo' | 'weather' | 'settings';
@@ -767,7 +767,6 @@ export class Phone {
 
   private garageHtml() {
     const g = this.host.garage();
-    if (!g.loggedIn) return `${this.header('Garáž')}<p class="empty">Vlastní garáž mají přihlášení hráči.<br>Přihlas se v menu (Esc).</p>`;
     const rows = g.cars.map((c) => `<li><div><i class="av" style="background:#${c.color.toString(16).padStart(6, '0')}">🚗</i>
       <span><b>${esc(c.title)}</b><small>${c.active ? 'tohle auto máš venku' : 'v garáži'}</small></span>
       <button class="pill" data-a="deliver" data-v="${c.id}">Přistavit</button></div></li>`).join('');
@@ -778,7 +777,7 @@ export class Phone {
 
   private playersHtml() {
     const p = this.host.players();
-    if (!p.loggedIn) return `${this.header('Hráči')}<p class="empty">Multiplayer je jen pro přihlášené.<br>Přihlas se v menu (Esc).</p>`;
+    if (!p.multiplayer) return `${this.header('Hráči')}<p class="empty">Hraješ offline.<br>Multiplayer zapneš v menu (Esc).</p>`;
     const list = [...p.list].sort((a, b) => a.dist - b.dist);
     const dist = (d: number) => (d < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(1)} km`);
     return `${this.header('Hráči')}<div class="body"><p class="garage-sum"><span class="dot${p.online ? ' on' : ''}"></span>${p.online ? `Online · ${list.length + 1} ve hře` : 'Připojuji…'}</p>

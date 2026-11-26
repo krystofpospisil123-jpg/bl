@@ -25,8 +25,8 @@ export class StartMenu {
   private label: HTMLElement;
   private body: HTMLElement;
   private tip: HTMLElement;
-  private shown: 'loading' | 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'login' | 'guestnick' | null = 'loading';
-  private loginNote = '';
+  private shown: 'loading' | 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'nick' | null = 'loading';
+  private nickNote = '';
   private started = false;
   private tipIndex = Math.floor(Math.random() * TIPS.length);
 
@@ -46,13 +46,6 @@ export class StartMenu {
     this.tip = this.el.querySelector('.tip')!;
     this.tip.textContent = `Tip: ${TIPS[this.tipIndex]}`;
     document.body.append(this.el);
-    // Refresh the account line when the login state changes (e.g. after the magic link).
-    const prev = game.account.onChange;
-    game.account.onChange = () => {
-      prev?.();
-      if (this.game.account.loggedIn) this.loginNote = '';
-      if (this.shown === 'main' || this.shown === 'login') this.show(this.game.account.loggedIn ? 'main' : this.shown);
-    };
     // Phones have no Esc key: a "Pauza a cheaty" item in the touch menu opens this menu.
     const touchMenu = document.querySelector('.touch-menu');
     if (touchMenu) {
@@ -106,56 +99,40 @@ export class StartMenu {
     this.shown = null;
   }
 
-  private accountHtml(): string {
-    const acc = this.game.account;
+  /** Nickname line (used in multiplayer). */
+  private nickHtml(): string {
     const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-    if (!acc.ready) return '<p class="account">Ověřuji přihlášení…</p>';
-    if (!acc.loggedIn) {
-      return `<p class="account">V multiplayeru jako <b>${esc(acc.guestNick)}</b> · <a data-rename>změnit</a></p>
-        <button data-go="login">Přihlásit se</button><p class="note">Přihlášení přidá uložení hry a vlastní garáž</p>`;
-    }
-    if (!acc.profile) {
-      return `<h3>Vyber si přezdívku</h3><input class="field nick" type="text" maxlength="16" placeholder="přezdívka (2–16 znaků)" autocomplete="nickname" spellcheck="false" />
-        <button data-nick>Uložit přezdívku</button><p class="note ${this.loginNote.startsWith('!') ? 'err' : ''}">${esc(this.loginNote.replace(/^!/, '')) || esc(acc.email)}</p>`;
-    }
-    return `<p class="account">Hraješ jako <b>${esc(acc.profile.nickname)}</b> · <a data-logout>Odhlásit</a></p>`;
+    return `<p class="account">Přezdívka: <b>${esc(this.game.account.guestNick)}</b> · <a data-rename>změnit</a></p>`;
   }
 
-  private show(view: 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'login' | 'guestnick') {
+  private show(view: 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'nick') {
     this.shown = view;
     this.el.classList.add('ready');
     const back = '<button data-go="main" class="ghost">Zpět</button>';
     if (view === 'main') {
+      const mp = this.game.multiplayer;
+      const play = this.started
+        ? `<button data-go="play" class="primary">Pokračovat</button>
+          <button data-switch class="mode-switch">${mp ? 'Přepnout na offline' : 'Přepnout na multiplayer'}</button>
+          <p class="note">${mp ? `Hraješ v multiplayeru${this.game.mp.online ? ` · ${this.game.mp.players.size + 1} ve hře` : ' · připojuji…'}` : 'Hraješ offline'}</p>`
+        : `<div class="modes"><button data-go="play" data-mp="0" class="primary mode"><b>Offline</b><small>hraješ sám</small></button>
+          <button data-go="play" data-mp="1" class="primary mode mp"><b>Multiplayer</b><small>s ostatními hráči</small></button></div>`;
       this.body.innerHTML = `
-        <button data-go="play" class="primary">${this.started ? 'Pokračovat' : 'Hrát'}</button>
+        ${play}
+        ${this.nickHtml()}
         <button data-go="settings">Nastavení</button>
         <button data-go="keys">Ovládání</button>
         <button data-go="about">O hře</button>
-        ${this.started ? '<button data-go="cheats">Cheaty</button>' : ''}
-        ${this.accountHtml()}`;
-    } else if (view === 'guestnick') {
+        ${this.started ? '<button data-go="cheats">Cheaty</button>' : ''}`;
+    } else if (view === 'nick') {
       this.body.innerHTML = `
-        <h3>Přezdívka v multiplayeru</h3>
+        <h3>Přezdívka</h3>
+        <p class="text small">Pod tímhle jménem tě uvidí ostatní hráči v multiplayeru.</p>
         <input class="field nick" type="text" maxlength="16" value="${this.game.account.guestNick.replace(/"/g, '&quot;')}" autocomplete="nickname" spellcheck="false" />
         <button data-nick class="primary">Uložit</button>
-        <p class="note ${this.loginNote.startsWith('!') ? 'err' : ''}">${this.loginNote.replace(/^!/, '').replace(/[<>&]/g, '')}</p>
+        <p class="note err">${this.nickNote.replace(/[<>&]/g, '')}</p>
         ${back}`;
       setTimeout(() => this.body.querySelector<HTMLInputElement>('input.nick')?.select(), 50);
-    } else if (view === 'login') {
-      const n = this.loginNote;
-      this.body.innerHTML = `
-        <h3>Přihlášení</h3>
-        <p class="text small">Zadej e-mail, pošleme ti odkaz. Klikni na něj v tomhle prohlížeči a jsi přihlášený, žádné heslo.</p>
-        <input class="field email" type="email" placeholder="tvuj@email.cz" autocomplete="email" spellcheck="false" />
-        <button data-send class="primary">Poslat odkaz</button>
-        <p class="note ${n.startsWith('!') ? 'err' : n ? 'ok' : ''}">${n.replace(/^!/, '').replace(/[<>&]/g, '')}</p>
-        ${back}`;
-      const input = this.body.querySelector<HTMLInputElement>('input.email')!;
-      input.addEventListener('keydown', (e) => {
-        e.stopPropagation();
-        if (e.key === 'Enter') void this.sendLink(input.value);
-      });
-      setTimeout(() => input.focus(), 50);
     } else if (view === 'cheats') {
       this.body.innerHTML = `
         <h3>Cheaty</h3>
@@ -198,46 +175,26 @@ export class StartMenu {
     }
     this.body.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.addEventListener('click', () => this.click(b)));
     this.body.querySelector('[data-rename]')?.addEventListener('click', () => {
-      this.loginNote = '';
-      this.show('guestnick');
-    });
-    this.body.querySelector('[data-logout]')?.addEventListener('click', () => {
-      void this.game.saveGame().finally(() => this.game.account.signOut());
+      this.nickNote = '';
+      this.show('nick');
     });
     const nick = this.body.querySelector<HTMLInputElement>('input.nick');
     nick?.addEventListener('keydown', (e) => {
       e.stopPropagation();
-      if (e.key === 'Enter') void this.saveNick(nick.value);
+      if (e.key === 'Enter') this.saveNick(nick.value);
     });
   }
 
-  private async sendLink(raw: string) {
-    const email = raw.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      this.loginNote = '!Tohle nevypadá jako e-mail.';
-      return this.show('login');
-    }
-    this.loginNote = 'Posílám…';
-    this.show('login');
-    const err = await this.game.account.sendLink(email);
-    this.loginNote = err ? `!${err}` : `Odkaz je na cestě na ${email}. Otevři ho v tomhle prohlížeči (mrkni i do spamu).`;
-    if (this.shown === 'login') this.show('login');
-  }
-
-  private async saveNick(raw: string) {
-    const nick = raw.trim();
+  private saveNick(raw: string) {
+    const nick = raw.trim().replace(/\s+/g, ' ');
     if (nick.length < 2 || nick.length > 16) {
-      this.loginNote = '!Přezdívka musí mít 2 až 16 znaků.';
-      return this.show(this.game.account.loggedIn ? 'main' : 'guestnick');
+      this.nickNote = 'Přezdívka musí mít 2 až 16 znaků.';
+      return this.show('nick');
     }
-    this.loginNote = '';
-    if (!this.game.account.loggedIn) {
-      this.game.account.setGuestNick(nick);
-      this.game.onAccountChange();
-      return this.show('main');
-    }
-    const err = await this.game.createProfile(nick);
-    this.loginNote = err ? `!${err}` : '';
+    this.nickNote = '';
+    this.game.account.setNick(nick);
+    // Already playing online: rejoin under the new name.
+    if (this.game.multiplayer && this.started) this.game.setMultiplayer(true);
     this.show('main');
   }
 
@@ -248,13 +205,16 @@ export class StartMenu {
       this.shown = null;
       if (!this.started) {
         this.started = true;
-        this.game.start();
+        this.game.start(d.mp === '1');
       } else this.resume();
       return;
     }
     if (d.go) return this.show(d.go as 'main');
-    if (d.send !== undefined) return void this.sendLink(this.body.querySelector<HTMLInputElement>('input.email')?.value ?? '');
-    if (d.nick !== undefined) return void this.saveNick(this.body.querySelector<HTMLInputElement>('input.nick')?.value ?? '');
+    if (d.nick !== undefined) return this.saveNick(this.body.querySelector<HTMLInputElement>('input.nick')?.value ?? '');
+    if (d.switch !== undefined) {
+      this.game.setMultiplayer(!this.game.multiplayer);
+      return this.show('main');
+    }
     if (d.q) this.game.pipeline.set(d.q as Quality, false);
     if (d.sound !== undefined) {
       settings.muted = !settings.muted;
