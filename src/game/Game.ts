@@ -31,6 +31,7 @@ import { Effects } from '../fx/Effects.ts';
 import { Pickups } from './Pickups.ts';
 import { Shops } from './Shops.ts';
 import { Interior } from './Interior.ts';
+import { Club, DRINK_PRICE, TIP_PRICE } from './Club.ts';
 import { Garage } from './Garage.ts';
 import { stockTuning } from '../vehicle/Tuning.ts';
 import { StartMenu } from '../ui/StartMenu.ts';
@@ -81,6 +82,7 @@ export class Game {
   readonly pickups = new Pickups();
   shops?: Shops;
   interior?: Interior;
+  club?: Club;
   readonly garage = new Garage(this.arsenal);
   /** Login and the saved game (Supabase); the game works offline without it. */
   readonly account = new Account();
@@ -148,7 +150,7 @@ export class Game {
     if (mobile) {
       this.chunks.useMobileProfile();
       this.touch = new TouchControls(this.input, {
-        canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped, nearBin: () => !!this.nearBin && !this.nearEntrance, nearEntrance: () => !!this.nearEntrance,
+        clubAction: () => this.clubAction, canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped, nearBin: () => !!this.nearBin && !this.nearEntrance, nearEntrance: () => !!this.nearEntrance,
       });
     }
     this.scene.add(this.chunks.root);
@@ -279,7 +281,8 @@ export class Game {
       this.mp.setPhysics(p);
       this.homeGarage.place(this.heights.sample(HOME_GARAGE.x, HOME_GARAGE.z));
       this.interior = new Interior(p);
-      this.scene.add(this.interior.group, this.pickups.group);
+      this.club = new Club(p);
+      this.scene.add(this.interior.group, this.club.group, this.pickups.group);
       this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 110 : 180);
       this.scene.add(this.traffic.group, this.pedestrians.group, this.police.group, this.weapon.group);
       this.chase = new ChaseCamera(this.camera, this.mouse, (x, z) => this.heights.sample(x, z), (o, d, max) =>
@@ -499,6 +502,7 @@ export class Game {
     const marks: MapMark[] = this.chunks.entrancesNear(this.focus, 3000).map((e) => ({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'Z', color: '#f1c232', name: e.name }));
     for (const e of this.chunks.entrancesNear(this.focus, 3000, 'garage')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'G', color: '#ff9a2e', name: e.name });
     marks.push({ pos: new THREE.Vector3(HOME_GARAGE.x, 0, HOME_GARAGE.z), label: 'D', color: '#34d17a', name: 'Moje garáž' });
+    for (const e of this.chunks.entrancesNear(this.focus, 3000, 'club')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'K', color: '#ff4fb8', name: e.name });
     return marks;
   }
 
@@ -510,10 +514,46 @@ export class Game {
   /** A store door within reach (on foot, outside). */
   get nearEntrance(): (StoreEntrance & { y: number }) | null {
     if (this.mode !== 'foot' || !this.player || this.insideStore) return null;
-    return this.chunks.entrancesNear(this.player.position, 1.8)[0] ?? null;
+    return this.chunks.entrancesNear(this.player.position, 1.8)[0] ?? this.chunks.entrancesNear(this.player.position, 1.8, 'club')[0] ?? null;
+  }
+
+  /** Inside the club: what F does here (order at the bar / tip at the stage). */
+  get clubAction(): 'bar' | 'stage' | null {
+    if (this.insideStore?.kind !== 'club' || this.mode !== 'foot' || !this.player || !this.club) return null;
+    if (this.club.atBar(this.player.position)) return 'bar';
+    if (this.club.atStage(this.player.position)) return 'stage';
+    return null;
+  }
+
+  private clubDo(a: 'bar' | 'stage') {
+    const price = a === 'bar' ? DRINK_PRICE : TIP_PRICE;
+    if (this.arsenal.money < price) {
+      this.say(`Nemáš dost peněz (${formatKc(price)})`);
+      return;
+    }
+    this.arsenal.money -= price;
+    if (a === 'bar') {
+      this.health = Math.min(100, this.health + 10);
+      this.say(['Na zdraví! Mojito za', 'Gin s tonikem za', 'Panák slivovice za', 'Cuba libre za'][Math.floor(Math.random() * 4)] + ` ${formatKc(price)}`, 3);
+    } else {
+      this.club!.tip(this.player!.position);
+      this.sound.pickup();
+      this.say(`Spropitné ${formatKc(price)} – tanečnice ti zamávala`, 3);
+    }
+  }
+
+  private enterClub(e: StoreEntrance & { y: number }) {
+    if (!this.club || !this.player) return;
+    this.insideStore = e;
+    this.arsenal.current = null;
+    this.player.teleport(this.club.spawn.clone(), this.club.spawnYaw);
+    this.chase?.setYaw(this.club.spawnYaw);
+    this.sound.setClubMusic(true);
+    this.say(`${e.name}: bar je vpravo, pódium vepředu`, 4);
   }
 
   private enterStore(e: StoreEntrance & { y: number }) {
+    if (e.kind === 'club') return this.enterClub(e);
     if (!this.interior || !this.player) return;
     this.insideStore = e;
     this.arsenal.current = null;
@@ -528,6 +568,7 @@ export class Game {
     if (!e || !this.player) return;
     this.insideStore = null;
     this.shops?.close();
+    this.sound.setClubMusic(false);
     const x = e.x + e.nx * 1.6, z = e.z + e.nz * 1.6;
     const yaw = Math.atan2(e.nx, e.nz);
     this.player.teleport(new THREE.Vector3(x, this.heights.sample(x, z) + 0.1, z), yaw);
@@ -1019,6 +1060,7 @@ export class Game {
     if (k.justPressed('KeyF') && this.stun <= 0) {
       if (this.mode === 'car') this.exitCar();
       else if (this.canEnterCar) this.enterCar();
+      else if (this.clubAction) this.clubDo(this.clubAction);
       else if (this.mode === 'foot' && this.canSteal) this.steal();
       else if (this.mode === 'foot' && this.nearEntrance) this.enterStore(this.nearEntrance);
       else if (this.mode === 'foot') this.searchBin();
@@ -1161,6 +1203,17 @@ export class Game {
         pos: p.position, inCar: p.mode === 'car', hit: (dmg: number) => this.mp.hit(p.id, p.mode === 'car' ? dmg * 0.5 : dmg, 'shot'),
       })),
     });
+    // Traffic signs have no collider: the car knocks them over (they stand up again later).
+    if (driving && Math.abs(car.speed) > 2) {
+      const lv2 = car.body.linvel();
+      const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quaternion);
+      let fell = 0;
+      for (const k of [-1.2, 0.3, 1.6]) {
+        fell += this.chunks.knockSigns(car.position.x + fwd.x * k, car.position.z + fwd.z * k, 1.15, lv2.x, lv2.z);
+      }
+      if (fell) this.sound.crash(4);
+    }
+    this.chunks.updateSigns(dt);
     // Running over another player on foot.
     if (driving && Math.abs(car.speed) > 5) {
       const now = performance.now();
@@ -1196,10 +1249,15 @@ export class Game {
     this.lastThrottle = driving ? carInput.throttle : 0;
 
     // Inside a store: the gun counter opens the shop menu, the door ring takes you back out.
-    const inside = this.interior && this.insideStore;
+    const inClub = this.insideStore?.kind === 'club' && this.club;
+    const inside = this.interior && this.insideStore && !inClub;
     if (inside && walking && this.interior!.near(player.position, this.interior!.counter, 1.4)) this.shops?.open(this.insideStore!.name);
     else this.shops?.close();
     if (inside && walking && this.interior!.near(player.position, this.interior!.exit, 1.0)) this.leaveStore();
+    if (inClub) {
+      this.club!.update(dt);
+      if (walking && this.club!.near(player.position, this.club!.exit, 0.9)) this.leaveStore();
+    }
     const dmg = car.model.damage;
     this.carSmoke.smoke = dmg > 0.45 ? Math.min(0.9, (dmg - 0.45) * 2) : 0;
     this.carSmoke.pos.set(0, 0.35, car.model.halfLength - 0.7).applyQuaternion(car.quaternion).add(car.position);

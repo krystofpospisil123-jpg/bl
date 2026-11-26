@@ -208,6 +208,94 @@ export class Sound {
     });
   }
 
+  private clubTimer = 0;
+  private clubStep = 0;
+
+  /** Club music: a simple synthesized house loop (kick, hats, clap, bass) while inside. */
+  setClubMusic(on: boolean) {
+    if (!on) {
+      clearInterval(this.clubTimer);
+      this.clubTimer = 0;
+      return;
+    }
+    if (this.clubTimer) return;
+    this.clubStep = 0;
+    this.clubTimer = window.setInterval(() => this.clubTick(), 125); // 16th notes at 120 bpm
+  }
+
+  private clubTick() {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || this.muted) return;
+    const s = this.clubStep++ % 64, t = ctx.currentTime + 0.03;
+    const out = this.master;
+    const env = (g: GainNode, v: number, len: number) => {
+      g.gain.setValueAtTime(v, t);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + len);
+    };
+    if (s % 4 === 0) {
+      // Kick: falling sine.
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(140, t);
+      o.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+      env(g, 0.5, 0.22);
+      o.connect(g).connect(out);
+      o.start(t);
+      o.stop(t + 0.25);
+    }
+    if (s % 4 === 2 || (s % 16 === 15)) {
+      // Open/closed hat: filtered noise.
+      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      src.buffer = this.noise!;
+      f.type = 'highpass';
+      f.frequency.value = 7500;
+      env(g, s % 4 === 2 ? 0.07 : 0.04, s % 4 === 2 ? 0.09 : 0.04);
+      src.connect(f).connect(g).connect(out);
+      src.start(t, Math.random());
+      src.stop(t + 0.12);
+    }
+    if (s % 8 === 4) {
+      const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      src.buffer = this.noise!;
+      f.type = 'bandpass';
+      f.frequency.value = 1500;
+      env(g, 0.12, 0.13);
+      src.connect(f).connect(g).connect(out);
+      src.start(t, Math.random());
+      src.stop(t + 0.15);
+    }
+    if (s % 2 === 0) {
+      // Bass line (A minor groove), off the kick.
+      const notes = [55, 0, 55, 65.4, 0, 55, 73.4, 0, 49, 0, 49, 58.3, 0, 49, 65.4, 0];
+      const f0 = notes[(s / 2) % 16];
+      if (f0) {
+        const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.value = f0;
+        f.type = 'lowpass';
+        f.frequency.setValueAtTime(900, t);
+        f.frequency.exponentialRampToValueAtTime(180, t + 0.2);
+        env(g, 0.11, 0.24);
+        o.connect(f).connect(g).connect(out);
+        o.start(t);
+        o.stop(t + 0.26);
+      }
+    }
+    if (s % 32 === 0 || s % 32 === 6 || s % 32 === 12) {
+      // Soft chord stab.
+      const g = ctx.createGain();
+      env(g, 0.035, 0.5);
+      g.connect(out);
+      for (const f0 of s % 64 < 32 ? [220, 261.6, 329.6] : [196, 246.9, 293.7]) {
+        const o = ctx.createOscillator();
+        o.type = 'triangle';
+        o.frequency.value = f0;
+        o.connect(g);
+        o.start(t);
+        o.stop(t + 0.55);
+      }
+    }
+  }
+
   /** Phone tones: all `freqs` together for `seconds`, starting `delay` s from now. */
   tone(freqs: number[], seconds: number, volume = 0.08, delay = 0) {
     const ctx = this.ctx;

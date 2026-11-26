@@ -476,3 +476,17 @@ i během hry v pauze (Esc). Žádné přihlašování: přezdívku si nastavíš
   auto s tuningem, jmenovka se zdravím, zelené tečky na mapě, aplikace *Hráči*). Můžou se střílet
   a srazit autem; zabití jiného hráče dá 250 Kč. Provoz, chodci a policie jsou u každého vlastní.
   Hra běží celá v prohlížeči, takže stav hráče není ověřovaný serverem.
+
+## Velvet Club, postavy a značky
+
+- **Velvet Club** (K na mapě, kousek od domácí garáže): neonový vchod na fasádě, uvnitř sál s hlavním
+  kruhovým pódiem, molem a tyčemi, LED okraji, zrcadlovou koulí a reflektory, bar s barmanem,
+  pohovky, stolky s hosty, DJ a vyhazovač. Tanečnice (v klubových kostýmech) tančí různé sestavy.
+  U baru F = drink (80 Kč, +10 zdraví), u pódia F = spropitné (100 Kč). V klubu hraje syntetizovaná
+  hudba. Kód: `src/game/Club.ts`, vchod v `src/world/builders/signs.ts`.
+- **Postavy** (`src/character/HumanRig.ts`): procedurální model s lokty, koleny, dlaněmi, obličejem
+  (oči, obočí, nos, ústa, uši) a účesy (krátké, dlouhé, drdol, culík, kšiltovka, holá hlava),
+  trička/dlouhé rukávy, kraťasy, štíhlá/mohutná postava a výška. Animace: chůze, běh, postávání
+  (dýchání, rozhlížení), skok, míření, tanec, sezení, ležení. Chodci se kreslí instancovaně
+  (jeden instancovaný mesh na část těla pro všechny).
+- **Značky** nemají kolizi: auto je při přejetí povalí (animace pádu) a za 45 s se zase postaví.

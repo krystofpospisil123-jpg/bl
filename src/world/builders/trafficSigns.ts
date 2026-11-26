@@ -241,45 +241,77 @@ const postMat = new THREE.MeshStandardMaterial({ color: 0x8b9096, roughness: 0.5
 let plateGeo: THREE.PlaneGeometry | null = null;
 let postGeo: THREE.CylinderGeometry | null = null;
 
+/** How long a knocked-over sign lies on the ground before it is put back (s). */
+const RESTORE_AFTER = 45;
+
+interface SignItem {
+  x: number; y: number; z: number; yaw: number; h: number; size: number;
+  /** Index in the post mesh, or -1 for a plate without its own post. */
+  post: number;
+  /** 0 standing .. 1 lying on the ground. */
+  fall: number;
+  /** Knocked over: falls towards (dx, dz); `downFor` counts the time on the ground. */
+  down: boolean;
+  dx: number;
+  dz: number;
+  downFor: number;
+}
+
 export interface ChunkSigns {
   group: THREE.Group;
-  /** Collision boxes for the posts, flat [x, y, z, yaw, hx, hy, hz, ...]. */
-  boxes: number[];
+  /** Knocks over the signs within `radius` of (x, z), falling along (dx, dz). Returns how many. */
+  knock(x: number, z: number, radius: number, dx: number, dz: number): number;
+  /** Falling and standing-up animation; call every frame. */
+  update(dt: number): void;
   dispose(): void;
 }
 
-/** Builds the signs of a chunk from its flat `signs` data [x, z, yaw, tile, plateHeight, post, ...]. */
+/**
+ * Builds the signs of a chunk from its flat `signs` data [x, z, yaw, tile, plateHeight, post, ...].
+ * Signs have no collider: a car drives through them and knocks them over; they stand up again
+ * after a while.
+ */
 export function buildTrafficSigns(signs: number[], heights: HeightField): ChunkSigns | null {
   const n = signs.length / 6;
   if (!n) return null;
   plateGeo ??= new THREE.PlaneGeometry(1, 1);
   postGeo ??= new THREE.CylinderGeometry(0.035, 0.035, 1, 6).translate(0, 0.5, 0);
   const group = new THREE.Group();
-  const boxes: number[] = [];
   const plates = new THREE.InstancedMesh(plateGeo, signMaterial(), n);
   const tileAttr = new Float32Array(n);
   let posts = 0;
   for (let i = 0; i < n; i++) if (signs[i * 6 + 5]) posts++;
   const postMesh = new THREE.InstancedMesh(postGeo, postMat, Math.max(1, posts));
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), tilt = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const off = new THREE.Vector3(), axis = new THREE.Vector3(), base = new THREE.Vector3();
+  const items: SignItem[] = [];
   let pi = 0;
   for (let i = 0; i < n; i++) {
     const [x, z, yaw, tile, h, post] = signs.slice(i * 6, i * 6 + 6);
-    // Ground height where the post stands.
-    const y = heights.sample(x, z);
-    const size = SIZE[tile] ?? 0.7;
-    // The plate sits just in front of the post (towards the driver).
-    const fx = Math.sin(yaw) * 0.05, fz = Math.cos(yaw) * 0.05;
-    q.setFromAxisAngle(up, yaw);
-    m.compose(new THREE.Vector3(x + fx, y + h, z + fz), q, new THREE.Vector3(size, size, 1));
-    plates.setMatrixAt(i, m);
+    items.push({ x, y: heights.sample(x, z), z, yaw, h, size: SIZE[tile] ?? 0.7, post: post ? pi++ : -1, fall: 0, down: false, dx: 0, dz: 0, downFor: 0 });
     tileAttr[i] = tile;
-    if (post) {
-      m.compose(new THREE.Vector3(x, y - 0.1, z), new THREE.Quaternion(), new THREE.Vector3(1, h + 0.5, 1));
-      postMesh.setMatrixAt(pi++, m);
-      boxes.push(x, y + 1.4, z, 0, 0.04, 1.4, 0.04);
-    }
   }
+  /** Writes the matrices of sign i: rotated about the foot of the post by its fall. */
+  const place = (i: number) => {
+    const s = items[i];
+    // Ease: the sign tips slowly, then drops.
+    const a = Math.pow(s.fall, 1.6) * (Math.PI / 2 - 0.06);
+    axis.set(s.dz, 0, -s.dx).normalize();
+    if (axis.lengthSq() < 0.5) axis.set(1, 0, 0);
+    tilt.setFromAxisAngle(axis, a);
+    base.set(s.x, s.y, s.z);
+    // The plate sits just in front of the post (towards the driver).
+    q.setFromAxisAngle(up, s.yaw).premultiply(tilt);
+    off.set(Math.sin(s.yaw) * 0.05, s.h, Math.cos(s.yaw) * 0.05).applyQuaternion(tilt).add(base);
+    m.compose(off, q, new THREE.Vector3(s.size, s.size, 1));
+    plates.setMatrixAt(i, m);
+    if (s.post >= 0) {
+      off.set(0, -0.1, 0).applyQuaternion(tilt).add(base);
+      m.compose(off, tilt, new THREE.Vector3(1, s.h + 0.5, 1));
+      postMesh.setMatrixAt(s.post, m);
+    }
+  };
+  for (let i = 0; i < n; i++) place(i);
   postMesh.count = pi;
   plates.geometry = plateGeo.clone();
   plates.geometry.setAttribute('tile', new THREE.InstancedBufferAttribute(tileAttr, 1));
@@ -288,7 +320,43 @@ export function buildTrafficSigns(signs: number[], heights: HeightField): ChunkS
   group.add(plates, postMesh);
   return {
     group,
-    boxes,
+    knock(x, z, radius, dx, dz) {
+      let hit = 0;
+      const len = Math.hypot(dx, dz) || 1;
+      for (const s of items) {
+        if (s.down || s.fall > 0.02) continue;
+        if (Math.hypot(s.x - x, s.z - z) > radius) continue;
+        s.down = true;
+        s.downFor = 0;
+        s.dx = dx / len;
+        s.dz = dz / len;
+        hit++;
+      }
+      return hit;
+    },
+    update(dt) {
+      let changed = false;
+      for (let i = 0; i < n; i++) {
+        const s = items[i];
+        if (s.down) {
+          s.downFor += dt;
+          if (s.fall < 1) {
+            s.fall = Math.min(1, s.fall + dt * 2.6);
+            place(i);
+            changed = true;
+          } else if (s.downFor > RESTORE_AFTER) s.down = false;
+        } else if (s.fall > 0) {
+          // Back up (as if the road crew put it back).
+          s.fall = Math.max(0, s.fall - dt * 0.8);
+          place(i);
+          changed = true;
+        }
+      }
+      if (changed) {
+        plates.instanceMatrix.needsUpdate = true;
+        postMesh.instanceMatrix.needsUpdate = true;
+      }
+    },
     dispose: () => {
       plates.geometry.dispose();
       plates.dispose();

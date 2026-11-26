@@ -165,8 +165,8 @@ function buildPylon(p: Pylon, ground: number, disposables: { dispose(): void }[]
 export interface StoreEntrance {
   id: number;
   name: string;
-  /** Walk-in store (gun counter) or a tuning garage you drive into. */
-  kind: 'store' | 'garage';
+  /** Walk-in store (gun counter), a tuning garage you drive into, or the night club. */
+  kind: 'store' | 'garage' | 'club';
   /** Door position on the pavement and the outward direction of the facade. */
   x: number;
   z: number;
@@ -179,11 +179,22 @@ const GUN_STORES = new Set([253791835, 1280153528, 254004784]);
 /** Car repair shops that work as tuning garages. */
 const GARAGES: Record<number, string> = { 253879043: 'Tuning Blansko', 253791939: 'Tuning Poříčí' };
 
+/** The night club (an unnamed building near the square, OSM id) and its name. */
+export const CLUB_BUILDING = 253879015;
+export const CLUB_NAME = 'Velvet Club';
+
 /** Walk-in stores of a chunk. */
 export function storeEntrances(data: ChunkData): StoreEntrance[] {
   const out: StoreEntrance[] = [];
   for (const b of data.buildings) {
     const garage = GARAGES[b.id];
+    if (b.id === CLUB_BUILDING) {
+      const wall = wallTowardRoad(b, data);
+      if (!wall) continue;
+      const mx = (wall.ax + wall.bx) / 2, mz = (wall.az + wall.bz) / 2;
+      out.push({ id: b.id, name: CLUB_NAME, kind: 'club', x: mx + wall.nx * 0.9, z: mz + wall.nz * 0.9, nx: wall.nx, nz: wall.nz });
+      continue;
+    }
     if (!GUN_STORES.has(b.id) && !garage) continue;
     const use = LANDMARKS[b.id]?.use ?? b.use ?? '';
     const name = garage ?? LANDMARKS[b.id]?.label ?? b.label ?? genericName(use);
@@ -202,6 +213,11 @@ export function buildSigns(data: ChunkData, groundAt?: (x: number, z: number) =>
   const disposables: { dispose(): void }[] = [];
   if (groundAt) for (const p of data.pylons ?? []) group.add(buildPylon(p, groundAt(p.x, p.z), disposables));
   for (const b of data.buildings) {
+    if (b.id === CLUB_BUILDING) {
+      const wall = wallTowardRoad(b, data);
+      if (wall) group.add(buildClubFront(wall, resolveStyle(b), disposables));
+      continue;
+    }
     const text = signText(b);
     if (!text) continue;
     const st = resolveStyle(b);
@@ -231,4 +247,77 @@ export function buildSigns(data: ChunkData, groundAt?: (x: number, z: number) =>
     disposables.push(geo, tex, face);
   }
   return { group, dispose: () => disposables.forEach((d) => d.dispose()) };
+}
+
+/** Night club facade: glowing neon name, a black canopy with lights and a lit doorway. */
+function buildClubFront(
+  wall: { ax: number; az: number; bx: number; bz: number; nx: number; nz: number; len: number },
+  st: { top: number; h: number },
+  disposables: { dispose(): void }[],
+): THREE.Group {
+  const g = new THREE.Group();
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 320;
+  const x = c.getContext('2d')!;
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  const line = (text: string, y: number, size: number, color: string) => {
+    x.font = `italic 800 ${size}px "Brush Script MT", "Segoe Script", cursive, system-ui`;
+    x.shadowColor = color;
+    for (const blur of [44, 24, 10]) {
+      x.shadowBlur = blur;
+      x.fillStyle = color;
+      x.fillText(text, 512, y);
+    }
+    x.shadowBlur = 3;
+    x.fillStyle = '#fff4fa';
+    x.fillText(text, 512, y);
+  };
+  line('Velvet', 120, 190, '#ff2fa8');
+  line('NIGHT CLUB', 255, 70, '#8a6bff');
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const signMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, depthWrite: false });
+  const signGeo = new THREE.PlaneGeometry(4.2, 1.31);
+  const base = st.top - st.h;
+  const sign = new THREE.Mesh(signGeo, signMat);
+  sign.position.set(0, Math.min(base + 4.4, st.top - 0.8), 0.12);
+  // Canopy over the door with a row of small lights, glowing door, two little bushes.
+  const black = new THREE.MeshStandardMaterial({ color: 0x0c0a0e, roughness: 0.4 });
+  const canopyGeo = new THREE.BoxGeometry(3.2, 0.14, 1.5);
+  const canopy = new THREE.Mesh(canopyGeo, black);
+  canopy.position.set(0, base + 2.85, 0.75);
+  canopy.castShadow = true;
+  const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, toneMapped: false });
+  const bulbGeo = new THREE.SphereGeometry(0.035, 6, 4);
+  for (let i = 0; i < 9; i++) {
+    const b = new THREE.Mesh(bulbGeo, bulbMat);
+    b.position.set(-1.5 + i * 0.375, base + 2.77, 1.48);
+    g.add(b);
+  }
+  const doorGeo = new THREE.PlaneGeometry(1.6, 2.4);
+  const doorMat = new THREE.MeshBasicMaterial({ color: 0x5a1a4a, toneMapped: false });
+  const door = new THREE.Mesh(doorGeo, doorMat);
+  door.position.set(0, base + 1.2, 0.06);
+  const frameGeo = new THREE.BoxGeometry(1.9, 2.6, 0.08);
+  const frame = new THREE.Mesh(frameGeo, black);
+  frame.position.set(0, base + 1.3, 0.03);
+  const stripeMat = new THREE.MeshBasicMaterial({ color: 0xff2fa8, toneMapped: false });
+  const stripeGeo = new THREE.BoxGeometry(0.04, 2.5, 0.04);
+  for (const sx of [-0.92, 0.92]) {
+    const s = new THREE.Mesh(stripeGeo, stripeMat);
+    s.position.set(sx, base + 1.27, 0.09);
+    g.add(s);
+  }
+  // Red carpet.
+  const carpetGeo = new THREE.PlaneGeometry(1.4, 2.6).rotateX(-Math.PI / 2);
+  const carpet = new THREE.Mesh(carpetGeo, new THREE.MeshStandardMaterial({ color: 0x7a0a1e, roughness: 0.9 }));
+  carpet.position.set(0, base + 0.03, 1.4);
+  g.add(sign, canopy, frame, door, carpet);
+  disposables.push(tex, signMat, signGeo, canopyGeo, black, bulbMat, bulbGeo, doorGeo, doorMat, frameGeo, stripeMat, stripeGeo, carpetGeo);
+  const mx = (wall.ax + wall.bx) / 2 + wall.nx * 0.08, mz = (wall.az + wall.bz) / 2 + wall.nz * 0.08;
+  g.position.set(mx, 0, mz);
+  g.rotation.y = Math.atan2(wall.nx, wall.nz);
+  return g;
 }

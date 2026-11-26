@@ -1,120 +1,45 @@
-// Procedural low-poly person with a simple walk/run cycle. Origin at the feet, facing +Z.
+// One animated person (the player, police officers, other players): the procedural human rig
+// (see HumanRig) with walk/run/idle/jump/aim animations. Origin at the feet, facing +Z.
 import * as THREE from 'three';
-import { assets, type PersonAsset } from '../assets/models.ts';
+import { HumanCrowd, DEFAULT_OUTFIT, restPose, walkPose, airPose, aimArms, dancePose, type Outfit, type Pose } from './HumanRig.ts';
 
-export interface Outfit {
-  skin: number;
-  hair: number;
-  top: number;
-  legs: number;
-  shoes: number;
-}
-
-export const DEFAULT_OUTFIT: Outfit = { skin: 0xe0b394, hair: 0x3a2a1e, top: 0x2f6d8f, legs: 0x2e3442, shoes: 0x1f1f1f };
-
-function part(w: number, h: number, d: number, color: number, y: number): THREE.Mesh {
-  // Box hanging down from its pivot (top), so rotations swing from the joint.
-  const g = new THREE.BoxGeometry(w, h, d).translate(0, -h / 2 + y, 0);
-  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color, roughness: 0.85 }));
-  m.castShadow = true;
-  return m;
-}
+export type { Outfit } from './HumanRig.ts';
+export { DEFAULT_OUTFIT } from './HumanRig.ts';
 
 export class CharacterModel {
   readonly root = new THREE.Group();
-  private body = new THREE.Group();
-  private legL = new THREE.Group();
-  private legR = new THREE.Group();
-  private shinL: THREE.Group;
-  private shinR: THREE.Group;
-  private armL = new THREE.Group();
-  private armR = new THREE.Group();
-  private head = new THREE.Group();
+  private crowd: HumanCrowd;
   private phase = 0;
-  /** Holding the pistol out in front (right arm raised). */
+  private time = Math.random() * 100;
+  private pose: Pose = restPose();
+  /** Holding the pistol out in front (both arms raised). */
   aiming = false;
+  /** Dancing (club): routine number, or null. */
+  dance: number | null = null;
   private gun: THREE.Mesh;
+  private airTime = 0;
+  private identity = new THREE.Matrix4();
 
   constructor(o: Outfit = DEFAULT_OUTFIT) {
-    this.root.add(this.body);
+    this.crowd = new HumanCrowd(1);
+    this.crowd.setOutfit(0, o);
+    this.crowd.count = 1;
+    this.root.add(this.crowd.group);
     // Pistol in the right hand, shown only while aiming.
     this.gun = new THREE.Mesh(
-      new THREE.BoxGeometry(0.045, 0.22, 0.1).translate(0, -0.72, 0.04), // barrel along the arm
+      new THREE.BoxGeometry(0.04, 0.2, 0.11).translate(0, -0.33, 0.035),
       new THREE.MeshStandardMaterial({ color: 0x1c1d1f, roughness: 0.4, metalness: 0.6 }),
     );
+    this.gun.matrixAutoUpdate = false;
     this.gun.visible = false;
-    this.armR.add(this.gun);
-    if (assets.person) {
-      this.shinL = new THREE.Group();
-      this.shinR = new THREE.Group();
-      this.fromAsset(assets.person, o);
-      return;
-    }
-    // Legs: thigh + shin with knee joint.
-    const makeLeg = (g: THREE.Group, x: number) => {
-      g.position.set(x, 0.92, 0);
-      g.add(part(0.16, 0.46, 0.18, o.legs, 0));
-      const shin = new THREE.Group();
-      shin.position.y = -0.46;
-      shin.add(part(0.14, 0.42, 0.16, o.legs, 0));
-      const shoe = part(0.15, 0.06, 0.26, o.shoes, -0.4);
-      shoe.position.z = 0.04;
-      shin.add(shoe);
-      g.add(shin);
-      this.body.add(g);
-      return shin;
-    };
-    this.shinL = makeLeg(this.legL, 0.1);
-    this.shinR = makeLeg(this.legR, -0.1);
-    // Torso and hips
-    const torso = part(0.42, 0.56, 0.24, o.top, 1.48);
-    this.body.add(torso, part(0.38, 0.12, 0.22, o.legs, 0.98));
-    // Arms
-    const makeArm = (g: THREE.Group, x: number) => {
-      g.position.set(x, 1.44, 0);
-      g.add(part(0.12, 0.34, 0.13, o.top, 0));
-      g.add(part(0.1, 0.3, 0.11, o.top, -0.33));
-      g.add(part(0.09, 0.09, 0.1, o.skin, -0.63));
-      this.body.add(g);
-    };
-    makeArm(this.armL, 0.28);
-    makeArm(this.armR, -0.28);
-    // Head with hair cap and neck
-    this.head.position.y = 1.5;
-    const neck = part(0.1, 0.08, 0.1, o.skin, 0.08);
-    const face = part(0.22, 0.25, 0.23, o.skin, 0.33);
-    const hair = part(0.24, 0.08, 0.25, o.hair, 0.36);
-    const back = part(0.24, 0.16, 0.06, o.hair, 0.32);
-    back.position.z = -0.1;
-    this.head.add(neck, face, hair, back);
-    this.body.add(this.head);
+    this.root.add(this.gun);
+    this.crowd.setPose(0, this.identity, this.pose);
+    this.crowd.commit();
   }
 
-  /** Blender body parts, tinted with the outfit colours (vertex colours keep hair, eyes, shoes). */
-  private fromAsset(p: PersonAsset, o: Outfit) {
-    const mat = (color: number) => new THREE.MeshStandardMaterial({ color, vertexColors: true, roughness: 0.85 });
-    const mesh = (g: THREE.BufferGeometry, color: number) => {
-      const m = new THREE.Mesh(g, mat(color));
-      m.castShadow = true;
-      return m;
-    };
-    this.body.add(mesh(p.torso, o.top));
-    // The head group pivots at the neck (y = 1.5); the geometry is modelled at body height.
-    const head = mesh(p.head, o.skin);
-    head.position.y = -1.5;
-    this.head.position.y = 1.5;
-    this.head.add(head);
-    this.body.add(this.head);
-    for (const [g, x] of [[this.armL, 0.27], [this.armR, -0.27]] as const) {
-      g.position.set(x, 1.44, 0);
-      g.add(mesh(p.arm, o.top), mesh(p.hand, o.skin));
-      this.body.add(g);
-    }
-    for (const [g, shin, x] of [[this.legL, this.shinL, 0.1], [this.legR, this.shinR, -0.1]] as const) {
-      g.position.set(x, 0.92, 0);
-      g.add(mesh(p.leg, o.legs), shin);
-      this.body.add(g);
-    }
+  /** Changes the clothes. */
+  setOutfit(o: Outfit) {
+    this.crowd.setOutfit(0, o);
   }
 
   /** Colour of the hand-held gun (police tasers are yellow). */
@@ -125,7 +50,7 @@ export class CharacterModel {
   /** World position of the pistol's muzzle. */
   muzzle(): THREE.Vector3 {
     this.root.updateMatrixWorld(true);
-    return new THREE.Vector3(0, -0.84, 0.06).applyMatrix4(this.armR.matrixWorld);
+    return new THREE.Vector3(0, -0.43, 0.06).applyMatrix4(this.crowd.foreR[0]).applyMatrix4(this.root.matrixWorld);
   }
 
   /**
@@ -133,34 +58,21 @@ export class CharacterModel {
    * @param grounded whether the feet touch the ground
    */
   animate(speed: number, grounded: boolean, dt: number) {
-    const stride = speed > 5.5 ? 1.25 : 1.0;
-    this.phase += (speed / stride) * dt * Math.PI;
-    const amp = Math.min(1, speed / 4.5) * (speed > 5.5 ? 0.85 : 0.6);
-    const s = Math.sin(this.phase);
-    if (!grounded) {
-      // Airborne pose: knees up, arms out.
-      this.legL.rotation.x = -0.5;
-      this.legR.rotation.x = 0.2;
-      this.shinL.rotation.x = 0.9;
-      this.shinR.rotation.x = 0.4;
-      this.armL.rotation.set(-0.6, 0, 0.3);
-      this.armR.rotation.set(-0.6, 0, -0.3);
-      this.body.position.y = 0;
-      return;
+    this.time += dt;
+    const p = this.pose;
+    this.airTime = grounded ? 0 : this.airTime + dt;
+    if (this.dance !== null) dancePose(p, this.time, this.dance);
+    else if (this.airTime > 0.12) airPose(p);
+    else {
+      // Stride length grows with speed, so the feet do not slide.
+      const stride = speed > 4 ? 1.55 : 1.1;
+      this.phase += (speed / stride) * dt * Math.PI;
+      walkPose(p, this.phase, speed, this.time);
     }
-    this.legL.rotation.x = s * amp;
-    this.legR.rotation.x = -s * amp;
-    // Knee bends on the back swing.
-    this.shinL.rotation.x = Math.max(0, -Math.cos(this.phase)) * amp * 1.4;
-    this.shinR.rotation.x = Math.max(0, Math.cos(this.phase)) * amp * 1.4;
-    this.armL.rotation.set(-s * amp * 0.9, 0, 0.06);
-    this.armR.rotation.set(s * amp * 0.9, 0, -0.06);
-    // Bob and slight forward lean when running.
-    this.body.position.y = Math.abs(Math.cos(this.phase)) * 0.05 * amp;
-    this.body.rotation.x = Math.min(0.18, speed * 0.025);
-    // Idle breathing
-    if (speed < 0.2) this.armL.rotation.z = 0.06 + Math.sin(performance.now() / 700) * 0.02;
     this.gun.visible = this.aiming;
-    if (this.aiming) this.armR.rotation.set(-Math.PI / 2 + 0.08, 0, 0);
+    if (this.aiming) aimArms(p);
+    this.crowd.setPose(0, this.identity, p);
+    this.crowd.commit();
+    if (this.aiming) this.gun.matrix.copy(this.crowd.foreR[0]);
   }
 }

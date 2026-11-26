@@ -469,7 +469,7 @@ export class Police {
     for (let i = 0; i < n; i++) {
       const pos = u.pos.clone().addScaledVector(right, i === 0 ? 2.3 : -2.3).addScaledVector(fwd, 0.6);
       pos.y = this.heights.sample(pos.x, pos.z);
-      const model = new CharacterModel({ skin: [0xe0b394, 0xd1a07e, 0xb98a68][i % 3], hair: 0x2a2018, top: 0x24324f, legs: 0x1c2433, shoes: 0x111111 });
+      const model = new CharacterModel({ skin: [0xe0b394, 0xd1a07e, 0xb98a68][i % 3], hair: 0x2a2018, top: 0x24324f, legs: 0x1c2433, shoes: 0x111111, hairStyle: 'cap', build: 0.1 });
       model.setGunColor(0xf2c230); // yellow taser
       model.root.position.copy(pos);
       this.group.add(model.root);

@@ -8,7 +8,7 @@ import { GroundPainter } from './GroundPainter.ts';
 import { buildBuildingsGeometry } from './builders/buildings.ts';
 import { ChunkTrees } from './builders/trees.ts';
 import { buildWaterGeometry, buildBridgeGeometry } from './builders/water.ts';
-import { buildTrafficSigns } from './builders/trafficSigns.ts';
+import { buildTrafficSigns, type ChunkSigns } from './builders/trafficSigns.ts';
 import type { PhysicsChunkSource } from '../physics/PhysicsWorld.ts';
 import { buildSigns, storeEntrances, type StoreEntrance } from './builders/signs.ts';
 import { buildLamps, type LampSpot } from './builders/props.ts';
@@ -42,6 +42,7 @@ interface ChunkState {
   /** Small details shown only near the viewer (props, parked cars) / at medium range (lamps). */
   propsGroup?: THREE.Group;
   trafficSigns?: THREE.Group;
+  signItems?: ChunkSigns;
   lampMesh?: THREE.Object3D;
   signs?: { group: THREE.Group; dispose: () => void };
   lamps: LampSpot[];
@@ -180,13 +181,29 @@ export class ChunkManager {
   }
 
   /** Walk-in store entrances within `radius` of a point. */
-  entrancesNear(p: THREE.Vector3, radius: number, kind: 'store' | 'garage' = 'store'): (StoreEntrance & { y: number })[] {
+  entrancesNear(p: THREE.Vector3, radius: number, kind: 'store' | 'garage' | 'club' = 'store'): (StoreEntrance & { y: number })[] {
     const out: (StoreEntrance & { y: number })[] = [];
     for (const st of this.states.values()) for (const e of st.entrances ?? []) if (e.kind === kind && Math.hypot(e.x - p.x, e.z - p.z) < radius) out.push(e);
     return out;
   }
 
   /** Litter bins within `radius` of a point (searchable for money). */
+  /** A car drove through (x, z): knocks over traffic signs there. Returns how many fell. */
+  knockSigns(x: number, z: number, radius: number, dx: number, dz: number): number {
+    let n = 0;
+    for (const st of this.states.values()) {
+      const r = st.rect;
+      if (!st.signItems || x < r.minX - radius || x > r.maxX + radius || z < r.minZ - radius || z > r.maxZ + radius) continue;
+      n += st.signItems.knock(x, z, radius, dx, dz);
+    }
+    return n;
+  }
+
+  /** Falling / standing-up animation of knocked-over signs. */
+  updateSigns(dt: number) {
+    for (const st of this.states.values()) st.signItems?.update(dt);
+  }
+
   binsNear(p: THREE.Vector3, radius: number): THREE.Vector3[] {
     const out: THREE.Vector3[] = [];
     for (const st of this.states.values()) for (const b of st.bins ?? []) if (b.distanceTo(p) < radius) out.push(b);
@@ -301,7 +318,7 @@ export class ChunkManager {
         st.group.add(ts.group);
         st.disposables.push(ts);
         st.trafficSigns = ts.group;
-        st.propBoxes = st.propBoxes.concat(ts.boxes);
+        st.signItems = ts;
       }
       st.bins = props.bins;
       if (scene.extras.length) {

@@ -4,16 +4,32 @@
 import * as THREE from 'three';
 import type { HeightField } from '../world/HeightField.ts';
 import { Graph, type Lane } from './Graph.ts';
-import { assets } from '../assets/models.ts';
+import { HumanCrowd, walkPose, limpPose, restPose, type Outfit, type HairStyle } from '../character/HumanRig.ts';
 
 const MAX_PEDS = 24;
 const SPAWN_MIN = 35, SPAWN_MAX = 170, DESPAWN = 210;
 const SIDEWALK = new Set(['residential', 'unclassified', 'tertiary', 'secondary']);
 const ROAD_HALF_WIDTH: Record<string, number> = { residential: 3, unclassified: 3, tertiary: 3.5, secondary: 4.25 };
 
-const TOPS = [0x8a2f2f, 0x2f5a8a, 0x3f6f3a, 0xc9a23a, 0x5a4a6a, 0xd8d4c8, 0x2b2b2b, 0xb86a3a, 0x6a8fa8];
-const LEGS = [0x2e3442, 0x3a3a3a, 0x4a5a7a, 0x6b5a45, 0x1e1e22, 0x8a8478];
-const SKINS = [0xe8c0a0, 0xd6a684, 0xb88466, 0x8d5f45, 0xf0d0b8];
+const TOPS = [0x8a2f2f, 0x2f5a8a, 0x3f6f3a, 0xc9a23a, 0x5a4a6a, 0xd8d4c8, 0x2b2b2b, 0xb86a3a, 0x6a8fa8, 0xe7e2d6, 0x9b2d5a, 0x2c6b6b, 0x7a7f86];
+const LEGS = [0x2e3442, 0x3a3a3a, 0x4a5a7a, 0x6b5a45, 0x1e1e22, 0x8a8478, 0x34465e, 0xb9ad94];
+const SKINS = [0xf1d0b5, 0xe8c0a0, 0xd6a684, 0xb88466, 0x8d5f45, 0x6b4430];
+const HAIRS = [0x1d1612, 0x3a2a1e, 0x5a3c22, 0x8a6236, 0xc9a66b, 0x9a9690, 0x6e2a1a];
+const SHOES = [0x1f1f1f, 0xe8e6e0, 0x5a3a24, 0x2a3550, 0x8a1f1f];
+
+const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+
+/** A random townsperson: clothes, hair, build, height. */
+export function randomOutfit(): Outfit {
+  const slim = Math.random() < 0.5;
+  const style: HairStyle = slim ? pick(['long', 'long', 'bun', 'ponytail', 'short']) : pick(['short', 'short', 'short', 'cap', 'bald']);
+  const summer = Math.random() < 0.3;
+  return {
+    skin: pick(SKINS), hair: pick(HAIRS), top: pick(TOPS), legs: pick(LEGS), shoes: pick(SHOES),
+    hairStyle: style, build: slim ? 0.75 + Math.random() * 0.25 : Math.random() * 0.25,
+    height: (slim ? 0.94 : 0.99) + Math.random() * 0.08, shortSleeves: summer || Math.random() < 0.15, shorts: summer && Math.random() < 0.6,
+  };
+}
 
 interface Ped {
   lane: Lane;
@@ -26,9 +42,7 @@ interface Ped {
   yaw: number;
   down: number; // seconds left lying on the ground
   fall: THREE.Vector3;
-  top: THREE.Color;
-  legs: THREE.Color;
-  skin: THREE.Color;
+  outfit: Outfit;
   fresh: boolean;
   /** Seconds left running away in panic (after gunshots). */
   panic: number;
@@ -38,22 +52,6 @@ interface Ped {
 }
 
 const tmp = { x: 0, y: 0, z: 0, dx: 0, dz: 0 };
-
-function boxAt(w: number, h: number, d: number, x: number, yTop: number, z = 0): THREE.BufferGeometry {
-  return new THREE.BoxGeometry(w, h, d).translate(x, yTop - h / 2, z).toNonIndexed();
-}
-
-function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
-  const pos: number[] = [], nor: number[] = [];
-  for (const g of parts) {
-    pos.push(...(g.attributes.position.array as Float32Array));
-    nor.push(...(g.attributes.normal.array as Float32Array));
-  }
-  const out = new THREE.BufferGeometry();
-  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  return out;
-}
 
 export class Pedestrians {
   readonly graph: Graph;
@@ -66,33 +64,15 @@ export class Pedestrians {
   onKilled?: (pos: THREE.Vector3) => void;
   /** Population limit (lower on phones); at most MAX_PEDS. */
   maxPeds = MAX_PEDS;
-  private meshes: Record<'torso' | 'head' | 'armL' | 'armR' | 'legL' | 'legR', THREE.InstancedMesh> & { handL?: THREE.InstancedMesh; handR?: THREE.InstancedMesh };
   private spawnTimer = 0;
+  private crowd = new HumanCrowd(MAX_PEDS);
+  private pose = restPose();
+  private time = 0;
+  private slots: (Ped | null)[] = new Array(MAX_PEDS).fill(null);
 
   constructor(graph: Graph, private heights: HeightField) {
     this.graph = graph;
-    const person = assets.person;
-    // Blender body parts carry vertex colours (hair, shoes, eyes); the instance colour tints them.
-    const mat = new THREE.MeshStandardMaterial({ roughness: 0.85, vertexColors: !!person });
-    // Limb geometries hang from their joint at the origin.
-    const leg = person?.leg ?? merge([boxAt(0.15, 0.86, 0.17, 0, 0), boxAt(0.15, 0.07, 0.25, 0, -0.86, 0.04)]);
-    const arm = person?.arm ?? merge([boxAt(0.11, 0.62, 0.12, 0, 0)]);
-    const torso = person?.torso ?? merge([boxAt(0.4, 0.58, 0.23, 0, 1.48), boxAt(0.36, 0.12, 0.21, 0, 0.98)]);
-    const head = person?.head ?? merge([boxAt(0.1, 0.08, 0.1, 0, 1.58), boxAt(0.21, 0.25, 0.22, 0, 1.83), boxAt(0.23, 0.07, 0.24, 0, 1.86)]);
-    const make = (g: THREE.BufferGeometry) => {
-      const m = new THREE.InstancedMesh(g, mat, MAX_PEDS);
-      m.castShadow = true;
-      m.frustumCulled = false;
-      m.setColorAt(0, new THREE.Color(1, 1, 1));
-      m.count = 0;
-      this.group.add(m);
-      return m;
-    };
-    this.meshes = { torso: make(torso), head: make(head), armL: make(arm), armR: make(arm), legL: make(leg), legR: make(leg) };
-    if (person) {
-      this.meshes.handL = make(person.hand);
-      this.meshes.handR = make(person.hand);
-    }
+    this.group.add(this.crowd.group);
   }
 
   private offsetFor(p: Ped): number {
@@ -112,12 +92,11 @@ export class Pedestrians {
       g.sample(lane, s, tmp);
       const d = Math.hypot(tmp.x - focus.x, tmp.z - focus.z);
       if (d < minDist || d > SPAWN_MAX) continue;
-      const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
       this.peds.push({
         lane: Math.random() < 0.5 ? lane : { edge: ei, dir: -1 }, s, speed: 1.1 + Math.random() * 0.6,
         side: Math.random() < 0.5 ? -1 : 1, sideways: 0, phase: Math.random() * 10,
         pos: new THREE.Vector3(), yaw: 0, down: 0, fall: new THREE.Vector3(),
-        top: new THREE.Color(pick(TOPS)), legs: new THREE.Color(pick(LEGS)), skin: new THREE.Color(pick(SKINS)), fresh: true, panic: 0, hp: 50, dead: false,
+        outfit: randomOutfit(), fresh: true, panic: 0, hp: 50, dead: false,
       });
       return;
     }
@@ -243,36 +222,26 @@ export class Pedestrians {
   }
 
   private render() {
-    const base = new THREE.Matrix4(), limb = new THREE.Matrix4(), out = new THREE.Matrix4();
-    const q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1);
-    const m = this.meshes;
+    const root = new THREE.Matrix4(), q = new THREE.Quaternion(), one = new THREE.Vector3(1, 1, 1), e = new THREE.Euler();
+    this.time += 1 / 60;
+    // The crowd mesh draws instances 0..n-1: keep each ped in its slot, rewriting the clothes
+    // only when the slot changes hands.
     this.peds.forEach((p, i) => {
-      // Lying peds are rotated 90° forward around the feet.
-      q.setFromEuler(new THREE.Euler(p.down > 0 ? Math.PI / 2 : 0, p.yaw, 0, 'YXZ'));
-      base.compose(p.pos, q, one);
-      const swing = p.down > 0 ? 0 : Math.sin(p.phase) * 0.5;
-      const set = (mesh: THREE.InstancedMesh, px: number, py: number, rot: number, color: THREE.Color) => {
-        limb.makeRotationX(rot).setPosition(px, py, 0);
-        out.multiplyMatrices(base, limb);
-        mesh.setMatrixAt(i, out);
-        mesh.setColorAt(i, color);
-      };
-      set(m.legL, 0.1, 0.92, swing, p.legs);
-      set(m.legR, -0.1, 0.92, -swing, p.legs);
-      set(m.armL, 0.27, 1.44, -swing * 0.8, p.top);
-      set(m.armR, -0.27, 1.44, swing * 0.8, p.top);
-      if (m.handL && m.handR) {
-        set(m.handL, 0.27, 1.44, -swing * 0.8, p.skin);
-        set(m.handR, -0.27, 1.44, swing * 0.8, p.skin);
+      if (this.slots[i] !== p) {
+        this.slots[i] = p;
+        this.crowd.setOutfit(i, p.outfit);
       }
-      set(m.torso, 0, 0, 0, p.top);
-      set(m.head, 0, 0, 0, p.skin);
+      const lying = p.down > 0 || p.dead;
+      // Lying peds are rotated 90° backwards around the feet, limbs loose.
+      e.set(lying ? -Math.PI / 2 : 0, p.yaw, 0, 'YXZ');
+      q.setFromEuler(e);
+      root.compose(lying ? p.pos.clone().add(new THREE.Vector3(0, 0.12, 0)) : p.pos, q, one);
+      if (lying) limpPose(this.pose);
+      else walkPose(this.pose, p.phase, p.panic > 0 ? 4.6 : p.speed, this.time + i * 7.3);
+      this.crowd.setPose(i, root, this.pose);
     });
-    for (const mesh of Object.values(m)) {
-      if (!mesh) continue;
-      mesh.count = this.peds.length;
-      mesh.instanceMatrix.needsUpdate = true;
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    }
+    for (let i = this.peds.length; i < MAX_PEDS; i++) this.slots[i] = null;
+    this.crowd.count = this.peds.length;
+    this.crowd.commit();
   }
 }

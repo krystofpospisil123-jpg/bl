@@ -39,6 +39,12 @@ export class StartMenu {
         <div class="body"></div>
         <p class="tip"></p>
       </div>
+      <aside class="news"><h4>NOVINKY</h4><ul>
+        <li><i style="background:linear-gradient(135deg,#ff4fb8,#7a3cff)">♪</i><div><b>Velvet Club</b><span>Noční klub kousek od náměstí (K na mapě): bar, pódia a hudba.</span></div></li>
+        <li><i style="background:linear-gradient(135deg,#ffb347,#ff6a1a)">☺</i><div><b>Nové postavy</b><span>Obličeje, účesy, oblečení a plynulé animace chůze i běhu.</span></div></li>
+        <li><i style="background:linear-gradient(135deg,#63b3ff,#3a4fe8)">⇄</i><div><b>Multiplayer</b><span>Hraj s kamarády bez přihlašování.</span></div></li>
+        <li><i style="background:linear-gradient(135deg,#4cd964,#1f8a4c)">⚠</i><div><b>Značky</b><span>Přejetá značka spadne a za chvíli ji zase postaví.</span></div></li>
+      </ul></aside>
       <div class="credits">© přispěvatelé OpenStreetMap · Výškopis a ortofoto © ČÚZK</div>`;
     this.bar = this.el.querySelector('.fill')!;
     this.label = this.el.querySelector('.loading .label')!;
@@ -105,9 +111,22 @@ export class StartMenu {
     return `<p class="account">Přezdívka: <b>${esc(this.game.account.guestNick)}</b> · <a data-rename>změnit</a></p>`;
   }
 
+  private static icon(name: 'gear' | 'keys' | 'info' | 'code' | 'solo' | 'mp'): string {
+    const paths = {
+      gear: '<circle cx="12" cy="12" r="6.2" fill="none" stroke="currentColor" stroke-width="3.4" stroke-dasharray="2.5 2.4"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/>',
+      keys: '<rect x="2" y="6" width="20" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M6 10h2M10 10h2M14 10h2M18 10h0M7 15h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      info: '<circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 11v6M12 7.5v.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>',
+      code: '<path d="M8 7 3 12l5 5M16 7l5 5-5 5M14 4l-4 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+      solo: '<circle cx="12" cy="7.5" r="4" fill="currentColor"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z" fill="currentColor"/>',
+      mp: '<circle cx="8.5" cy="7.5" r="3.6" fill="currentColor"/><path d="M1.5 20.5c0-4 3.1-7.2 7-7.2s7 3.2 7 7.2z" fill="currentColor"/><circle cx="17" cy="8.5" r="2.9" fill="currentColor" opacity=".75"/><path d="M15.6 13.4a6 6 0 0 1 6.9 5.9v1.2h-5c0-2.8-.6-5.2-1.9-7.1z" fill="currentColor" opacity=".75"/>',
+    };
+    return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`;
+  }
+
   private show(view: 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'nick') {
     this.shown = view;
     this.el.classList.add('ready');
+    this.el.classList.toggle('home', view === 'main' && !this.started);
     const back = '<button data-go="main" class="ghost">Zpět</button>';
     if (view === 'main') {
       const mp = this.game.multiplayer;
@@ -115,15 +134,16 @@ export class StartMenu {
         ? `<button data-go="play" class="primary">Pokračovat</button>
           <button data-switch class="mode-switch">${mp ? 'Přepnout na offline' : 'Přepnout na multiplayer'}</button>
           <p class="note">${mp ? `Hraješ v multiplayeru${this.game.mp.online ? ` · ${this.game.mp.players.size + 1} ve hře` : ' · připojuji…'}` : 'Hraješ offline'}</p>`
-        : `<div class="modes"><button data-go="play" data-mp="0" class="primary mode"><b>Offline</b><small>hraješ sám</small></button>
-          <button data-go="play" data-mp="1" class="primary mode mp"><b>Multiplayer</b><small>s ostatními hráči</small></button></div>`;
+        : `<div class="modes"><button data-go="play" data-mp="0" class="primary mode">${StartMenu.icon('solo')}Offline<small>Hraješ sám, svým tempem</small></button>
+          <button data-go="play" data-mp="1" class="primary mode mp">${StartMenu.icon('mp')}Multiplayer<small>Ve městě s ostatními hráči</small></button></div>`;
+      const nav = (go: string, icon: Parameters<typeof StartMenu.icon>[0], label: string) => `<button data-go="${go}" class="nav"><i>${StartMenu.icon(icon)}</i>${label}<span>›</span></button>`;
       this.body.innerHTML = `
         ${play}
         ${this.nickHtml()}
-        <button data-go="settings">Nastavení</button>
-        <button data-go="keys">Ovládání</button>
-        <button data-go="about">O hře</button>
-        ${this.started ? '<button data-go="cheats">Cheaty</button>' : ''}`;
+        ${nav('settings', 'gear', 'Nastavení')}
+        ${nav('keys', 'keys', 'Ovládání')}
+        ${nav('about', 'info', 'O hře')}
+        ${this.started ? nav('cheats', 'code', 'Cheaty') : ''}`;
     } else if (view === 'nick') {
       this.body.innerHTML = `
         <h3>Přezdívka</h3>
