@@ -4,7 +4,7 @@ import type { PhysicsWorld } from '../physics/PhysicsWorld.ts';
 import { CarPhysics, CAR_SPEC, type CarInput } from './CarPhysics.ts';
 import { CarModel, CAR_COLORS } from './CarModel.ts';
 import type { CarType } from '../assets/models.ts';
-import { ENGINE, stockTuning, type Tuning } from './Tuning.ts';
+import { ENGINE, TYPE_POWER, stockTuning, type Tuning } from './Tuning.ts';
 
 export class Car {
   readonly physics: CarPhysics;
@@ -130,7 +130,7 @@ export class Car {
     m.setSpoiler(t.spoiler ? this.look.color : null);
     m.setLowered(t.lowered);
     m.setNeon(t.neon);
-    this.physics.power = ENGINE[t.engine].power;
+    this.physics.power = ENGINE[t.engine].power * (TYPE_POWER[this.look.type] ?? 1);
   }
 
   /** Swaps the look (after stealing another car); physics stay the same. */

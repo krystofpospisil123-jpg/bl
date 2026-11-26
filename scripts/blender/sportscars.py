@@ -53,7 +53,7 @@ DETAIL = {
     'tyre': (0x141414, 0.9, 0.0, 0), 'rim': (0xb4b8bc, 0.25, 0.85, 0), 'headlight': (0xf6f4ee, 0.08, 0.2, 0.8),
     'taillight': (0xb0101a, 0.2, 0.1, 0.8), 'plate': (0xeeeeea, 0.4, 0.0, 0), 'plateblue': (0x1f3f9a, 0.4, 0.0, 0),
     'indicator': (0xe08a1e, 0.2, 0.1, 0.3), 'caliper': (0xd8b020, 0.35, 0.2, 0), 'disc': (0x6a6c70, 0.45, 0.8, 0),
-    'carbon': (0x1c1d20, 0.35, 0.3, 0),
+    'carbon': (0x1c1d20, 0.35, 0.3, 0), 'caliperred': (0xc01a1a, 0.35, 0.2, 0),
 }
 for k, (c, r, mt, e) in DETAIL.items():
     material(k, c, r, mt, e)
@@ -87,7 +87,7 @@ CARS = {
         belt=[(0, .78), (.5, .89), (1.0, .93), (1.6, .89), (2.4, .82), (3.0, .79), (3.6, .80), (4.2, .70), (4.6, .45)],
         # half width of the body before flares, and flare bulges at the axles
         half=0.93, flareF=0.04, flareR=0.07, noseIn=0.12, tailIn=0.04,
-        side=(1.72, 2.92), ws=(2.72, 3.37), rw=(1.18, 1.72), exhausts=4, tail='round', head='blade',
+        side=(1.72, 2.92), ws=(2.72, 3.37), rw=(1.18, 1.72), exhausts=4, tail='round', head='blade', caliper='caliperred',
     ),
     'gt': dict(
         L=4.52, W=1.86, R=0.335, ra=1.06, fa=3.51, zb=0.12, paint=0xd8dcde, cabin=(0.95, 3.2), wr=0.52,
@@ -95,6 +95,12 @@ CARS = {
         belt=[(0, .80), (.55, .86), (1.05, .91), (1.7, .87), (2.7, .84), (3.3, .86), (3.9, .87), (4.25, .80), (4.52, .55)],
         half=0.885, flareF=0.03, flareR=0.06, noseIn=0.10, tailIn=0.05,
         side=(1.55, 2.78), ws=(2.80, 3.20), rw=(0.92, 1.58), exhausts=2, tail='bar', head='round', wings=True,
+    ),
+    'rs': dict(L=4.69, W=1.81, R=0.33, ra=0.97, fa=3.65, zb=0.13, paint=0x1f5fa8, cabin=(0.22, 3.58), wr=0.70,
+        top=[(0, .80), (.06, .92), (.2, .99), (.35, 1.05), (1.2, 1.37), (1.7, 1.43), (2.5, 1.44), (2.95, 1.41), (3.58, .97), (4.0, .91), (4.45, .84), (4.62, .77), (4.69, .69)],
+        belt=[(0, .94), (1.0, .97), (3.6, .92), (4.2, .87), (4.69, .74)],
+        half=0.875, flareF=0.02, flareR=0.025, noseIn=0.09, tailIn=0.03,
+        side=(1.0, 3.42), ws=(2.95, 3.58), rw=(0.36, 1.18), pillars=[2.12], exhausts=2, tail='c', head='rs', tallglass=True, caliper='caliperred',
     ),
 }
 
@@ -160,14 +166,16 @@ def make_body(name, c, hi):
         inrw = c['rw'][0] <= s <= c['rw'][1]
         if (inws or inrw) and j >= 8 and g > 0.25:
             return 'glass'
-        if j == 7 and g > 0.5 and c['side'][0] <= s <= c['side'][1]:
+        if (j == 7 or (j == 8 and c.get('tallglass'))) and g > 0.5 and c['side'][0] <= s <= c['side'][1]:
+            if any(abs(s - ps) < 0.055 for ps in c.get('pillars', [])):
+                return 'trim'
             return 'glass'
         return 'paint'
 
     step = 0.045 if hi else 0.16
     n = max(10, int(round(L / step)))
     stations = sorted(set([L * i / n for i in range(n + 1)] + ([0.015, 0.035, L - 0.015, L - 0.035] if hi else [])
-                          + [v for v in (*c['side'], *c['ws'], *c['rw']) if 0 < v < L]))
+                          + [v for v in (*c['side'], *c['ws'], *c['rw'], *[p + d for p in c.get('pillars', []) for d in (-0.055, 0.055)]) if 0 < v < L]))
     bm = bmesh.new()
     rings = []
     meta = []
@@ -363,7 +371,7 @@ def cyl(bm, mi, c, axis, r, depth, mat, seg=14, r2=None):
 
 # ------------------------------------------------------------------ wheels
 
-def add_wheel(bm, mi, center, R, tw, sd, style, hi):
+def add_wheel(bm, mi, center, R, tw, sd, style, hi, caliper='caliper'):
     cx, cy, cz = center
     seg = 32 if hi else 12
     ax = Matrix.Rotation(math.pi / 2, 4, 'Y')
@@ -387,7 +395,7 @@ def add_wheel(bm, mi, center, R, tw, sd, style, hi):
     if hi:
         # Brake disc and caliper behind the spokes.
         disc(bm, mi, Vector((cx + sd * 0.0, cy, cz)), Vector((1, 0, 0)), R * 0.56, 'disc', 28, 0.03)
-        box(bm, mi, Vector((cx + sd * 0.02, cy + 0.0, cz + R * 0.48)), (0.06, 0.16, 0.09), 'caliper', Matrix.Rotation(0.5, 3, 'X'))
+        box(bm, mi, Vector((cx + sd * 0.02, cy + 0.0, cz + R * 0.48)), (0.06, 0.16, 0.09), caliper, Matrix.Rotation(0.5, 3, 'X'))
         # Spokes on top of a dark centre, so you see the disc between them.
         disc(bm, mi, Vector((cx + out + sd * 0.004, cy, cz)), Vector((sd, 0, 0)), R * 0.69, 'trim', seg, 0.006)
         spokes = 5 if style == 'fuchs' else 10
@@ -404,10 +412,10 @@ def add_wheel(bm, mi, center, R, tw, sd, style, hi):
         for k in range(seg):
             pass
 
-def wheel_object(name, R, style):
+def wheel_object(name, R, style, caliper='caliper'):
     bm = bmesh.new()
     mi = {k: i for i, k in enumerate(SLOTS)}
-    add_wheel(bm, mi, (0, 0, 0), R, 0.26, 1, style, True)
+    add_wheel(bm, mi, (0, 0, 0), R, 0.26, 1, style, True, caliper)
     me = bpy.data.meshes.new(f'car_{name}_wheel')
     bm.to_mesh(me)
     bm.free()
@@ -452,6 +460,10 @@ def build(name, c, hi):
                 decal(bm, mi, surf, L - 0.55, L - 0.22, 0.66, 0.92, 'trim', sd, 6, 2, 0.003, mode='x', shape=lambda u, v: (u, v * (1 - 0.5 * u) + 0.5 * u * 0.5))
                 decal(bm, mi, surf, L - 0.52, L - 0.25, 0.69, 0.89, 'headlight', sd, 6, 2, 0.005, mode='x', shape=lambda u, v: (u, v * (1 - 0.5 * u) + 0.5 * u * 0.5))
                 decal(bm, mi, surf, L - 0.25, L - 0.2, 0.7, 0.86, 'indicator', sd, 1, 2, 0.005, mode='x')
+            elif name == 'rs':
+                # Sharp crease along the flank and a black side skirt.
+                decal(bm, mi, surf, 0.5, L - 0.6, 0.62, 0.635, 'trim', sd, 12, 1, 0.002)
+                decal(bm, mi, surf, c['ra'] + 0.45, c['fa'] - 0.45, zb + 0.17, zb + 0.24, 'carbon', sd, 10, 1, 0.003)
             else:
                 # Round headlights on top of the front wings, with chrome rings.
                 p, n = surf.at(L - 0.42, 0.8, 'x', sd)
@@ -472,13 +484,30 @@ def build(name, c, hi):
             sm = c['ws'][0] - 0.02
             pts, _ = section(sm)
             base = Vector((sd * pts[7][0], L / 2 - sm, pts[7][1]))
-            box(bm, mi, base + Vector((sd * 0.06, 0, 0.03)), (0.12, 0.04, 0.025), 'paint')
-            cyl(bm, mi, base + Vector((sd * 0.15, 0.01, 0.08)), Vector((0, 1, 0)), 0.06, 0.11, 'paint', 16, 0.045)
+            mirror = 'trim' if name == 'rs' else 'paint'
+            box(bm, mi, base + Vector((sd * 0.06, 0, 0.03)), (0.12, 0.04, 0.025), mirror)
+            cyl(bm, mi, base + Vector((sd * 0.15, 0.01, 0.08)), Vector((0, 1, 0)), 0.06, 0.11, mirror, 16, 0.045)
             box(bm, mi, base + Vector((sd * 0.15, 0.072, 0.08)), (0.14, 0.008, 0.085), 'glass')
         # Nose: intake mesh, plate; tail: lights, diffuser, exhausts, plate.
-        front_patch(bm, mi, surf, -0.55, 0.55, zb + 0.12, zb + 0.3, yF, 'trim', 10, 2)
-        for sd in (-1, 1):
-            front_patch(bm, mi, surf, sd * 0.62, sd * 0.86, zb + 0.10, zb + 0.28, yF, 'trim', 3, 2)
+        if c.get('head') == 'rs':
+            # Black grille with a thin frame, angular headlights, big lower intake, fog lights.
+            gz0, gz1 = tF - 0.13, tF + 0.03
+            front_patch(bm, mi, surf, -0.38, 0.38, gz0, gz1, yF, 'chrome', 8, 3, 0.003)
+            front_patch(bm, mi, surf, -0.355, 0.355, gz0 + 0.015, gz1 - 0.015, yF, 'trim', 8, 3, 0.006)
+            for k in range(9):
+                x = -0.30 + k * 0.075
+                front_patch(bm, mi, surf, x - 0.006, x + 0.006, gz0 + 0.03, gz1 - 0.03, yF, 'carbon', 1, 3, 0.009)
+            for sd in (-1, 1):
+                front_patch(bm, mi, surf, sd * 0.42, sd * 0.83, tF - 0.07, tF + 0.05, yF, 'trim', 6, 3, 0.004)
+                front_patch(bm, mi, surf, sd * 0.45, sd * 0.80, tF - 0.03, tF + 0.035, yF, 'headlight', 6, 2, 0.007)
+                front_patch(bm, mi, surf, sd * 0.47, sd * 0.78, tF - 0.058, tF - 0.045, yF, 'indicator', 6, 1, 0.009)
+                front_patch(bm, mi, surf, sd * 0.55, sd * 0.80, zb + 0.10, zb + 0.30, yF, 'trim', 4, 2)
+                front_patch(bm, mi, surf, sd * 0.62, sd * 0.74, zb + 0.16, zb + 0.22, yF, 'headlight', 2, 1, 0.008)
+            front_patch(bm, mi, surf, -0.45, 0.45, zb + 0.10, zb + 0.27, yF, 'trim', 8, 2)
+        else:
+            front_patch(bm, mi, surf, -0.55, 0.55, zb + 0.12, zb + 0.3, yF, 'trim', 10, 2)
+            for sd in (-1, 1):
+                front_patch(bm, mi, surf, sd * 0.62, sd * 0.86, zb + 0.10, zb + 0.28, yF, 'trim', 3, 2)
         front_patch(bm, mi, surf, -0.26, 0.26, zb + 0.32, zb + 0.43, yF, 'plate', 4, 1, 0.006)
         front_patch(bm, mi, surf, -0.26, -0.215, zb + 0.32, zb + 0.43, yF, 'plateblue', 1, 1, 0.008)
         if c['tail'] == 'round':
@@ -490,6 +519,12 @@ def build(name, c, hi):
                         disc(bm, mi, r[0] + Vector((0, 0.008, 0)), Vector((0, 1, 0)), 0.068, 'chrome', 24, 0.025)
                         disc(bm, mi, r[0] + Vector((0, 0.02, 0)), Vector((0, 1, 0)), 0.056, 'taillight', 24, 0.01)
             front_patch(bm, mi, surf, -0.5, 0.5, tR - 0.25, tR - 0.04, yR, 'carbon', 8, 2, 0.004, 1)
+        elif c['tail'] == 'c':
+            # C-shaped tail lights wrapping the corners, black diffuser.
+            for sd in (-1, 1):
+                front_patch(bm, mi, surf, sd * 0.46, sd * 0.84, 0.70, 0.84, yR, 'taillight', 6, 2, 0.004, 1)
+                front_patch(bm, mi, surf, sd * 0.52, sd * 0.80, 0.74, 0.79, yR, 'paint', 4, 1, 0.007, 1)
+            front_patch(bm, mi, surf, -0.75, 0.75, zb + 0.08, zb + 0.22, yR, 'trim', 10, 2, 0.004, 1)
         else:
             front_patch(bm, mi, surf, -0.86, 0.86, tR - 0.115, tR - 0.07, yR, 'taillight', 16, 1, 0.004, 1)
             front_patch(bm, mi, surf, -0.6, 0.6, tR - 0.105, tR - 0.08, yR, 'trim', 8, 1, 0.006, 1)
@@ -499,10 +534,15 @@ def build(name, c, hi):
         for k in range(7):
             x = -0.6 + k * 0.2
             box(bm, mi, Vector((x, yR - 0.32, zb + 0.06)), (0.012, 0.36, 0.09), 'carbon')
-        ex = [-0.38, -0.26, 0.26, 0.38] if c['exhausts'] == 4 else [-0.32, 0.32]
+        ex = [-0.38, -0.26, 0.26, 0.38] if c['exhausts'] == 4 else [-0.55, 0.55] if name == 'rs' else [-0.32, 0.32]
         for x in ex:
             cyl(bm, mi, Vector((x, yR - 0.05, zb + 0.17)), Vector((0, 1, 0)), 0.045, 0.22, 'chrome', 18)
             disc(bm, mi, Vector((x, yR + 0.062, zb + 0.17)), Vector((0, 1, 0)), 0.034, 'trim', 18, 0.005)
+        if name == 'rs':
+            # Gloss black lip spoiler on the tailgate.
+            p, n = surf.at(0.2, 0.0, 'x', 1)
+            hp, _ = surf.hit(p, n)
+            box(bm, mi, Vector((0, hp.y + 0.0, hp.z - 0.004)), (1.2, 0.1, 0.02), 'trim', Matrix.Rotation(-0.12, 3, 'X'))
         if name == 'gt':
             # Ducktail lip and a third brake light.
             p, n = surf.at(0.32, 0.0, 'x', 1)
@@ -525,7 +565,7 @@ def build(name, c, hi):
     wxr = halfw(c['ra']) - 0.16
     for a, x_ in ((c['fa'], wx), (c['ra'], wxr)):
         for sd in (-1, 1):
-            add_wheel(bm, mi, (sd * x_, L / 2 - a, R), R, 0.26 if a == c['ra'] else 0.24, sd, 'fuchs' if name == 'gt' else 'twin', hi)
+            add_wheel(bm, mi, (sd * x_, L / 2 - a, R), R, 0.26 if a == c['ra'] else 0.24, sd, 'fuchs' if name == 'gt' else 'twin', hi, c.get('caliper', 'caliper'))
     me = bpy.data.meshes.new(f'car_{name}_{"hi" if hi else "lo"}')
     bm.to_mesh(me)
     bm.free()
@@ -549,7 +589,7 @@ for name, c in CARS.items():
     for o in (hi, lo):
         o.parent = root
     lo.hide_render = True
-    wh = wheel_object(name, R, 'fuchs' if name == 'gt' else 'twin')
+    wh = wheel_object(name, R, 'fuchs' if name == 'gt' else 'twin', c.get('caliper', 'caliper'))
     wh.parent = root
     wh.location = (0, 6, 0)
     wh.hide_render = True

@@ -73,8 +73,8 @@ export class CarModel {
     if (this.spoiler) this.root.remove(this.spoiler);
     this.spoiler = undefined;
     if (color === null) return;
-    const top: Record<CarType, number> = { liftback: 1.07, superb: 1.08, hatch: 1.47, estate: 1.49, suv: 1.69, city: 1.49, rosso: 1.0, gt: 1.02 };
-    const saloon = this.type === 'liftback' || this.type === 'superb';
+    const top: Record<CarType, number> = { liftback: 1.07, superb: 1.08, hatch: 1.47, estate: 1.49, suv: 1.69, city: 1.49, rosso: 1.0, gt: 1.02, rs: 1.06 };
+    const saloon = this.type === 'liftback' || this.type === 'superb' || this.type === 'rs';
     const g = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.3 });
     const y = -0.71 + top[this.type];

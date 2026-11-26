@@ -32,6 +32,7 @@ import { Pickups } from './Pickups.ts';
 import { Shops } from './Shops.ts';
 import { Interior } from './Interior.ts';
 import { Club, TIP_PRICE } from './Club.ts';
+import { Dealer, OFFERS, type Offer } from './Dealer.ts';
 import { BarMenu, type Drink } from './BarMenu.ts';
 import { Bowling, GAME_PRICE } from './Bowling.ts';
 import { Garage } from './Garage.ts';
@@ -42,7 +43,7 @@ import { Minimap, type MapMark } from '../ui/Minimap.ts';
 import { Navigation, nextTurn, routeLength } from '../ui/Navigation.ts';
 import { Phone } from '../ui/Phone.ts';
 import { assets } from '../assets/models.ts';
-import { Account, type GarageCar } from '../net/Account.ts';
+import { Account, GARAGE_SPACES, type GarageCar } from '../net/Account.ts';
 import { Multiplayer, type NetState } from '../net/Multiplayer.ts';
 import { HomeGarage, HOME_GARAGE, carTitle } from './HomeGarage.ts';
 import type RAPIER from '@dimforge/rapier3d-compat';
@@ -87,6 +88,7 @@ export class Game {
   interior?: Interior;
   club?: Club;
   bowling?: Bowling;
+  dealer?: Dealer;
   readonly garage = new Garage(this.arsenal);
   readonly barMenu = new BarMenu(this.arsenal);
   /** Alcohol: 0 sober .. ~1.3 very drunk; wears off slowly. */
@@ -165,7 +167,7 @@ export class Game {
     if (mobile) {
       this.chunks.useMobileProfile();
       this.touch = new TouchControls(this.input, {
-        clubAction: () => this.clubAction, bowlingAction: () => this.bowlingAction, canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped, nearBin: () => !!this.nearBin && !this.nearEntrance, nearEntrance: () => !!this.nearEntrance,
+        dealerAction: () => this.dealerAction, clubAction: () => this.clubAction, bowlingAction: () => this.bowlingAction, canEnterCar: () => this.canEnterCar, canSteal: () => this.canSteal, armed: () => this.weapon.equipped, nearBin: () => !!this.nearBin && !this.nearEntrance, nearEntrance: () => !!this.nearEntrance,
       });
     }
     this.scene.add(this.chunks.root);
@@ -305,7 +307,10 @@ export class Game {
         this.say(strike ? 'STRIKE! 🎳' : spare ? 'SPARE!' : n ? `Shozeno: ${n}` : 'Vedle…', 2.5);
       };
       this.bowling.onMessage = (t) => this.say(t, 5);
-      this.scene.add(this.interior.group, this.club.group, this.bowling.group, this.bowling.world, this.pickups.group);
+      this.dealer = new Dealer(p);
+      this.dealer.money = () => this.arsenal.money;
+      this.dealer.onBuy = (o, color, test) => this.buyCar(o, color, test);
+      this.scene.add(this.interior.group, this.club.group, this.bowling.group, this.bowling.world, this.dealer.group, this.pickups.group);
       this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 104 : 165);
       this.nav = new Navigation(graphs.drive);
       for (const d of this.chunks.loadedData()) this.minimap.paintChunk(d);
@@ -517,13 +522,14 @@ export class Game {
         this.health = 100;
         return 'Zdraví doplněno';
       case 'rosso':
-      case 'gt': {
+      case 'gt':
+      case 'rs': {
         if (!this.car) return 'Auto ještě není';
-        this.car.setLook(cmd === 'rosso' ? 0xc4161c : 0xd8dcde, cmd);
+        this.car.setLook(cmd === 'rosso' ? 0xc4161c : cmd === 'gt' ? 0xd8dcde : 0x1f5fa8, cmd);
         this.car.tuning = stockTuning();
         this.car.applyTuning();
         this.garageCarId = null;
-        return cmd === 'rosso' ? 'Máš Rosso (supersport s motorem uprostřed)' : 'Máš Stoccarda GT (kupé s motorem vzadu)';
+        return cmd === 'rosso' ? 'Máš Rosso (supersport s motorem uprostřed)' : cmd === 'gt' ? 'Máš Stoccarda GT (kupé s motorem vzadu)' : 'Máš Liftback RS (rodinný sporťák)';
       }
       case 'oprava':
         if (!this.car) return 'Auto ještě není';
@@ -558,6 +564,7 @@ export class Game {
     for (const e of this.chunks.entrancesNear(this.focus, 3000, 'garage')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'G', color: '#ff9a2e', name: e.name });
     marks.push({ pos: new THREE.Vector3(HOME_GARAGE.x, 0, HOME_GARAGE.z), label: 'D', color: '#34d17a', name: 'Moje garáž' });
     for (const e of this.chunks.entrancesNear(this.focus, 3000, 'bowling')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'B', color: '#ff8a2e', name: e.name });
+    for (const e of this.chunks.entrancesNear(this.focus, 3000, 'dealer')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'A', color: '#4fd18b', name: 'Autosalon' });
     for (const e of this.chunks.entrancesNear(this.focus, 3000, 'club')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'K', color: '#ff4fb8', name: e.name });
     return marks;
   }
@@ -571,7 +578,57 @@ export class Game {
   get nearEntrance(): (StoreEntrance & { y: number }) | null {
     if (this.mode !== 'foot' || !this.player || this.insideStore) return null;
     const p = this.player.position;
-    return this.chunks.entrancesNear(p, 1.8)[0] ?? this.chunks.entrancesNear(p, 1.8, 'club')[0] ?? this.chunks.entrancesNear(p, 2.2, 'bowling')[0] ?? null;
+    return this.chunks.entrancesNear(p, 1.8)[0] ?? this.chunks.entrancesNear(p, 1.8, 'club')[0] ?? this.chunks.entrancesNear(p, 2.2, 'bowling')[0] ?? this.chunks.entrancesNear(p, 2.2, 'dealer')[0] ?? null;
+  }
+
+  /** In the car showroom, next to one of the cars (F opens its offer). */
+  get dealerAction(): Offer | null {
+    if (this.insideStore?.kind !== 'dealer' || this.mode !== 'foot' || !this.player || !this.dealer || this.dealer.isOpen) return null;
+    const i = this.dealer.offerAt(this.player.position);
+    return i >= 0 ? OFFERS[i] : null;
+  }
+
+  private enterDealer(e: StoreEntrance & { y: number }) {
+    if (!this.dealer || !this.player) return;
+    this.insideStore = e;
+    this.arsenal.current = null;
+    this.player.teleport(this.dealer.spawn.clone(), this.dealer.spawnYaw);
+    this.chase?.setYaw(this.dealer.spawnYaw);
+    this.say(`${e.name}: dojdi k autu a zmáčkni F`, 5);
+  }
+
+  /** Bought (or test drive): the car waits outside the showroom with you in it. */
+  private async buyCar(o: Offer, color: number, test: boolean): Promise<string> {
+    const e = this.insideStore;
+    if (!e || !this.car || !this.player) return 'Chyba';
+    if (this.police?.wanted) return 'Teď ne – hledá tě policie.';
+    if (!test && this.arsenal.money < o.price) return `Na tohle auto nemáš, chybí ti ${formatKc(o.price - this.arsenal.money)}.`;
+    if (!test && this.account.cars.length >= GARAGE_SPACES) return 'Tvoje garáž je plná – nejdřív v ní nějaké auto vyhoď (D na mapě).';
+    let saved: GarageCar | null = null;
+    if (!test) {
+      const r = await this.account.addCar({ name: o.name, type: o.type, color, tuning: stockTuning() });
+      if (typeof r === 'string') return r;
+      saved = r;
+      this.arsenal.money -= o.price;
+    }
+    this.leaveStore();
+    const car = this.car;
+    car.setLook(color, o.type);
+    car.tuning = stockTuning();
+    car.applyTuning();
+    this.garageCarId = saved?.id ?? null;
+    // On the forecourt in front of the door, parallel to the glass front.
+    const x = e.x + e.nx * 6, z = e.z + e.nz * 6;
+    const yaw = Math.atan2(e.nx, e.nz) + Math.PI / 2;
+    car.reset(new THREE.Vector3(x, this.heights.sample(x, z) + 1.2, z), yaw);
+    this.enterCar();
+    this.chase?.setYaw(yaw);
+    this.sound.pickup();
+    this.saveSoon();
+    this.say(test
+      ? `Zkušební jízda: ${o.name}. Až tě omrzí, vrať se do salonu – nebo si ho kup.`
+      : `Gratuluju! ${o.name} je tvoje (−${formatKc(o.price)}). Je uložené v garáži.`, 6);
+    return '';
   }
 
   /** In the bowling hall, at the approach of the free lane (F starts a game). */
@@ -677,6 +734,7 @@ export class Game {
   private enterStore(e: StoreEntrance & { y: number }) {
     if (e.kind === 'club') return this.enterClub(e);
     if (e.kind === 'bowling') return this.enterBowling(e);
+    if (e.kind === 'dealer') return this.enterDealer(e);
     if (!this.interior || !this.player) return;
     this.insideStore = e;
     this.arsenal.current = null;
@@ -692,6 +750,7 @@ export class Game {
     this.insideStore = null;
     this.shops?.close();
     if (this.bowling?.active) this.bowling.quit();
+    this.dealer?.close();
     this.sound.setClubMusic(false);
     const x = e.x + e.nx * 1.6, z = e.z + e.nz * 1.6;
     const yaw = Math.atan2(e.nx, e.nz);
@@ -1219,6 +1278,7 @@ export class Game {
       if (this.mode === 'car') this.exitCar();
       else if (this.canEnterCar) this.enterCar();
       else if (this.bowlingAction) this.bowlingDo();
+      else if (this.dealerAction) this.dealer!.show(OFFERS.indexOf(this.dealerAction));
       else if (this.clubAction) this.clubDo(this.clubAction);
       else if (this.mode === 'foot' && this.canSteal) this.steal();
       else if (this.mode === 'foot' && this.nearEntrance) this.enterStore(this.nearEntrance);
@@ -1440,12 +1500,21 @@ export class Game {
 
     // Inside a store: the gun counter opens the shop menu, the door ring takes you back out.
     const inClub = this.insideStore?.kind === 'club' && this.club;
-    const inside = this.interior && this.insideStore && !inClub && this.insideStore.kind !== 'bowling';
+    const inside = this.interior && this.insideStore && !inClub && this.insideStore.kind !== 'bowling' && this.insideStore.kind !== 'dealer';
     if (inside && walking && this.interior!.near(player.position, this.interior!.counter, 1.4)) this.shops?.open(this.insideStore!.name);
     else this.shops?.close();
     if (inside && walking && this.interior!.near(player.position, this.interior!.exit, 1.0)) this.leaveStore();
     if (!inClub || !this.club!.atBar(player.position)) this.barMenu.close();
     if (this.insideStore?.kind === 'bowling' && walking && this.bowling!.near(player.position, this.bowling!.exit, 0.9)) this.leaveStore();
+    if (this.insideStore?.kind === 'dealer' && this.dealer) {
+      const d = this.dealer;
+      d.update(dt);
+      const at = d.offerAt(player.position);
+      // The offer opens by itself when you walk up to a car, and closes when you walk away.
+      if (at < 0 || !walking) d.close();
+      else if (d.canOpen(at)) d.show(at);
+      if (walking && d.near(player.position, d.exit, 0.9)) this.leaveStore();
+    }
     if (inClub) {
       this.club!.update(dt);
       if (walking && this.club!.near(player.position, this.club!.exit, 0.9)) this.leaveStore();

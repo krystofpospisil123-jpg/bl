@@ -27,7 +27,7 @@ export class TouchControls {
   private center = { x: 0, y: 0 };
   private radius = 56;
 
-  constructor(private input: Input, private extra: { bowlingAction: () => 'start' | 'playing' | null; clubAction: () => 'bar' | 'stage' | null; canEnterCar: () => boolean; canSteal: () => boolean; armed: () => boolean; nearBin: () => boolean; nearEntrance: () => boolean }) {
+  constructor(private input: Input, private extra: { dealerAction: () => unknown; bowlingAction: () => 'start' | 'playing' | null; clubAction: () => 'bar' | 'stage' | null; canEnterCar: () => boolean; canSteal: () => boolean; armed: () => boolean; nearBin: () => boolean; nearEntrance: () => boolean }) {
     this.root.id = 'touch';
     // --- Joystick (left)
     const zone = document.createElement('div');
@@ -54,6 +54,7 @@ export class TouchControls {
     this.add(pad, '▶', ['foot'], { hold: 'KeyD', when: () => this.extra.bowlingAction() === 'playing' });
     this.add(pad, 'Hod (drž)', ['foot'], { hold: 'Space', when: () => this.extra.bowlingAction() === 'playing', cls: 'big accent' });
     this.add(pad, 'Konec', ['foot'], { tap: 'KeyF', when: () => this.extra.bowlingAction() === 'playing' });
+    tap('Nabídka auta', 'KeyF', ['foot'], () => !!this.extra.dealerAction(), 'accent');
     tap('Bar', 'KeyF', ['foot'], () => this.extra.clubAction() === 'bar', 'accent');
     tap('Spropitné', 'KeyF', ['foot'], () => this.extra.clubAction() === 'stage', 'accent');
     tap('Prohledat', 'KeyF', ['foot'], () => this.extra.nearBin() && !this.extra.canEnterCar() && !this.extra.canSteal());

@@ -10,12 +10,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
-export const CAR_TYPES = ['hatch', 'liftback', 'estate', 'superb', 'suv', 'city', 'rosso', 'gt'] as const;
+export const CAR_TYPES = ['hatch', 'liftback', 'estate', 'superb', 'suv', 'city', 'rosso', 'gt', 'rs'] as const;
 export type CarType = (typeof CAR_TYPES)[number];
 /** Relative frequency of each type in traffic and car parks. */
-const TYPE_WEIGHTS: Record<CarType, number> = { hatch: 0.235, liftback: 0.235, estate: 0.175, superb: 0.08, suv: 0.14, city: 0.12, rosso: 0.007, gt: 0.008 };
+const TYPE_WEIGHTS: Record<CarType, number> = { hatch: 0.235, liftback: 0.235, estate: 0.175, superb: 0.08, suv: 0.14, city: 0.12, rosso: 0.007, gt: 0.008, rs: 0.012 };
 /** Sports cars (scripts/blender/sportscars.py): rare in traffic. */
-export const SPORTS_TYPES: CarType[] = ['rosso', 'gt'];
+export const SPORTS_TYPES: CarType[] = ['rosso', 'gt', 'rs'];
 
 /** Road surface in the car frame (the chassis origin used by physics, traffic and car parks). */
 export const CAR_GROUND = -0.71;

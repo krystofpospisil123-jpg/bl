@@ -190,7 +190,7 @@ export interface StoreEntrance {
   id: number;
   name: string;
   /** Walk-in store (gun counter), a tuning garage you drive into, or the night club. */
-  kind: 'store' | 'garage' | 'club' | 'bowling';
+  kind: 'store' | 'garage' | 'club' | 'bowling' | 'dealer';
   /** Door position on the pavement and the outward direction of the facade. */
   x: number;
   z: number;
@@ -209,6 +209,12 @@ export const CLUB_NAME = 'Velvet Club';
 /** Bowling Blansko, Dvorská 2388/4 (the building around the OSM point of the bowling). */
 export const BOWLING_BUILDING = 253809813;
 
+/** Top Autosalon Blansko (Svitavská), the town's Škoda dealer: the car showroom. */
+export const DEALER_BUILDING = 253974415;
+export const DEALER_NAME = 'Top Autosalon Blansko';
+/** Showroom door: the long glazed wall facing east to Svitavská, behind the display forecourt. */
+const DEALER_DOOR = { x: -88.4, z: 608.6 };
+
 /** Walk-in stores of a chunk. */
 export function storeEntrances(data: ChunkData): StoreEntrance[] {
   const out: StoreEntrance[] = [];
@@ -219,6 +225,13 @@ export function storeEntrances(data: ChunkData): StoreEntrance[] {
       if (!wall) continue;
       const mx = (wall.ax + wall.bx) / 2, mz = (wall.az + wall.bz) / 2;
       out.push({ id: b.id, name: 'Bowling Blansko', kind: 'bowling', x: mx + wall.nx * 0.9, z: mz + wall.nz * 0.9, nx: wall.nx, nz: wall.nz });
+      continue;
+    }
+    if (b.id === DEALER_BUILDING) {
+      const wall = wallNear(b, DEALER_DOOR.x, DEALER_DOOR.z);
+      if (!wall) continue;
+      const mx = (wall.ax + wall.bx) / 2, mz = (wall.az + wall.bz) / 2;
+      out.push({ id: b.id, name: DEALER_NAME, kind: 'dealer', x: mx + wall.nx * 0.9, z: mz + wall.nz * 0.9, nx: wall.nx, nz: wall.nz });
       continue;
     }
     if (b.id === CLUB_BUILDING) {
@@ -254,6 +267,11 @@ export function buildSigns(data: ChunkData, groundAt?: (x: number, z: number) =>
     if (b.id === BOWLING_BUILDING) {
       const wall = wallNear(b, BOWLING_DOOR.x, BOWLING_DOOR.z);
       if (wall) group.add(buildBowlingFront(wall, resolveStyle(b), disposables));
+      continue;
+    }
+    if (b.id === DEALER_BUILDING) {
+      const wall = wallNear(b, DEALER_DOOR.x, DEALER_DOOR.z);
+      if (wall) group.add(buildDealerFront(wall, resolveStyle(b), disposables));
       continue;
     }
     const text = signText(b);
@@ -412,6 +430,102 @@ function buildBowlingFront(
   frame.position.set(0, base + 1.3, 0.02);
   g.add(sign, frame, door);
   disposables.push(tex, mat, geo, doorGeo, doorMat, frameGeo, frameMat);
+  const mx = (wall.ax + wall.bx) / 2 + wall.nx * 0.08, mz = (wall.az + wall.bz) / 2 + wall.nz * 0.08;
+  g.position.set(mx, 0, mz);
+  g.rotation.y = Math.atan2(wall.nx, wall.nz);
+  return g;
+}
+
+/** Car showroom facade: a long glass front with dark frames, the lit name board and a pylon. */
+function buildDealerFront(
+  wall: { ax: number; az: number; bx: number; bz: number; nx: number; nz: number; len: number },
+  st: { top: number; h: number },
+  disposables: { dispose(): void }[],
+): THREE.Group {
+  const g = new THREE.Group();
+  const base = st.top - st.h;
+  const c = document.createElement('canvas');
+  c.width = 1024;
+  c.height = 160;
+  const x = c.getContext('2d')!;
+  x.fillStyle = '#1e2329';
+  x.fillRect(0, 0, 1024, 160);
+  x.fillStyle = '#4fd18b';
+  x.fillRect(0, 148, 1024, 12);
+  x.fillStyle = '#ffffff';
+  x.font = 'bold 86px system-ui, sans-serif';
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.fillText('TOP AUTOSALON', 512, 62);
+  x.fillStyle = '#4fd18b';
+  x.font = '600 30px system-ui, sans-serif';
+  x.fillText('PRODEJ VOZŮ · SERVIS · ZKUŠEBNÍ JÍZDY', 512, 122);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const signMat = new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.3, roughness: 0.5 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1e2329, roughness: 0.5, metalness: 0.3 });
+  const w = Math.min(wall.len - 1, 16);
+  const signGeo = new THREE.BoxGeometry(Math.min(w * 0.6, 7.5), Math.min(w * 0.6, 7.5) * 0.156, 0.14);
+  const sign = new THREE.Mesh(signGeo, [dark, dark, dark, dark, signMat, dark]);
+  sign.position.set(0, Math.max(base + 3.0, st.top - 0.55), 0.12);
+  // Glazing over most of the wall with mullions; the door in the middle.
+  const glassGeo = new THREE.PlaneGeometry(w, 2.7);
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x9fc0d4, roughness: 0.05, metalness: 0.6 });
+  const glass = new THREE.Mesh(glassGeo, glassMat);
+  glass.position.set(0, base + 1.38, 0.05);
+  const mullGeo = new THREE.BoxGeometry(0.08, 2.8, 0.08);
+  for (let k = -Math.floor(w / 2 / 1.8); k <= Math.floor(w / 2 / 1.8); k++) {
+    if (k === 0) continue;
+    const m = new THREE.Mesh(mullGeo, dark);
+    m.position.set(k * 1.8, base + 1.4, 0.08);
+    g.add(m);
+  }
+  const beamGeo = new THREE.BoxGeometry(w + 0.2, 0.12, 0.1);
+  for (const y of [0.04, 2.76]) {
+    const b = new THREE.Mesh(beamGeo, dark);
+    b.position.set(0, base + y, 0.08);
+    g.add(b);
+  }
+  const doorGeo = new THREE.BoxGeometry(2.2, 2.4, 0.08);
+  const door = new THREE.Mesh(doorGeo, dark);
+  door.position.set(0, base + 1.2, 0.08);
+  const leafGeo = new THREE.PlaneGeometry(1.0, 2.2);
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0xbfe0f0, roughness: 0.05, metalness: 0.3, emissive: 0x6a8a9a, emissiveIntensity: 0.25 });
+  for (const sx of [-0.52, 0.52]) {
+    const l = new THREE.Mesh(leafGeo, leafMat);
+    l.position.set(sx, base + 1.15, 0.13);
+    g.add(l);
+  }
+  // Free-standing pylon with the name at the corner of the forecourt.
+  const pylonGeo = new THREE.BoxGeometry(0.9, 5.2, 0.35);
+  const pylon = new THREE.Mesh(pylonGeo, dark);
+  pylon.position.set(w / 2 + 1.6, base + 2.6, 4.5);
+  const pc = document.createElement('canvas');
+  pc.width = 128;
+  pc.height = 640;
+  const px = pc.getContext('2d')!;
+  px.fillStyle = '#1e2329';
+  px.fillRect(0, 0, 128, 640);
+  px.fillStyle = '#4fd18b';
+  px.font = 'bold 76px system-ui, sans-serif';
+  px.textAlign = 'center';
+  px.textBaseline = 'middle';
+  'AUTO'.split('').forEach((ch, i) => px.fillText(ch, 64, 90 + i * 120));
+  px.fillStyle = '#fff';
+  px.fillRect(20, 560, 88, 8);
+  const ptex = new THREE.CanvasTexture(pc);
+  ptex.colorSpace = THREE.SRGBColorSpace;
+  const pmat = new THREE.MeshStandardMaterial({ map: ptex, emissive: 0xffffff, emissiveMap: ptex, emissiveIntensity: 0.3 });
+  const pfaceGeo = new THREE.PlaneGeometry(0.8, 4.0);
+  for (const r of [0, Math.PI]) {
+    const f = new THREE.Mesh(pfaceGeo, pmat);
+    f.position.set(w / 2 + 1.6, base + 3.0, 4.5 + (r ? -0.18 : 0.18));
+    f.rotation.y = r;
+    g.add(f);
+  }
+  sign.castShadow = pylon.castShadow = true;
+  g.add(glass, sign, door, pylon);
+  disposables.push(tex, signMat, dark, signGeo, glassGeo, glassMat, mullGeo, beamGeo, doorGeo, leafGeo, leafMat, pylonGeo, ptex, pmat, pfaceGeo);
   const mx = (wall.ax + wall.bx) / 2 + wall.nx * 0.08, mz = (wall.az + wall.bz) / 2 + wall.nz * 0.08;
   g.position.set(mx, 0, mz);
   g.rotation.y = Math.atan2(wall.nx, wall.nz);

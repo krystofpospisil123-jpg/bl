@@ -21,6 +21,9 @@ export const PAINTS: [string, number][] = [
 export const RIMS: [string, number][] = [['Stříbrné', 0xa9adb2], ['Černé', 0x1c1d1f], ['Zlaté', 0xc9a23a], ['Chromové', 0xe4e8ec], ['Červené', 0xb3262a]];
 export const NEONS: [string, number][] = [['Modrý', 0x2f7bff], ['Zelený', 0x2fff7b], ['Růžový', 0xff2fb5], ['Oranžový', 0xff8a2f]];
 
+/** Factory engine of each car type (power multiplier before tuning): the sports cars pull harder. */
+export const TYPE_POWER: Record<string, number> = { rosso: 2.1, gt: 1.8, rs: 1.4 };
+
 /** Engine stages: power multiplier and price. */
 export const ENGINE: { name: string; power: number; price: number }[] = [
   { name: 'Sériový', power: 1, price: 0 },

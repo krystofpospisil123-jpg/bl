@@ -163,7 +163,7 @@ export class StartMenu {
           <b>hvezdy 0–5</b> – nastaví hledanost (0 = policie tě nechá)<br>
           <b>tuning</b> – plný tuning auta (motor, výfuk, křídlo, neon…)<br>
           <b>oprava</b> – opraví auto<br>
-          <b>rosso</b> / <b>gt</b> – sportovní auto
+          <b>rosso</b> / <b>gt</b> / <b>rs</b> – sportovní auto
         </p>
         <p class="cheat-msg"></p>
         ${back}`;

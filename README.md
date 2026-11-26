@@ -528,16 +528,30 @@ sloup. Cíl jde nastavit i v telefonu (Mapa: klepnutím, nebo tlačítkem ➤ u 
 
 ## Sportovní auta (Blender)
 
-`scripts/blender/sportscars.py` staví v Blenderu dvě sportovní auta (vlastní návrhy bez log
+`scripts/blender/sportscars.py` staví v Blenderu tři sportovní auta (vlastní návrhy bez log
 a značek) a exportuje `public/data/models/sportscars.glb`:
 
 - **Rosso** – supersport s motorem uprostřed: nízká dlouhá příď, kabina posunutá dopředu,
   široké zadní blatníky, boční sání, žaluzie na víku motoru, kulatá zadní světla, 4 výfuky.
 - **Stoccarda GT** – kupé s motorem vzadu: kulatá světla na zvednutých předních blatnících,
   splývavá záď, široké zadní boky, ducktail spoiler, světelný pás přes celou záď.
+- **Liftback RS** – rychlý rodinný liftback (inspirovaný Octavií 3 RS, ale bez značky): hranaté
+  světlomety, černá maska s rámečkem, velká spodní sání s mlhovkami, světla ve tvaru C,
+  černý spoiler na víku, difuzor, dva výfuky a červené třmeny.
 
 Karoserie je lisovaná z příčných řezů a vyhlazená subdivision surface, detaily (světla, sání,
 mřížky, linie dveří) se promítají na hotový povrch; kola mají paprsky, kotouče a třmeny.
 Spuštění bez otevírání Blenderu: `pip install bpy` a `python scripts/blender/sportscars.py`
 (`PREVIEW_DIR=složka` vyrenderuje náhledy). Ve hře jezdí vzácně v provozu a stojí na
-parkovištích; cheaty `rosso` a `gt` je dají hned.
+parkovištích; cheaty `rosso`, `gt` a `rs` je dají hned. Sportovní auta mají silnější motor
+(výkon ×2,1 Rosso, ×1,8 GT, ×1,4 RS) a tuning motoru se k tomu ještě násobí.
+
+## Autosalon
+
+Ve skutečné budově Top Autosalon Blansko na Svitavské (OSM budova 253974415, A na mapě) je
+prosklený showroom s tmavou tabulí „TOP AUTOSALON“ a pylonem u předního dvora. Uvnitř se na
+třech svítících točnách otáčejí Liftback RS (35 000 Kč), Stoccarda GT (80 000 Kč) a Rosso
+(120 000 Kč), u každého stojí cenovka; u recepce prodavač, u aut zákazníci. Když dojdeš k autu,
+otevře se nabídka: parametry, výběr barvy (auto na točně se hned přebarví), **Koupit** (auto se
+uloží do tvé garáže a čeká před salonem, sedíš rovnou za volantem) nebo **Zkušební jízda
+zdarma** (auto se do garáže neuloží). Kód: `src/game/Dealer.ts`.
