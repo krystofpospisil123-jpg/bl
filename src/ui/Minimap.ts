@@ -74,7 +74,7 @@ export class Minimap {
 
   /** North-up rectangular map for the phone's Mapa app; `range` = metres from centre to the shorter edge. */
   drawRect(canvas: HTMLCanvasElement, player: THREE.Vector3, viewYaw: number, range: number,
-    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, marks: MapMark[]) {
+    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, marks: MapMark[], players: THREE.Vector3[] = []) {
     const c = canvas.getContext('2d')!;
     const W = canvas.width, H = canvas.height;
     const k = Math.min(W, H) / 2 / range;
@@ -116,6 +116,16 @@ export class Minimap {
       c.arc(x, y, 5 * ui, 0, Math.PI * 2);
       c.fill();
     }
+    for (const p of players) {
+      const [x, y] = inside(...(toMap(p) as [number, number]), 7 * ui);
+      c.fillStyle = '#4cd964';
+      c.strokeStyle = '#000';
+      c.lineWidth = 1.5 * ui;
+      c.beginPath();
+      c.arc(x, y, 6 * ui, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+    }
     // You are here: a blue dot with a view cone, like a phone map.
     const heading = Math.atan2(Math.cos(viewYaw), Math.sin(viewYaw));
     const g = c.createRadialGradient(0, 0, 0, 0, 0, 34 * ui);
@@ -139,7 +149,7 @@ export class Minimap {
 
   update(
     player: THREE.Vector3, viewYaw: number,
-    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, marks: MapMark[] = [],
+    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, marks: MapMark[] = [], players: THREE.Vector3[] = [],
   ) {
     if (this.frame++ % 2) return; // every other frame is plenty
     const c = this.canvas.getContext('2d')!;
@@ -201,6 +211,19 @@ export class Minimap {
       c.beginPath();
       c.arc(x, y, 6 * ui, 0, Math.PI * 2);
       c.fill();
+    }
+    // Other players: green dots (kept at the rim when far).
+    for (const p of players) {
+      let [x, y] = toMap(p);
+      const d = Math.hypot(x, y), maxD = R - 10;
+      if (d > maxD) { x *= maxD / d; y *= maxD / d; }
+      c.fillStyle = '#4cd964';
+      c.strokeStyle = '#000';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(x, y, 6 * ui, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
     }
     // North mark ("S" = sever) on the rim.
     const nAngle = rot; // map north (-z) direction after the rotation

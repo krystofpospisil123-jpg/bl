@@ -21,6 +21,8 @@ export interface ShotContext {
   pedestrians?: Pedestrians;
   traffic?: Traffic;
   police?: Police;
+  /** Other players (multiplayer): a hit is sent to them over the network. */
+  players?: { pos: THREE.Vector3; inCar: boolean; hit: (damage: number) => void }[];
 }
 
 /** Distance along the ray (origin o, unit dir d) to a vertical capsule, or Infinity. */
@@ -138,6 +140,13 @@ export class Weapon {
         if (t > minT && t < best) {
           best = t;
           hit = () => ctx.police!.hurtCop(c, spec.damage);
+        }
+      });
+      ctx.players?.forEach((pl) => {
+        const t = pl.inCar ? raySphere(o, d, pl.pos, 1.7) : rayCapsule(o, d, pl.pos, 1.8, 0.4);
+        if (t > minT && t < best) {
+          best = t;
+          hit = () => pl.hit(spec.damage);
         }
       });
       (hit as (() => void) | null)?.();

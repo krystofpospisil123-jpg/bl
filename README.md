@@ -461,3 +461,22 @@ Token k Mapillary API je uložený jen v nastavení prostředí (síťové tajem
 - Policisté pěšky nosí taser (dosah asi 9 m) a nikdy nestřílí na auto. Zásah tě na pár sekund složí na zem a policista ti nasadí pouta.
 - Po zatčení tě odvezou na služebnu PČR Na Řadech (pokuta 20 %, auto stojí venku). Při nule zdraví se probudíš z nemocnice na náměstí Republiky.
 - Částice ohně a kouře mají omezenou velikost na obrazovce a u kamery mizí (dřív ji zahltily a hra se při výbuchu sekala).
+
+## Účty, ukládání, garáž a multiplayer (Supabase)
+
+Hrát jde i bez přihlášení (offline, nic se neukládá). Přihlášení je v hlavním menu (*Přihlásit se*):
+hráč zadá e-mail, přijde mu magic link, po kliknutí je přihlášený a zvolí si přezdívku.
+
+- **Uložení hry** (tabulka `profiles`): peníze, zbraně, náboje, zdraví, poloha a auto, kterým jezdíš.
+  Ukládá se samo každých 20 s, po nákupu nebo tuningu a při zavření karty.
+- **Vlastní garáž** (tabulka `cars`, 5 míst): zelený kroužek kousek západně od náměstí (**D** na mapě).
+  Zastav v něm autem a můžeš auto zaparkovat (i ukradené, uloží se s tuningem) nebo vyjet s jiným.
+  V telefonu aplikace *Garáž* přistaví kterékoli auto z garáže. Tuning auta z garáže se ukládá sám.
+- **Multiplayer** (Supabase Realtime, kanál `blansko-world`): přihlášení hráči se vidí navzájem
+  (postava nebo auto s tuningem, jmenovka se zdravím, zelené tečky na mapě, aplikace *Hráči*).
+  Hráči se můžou střílet a srazit autem; zabití jiného hráče dá 250 Kč. Provoz, chodci a policie
+  jsou u každého hráče vlastní.
+- Databázi chrání RLS: každý hráč čte a mění jen svůj profil a svoje auta. Klíč v `src/net/Account.ts`
+  je veřejný (publishable). Hra běží celá v prohlížeči, takže stav hráče není ověřovaný serverem.
+- V Supabase je potřeba mít v *Authentication → URL Configuration* adresu hry (GitHub Pages)
+  a `http://localhost:5173`, jinak magic link nepřesměruje zpět do hry.

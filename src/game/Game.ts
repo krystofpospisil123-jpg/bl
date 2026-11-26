@@ -38,6 +38,9 @@ import type { StoreEntrance } from '../world/builders/signs.ts';
 import { Minimap, type MapMark } from '../ui/Minimap.ts';
 import { Phone } from '../ui/Phone.ts';
 import { assets } from '../assets/models.ts';
+import { Account, type GarageCar } from '../net/Account.ts';
+import { Multiplayer, type NetState } from '../net/Multiplayer.ts';
+import { HomeGarage, HOME_GARAGE, carTitle } from './HomeGarage.ts';
 import type RAPIER from '@dimforge/rapier3d-compat';
 
 /** Car spawn on náměstí Republiky (on the street, heading along it). */
@@ -79,6 +82,17 @@ export class Game {
   shops?: Shops;
   interior?: Interior;
   readonly garage = new Garage(this.arsenal);
+  /** Login and the saved game (Supabase); the game works offline without it. */
+  readonly account = new Account();
+  readonly mp = new Multiplayer();
+  readonly homeGarage: HomeGarage;
+  /** Id of the garage car you are driving (null for a stolen or the starting car). */
+  garageCarId: string | null = null;
+  private saveClock = 0;
+  private loadedSaveFor: string | null = null;
+  private lastSavedCar = '';
+  private lastAttacker: { nick: string; at: number } | null = null;
+  private ramCooldown = new Map<string, number>();
   private lastThrottle = 0;
   private tmpSize = new THREE.Vector2();
   /** The player's health (0-100); at zero they are taken to hospital (wasted). */
@@ -151,6 +165,36 @@ export class Game {
       if (e.button === 0) this.mouseFire = false;
     });
     this.scene.add(this.effects.group);
+    this.homeGarage = new HomeGarage(this.account, {
+      current: () => ({ type: this.car?.look.type ?? 'liftback', color: this.car?.look.color ?? 0, garageId: this.garageCarId }),
+      park: () => this.parkInGarage(),
+      takeOut: (c) => this.takeOutCar(c),
+      remove: async (c) => {
+        if (c.id === this.garageCarId) return 'Tímhle autem právě jedeš, nejdřív vyjeď s jiným.';
+        await this.account.removeCar(c.id);
+        return `${carTitle(c)} vyhozeno z garáže.`;
+      },
+    });
+    this.scene.add(this.homeGarage.group, this.mp.group);
+    this.account.onChange = () => this.onAccountChange();
+    this.mp.onHit = (dmg, from, kind) => {
+      this.lastAttacker = { nick: from, at: performance.now() };
+      if (kind === 'car' && this.mode === 'foot') this.say(`${from} tě srazil!`);
+      this.hurt(dmg);
+    };
+    this.mp.onKill = (victim, killer) => {
+      if (killer === this.account.profile?.nickname) {
+        this.arsenal.money += 250;
+        this.sound.pickup();
+        this.say(`Zabil jsi hráče ${victim} (+${formatKc(250)})`, 4);
+      } else this.say(`${killer} zabil hráče ${victim}`, 3);
+    };
+    this.mp.onJoin = (nick) => this.say(`${nick} se připojil do hry`);
+    this.mp.onLeave = (nick) => this.say(`${nick} odešel ze hry`);
+    // Save when the tab is hidden or closed.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') void this.saveGame();
+    });
     this.menu = new StartMenu(this);
     this.crosshair.id = 'crosshair';
     this.crosshair.hidden = true;
@@ -227,8 +271,14 @@ export class Game {
       };
       this.police.onWrecked = wrecked;
       this.shops = new Shops(this.arsenal);
-      this.shops.onMessage = (t) => this.say(t);
+      this.shops.onMessage = (t) => {
+        this.say(t);
+        this.saveSoon();
+      };
       this.garage.onMessage = (t) => this.say(t);
+      this.garage.onChange = () => this.saveSoon();
+      this.mp.setPhysics(p);
+      this.homeGarage.place(this.heights.sample(HOME_GARAGE.x, HOME_GARAGE.z));
       this.interior = new Interior(p);
       this.scene.add(this.interior.group, this.pickups.group);
       this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 110 : 180);
@@ -351,6 +401,7 @@ export class Game {
     const t = this.traffic.take(c);
     this.car.setLook(t.color, t.type);
     this.car.tuning = stockTuning(); // a stolen car comes without your tuning
+    this.garageCarId = null;
     this.car.applyTuning();
     this.car.reset(t.position.clone().add(new THREE.Vector3(0, 0.2, 0)), t.yaw);
     this.enterCar();
@@ -431,6 +482,7 @@ export class Game {
   start() {
     if (this.mode !== 'loading' || !this.ready) return;
     this.setMode('foot');
+    this.onAccountChange();
     setTimeout(() => this.phone.message('Blansko·Net', 'Vítejte v síti Blansko·Net 5G! Telefon otevřete klávesou Tab.', { color: '#2f7bff' }), 3000);
     setTimeout(() => this.phone.message('Mamka', 'Ahoj, dojeď se ukázat, ať vím, že jsi v pořádku. A jezdi opatrně!', { color: '#d0569a', replies: ['To ráda slyším ❤️', 'Tak jo, pa pa!'] }), 15000);
     setTimeout(() => this.phone.message('Petr', 'Čau, jsi ve městě? Zbraně mají v obchodech se žlutým Z na mapě, auto vyladíš v garáži s G.', { color: '#8a5cf6', replies: ['Pohoda, kdyžtak volej.', 'Jo a prohledávej popelnice 😄'] }), 40000);
@@ -440,6 +492,7 @@ export class Game {
   private mapMarks(): MapMark[] {
     const marks: MapMark[] = this.chunks.entrancesNear(this.focus, 3000).map((e) => ({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'Z', color: '#f1c232', name: e.name }));
     for (const e of this.chunks.entrancesNear(this.focus, 3000, 'garage')) marks.push({ pos: new THREE.Vector3(e.x, e.y, e.z), label: 'G', color: '#ff9a2e', name: e.name });
+    marks.push({ pos: new THREE.Vector3(HOME_GARAGE.x, 0, HOME_GARAGE.z), label: 'D', color: '#34d17a', name: 'Moje garáž' });
     return marks;
   }
 
@@ -540,6 +593,12 @@ export class Game {
 
   /** Health ran out: wake up at náměstí Republiky, a bit poorer. */
   private wasted() {
+    const a = this.lastAttacker;
+    if (a && performance.now() - a.at < 5000) {
+      this.mp.announceKill(a.nick);
+      this.lastAttacker = null;
+      setTimeout(() => this.say(`Zabil tě hráč ${a.nick}`, 4), 2600);
+    }
     this.police?.clear();
     this.fadeTo('ZRANĚN', 'Záchranka tě veze do nemocnice…', () =>
       this.respawn(0.1, null, (fine) => `Propuštěn z nemocnice. Léčení stálo ${formatKc(fine)}.`));
@@ -558,6 +617,159 @@ export class Game {
   readonly phone: Phone;
   private carCalledAt = -1e9;
   private warnedWanted = false;
+
+  /** Login state changed (or the game started): load the save, join or leave multiplayer. */
+  private onAccountChange() {
+    const prof = this.account.profile;
+    if (!prof) {
+      this.mp.leave();
+      this.loadedSaveFor = null;
+      return;
+    }
+    if (this.mode === 'loading' || !this.player || !this.car) return;
+    if (this.loadedSaveFor !== prof.id) {
+      this.loadedSaveFor = prof.id;
+      this.applySave();
+    }
+    if (!this.mp.online) this.mp.join(prof.id, prof.nickname);
+  }
+
+  /** Puts the saved money, weapons, health, car and position into the game. */
+  private applySave() {
+    const p = this.account.profile!, car = this.car!, player = this.player!;
+    this.arsenal.money = p.money;
+    this.arsenal.owned = new Set((p.weapons as string[]).filter((w): w is keyof typeof WEAPONS => w in WEAPONS));
+    for (const w of Object.keys(this.arsenal.ammo) as (keyof typeof WEAPONS)[]) this.arsenal.ammo[w] = Math.max(0, Number(p.ammo?.[w]) || 0);
+    this.arsenal.current = null;
+    this.health = p.health > 5 ? p.health : 100;
+    const saved = this.account.cars.find((c) => c.id === p.active_car);
+    if (saved) this.useGarageCar(saved);
+    this.lastSavedCar = this.carKey();
+    if (p.pos) {
+      const { x, z, yaw } = p.pos;
+      const g = this.heights.sample(x, z);
+      if (p.pos.inCar) {
+        car.reset(new THREE.Vector3(x, Math.max(g, p.pos.y - 0.5) + 1.2, z), yaw);
+        player.setActive(false);
+        this.setMode('car');
+      } else {
+        player.teleport(new THREE.Vector3(x, Math.max(g, p.pos.y) + 0.1, z), yaw);
+        const side = new THREE.Vector3(-Math.cos(yaw), 0, Math.sin(yaw)).multiplyScalar(4);
+        car.reset(new THREE.Vector3(x + side.x, this.heights.sample(x + side.x, z + side.z) + 1.2, z + side.z), yaw);
+      }
+      this.chase?.setYaw(yaw);
+    }
+    this.say(`Vítej zpátky, ${p.nickname}! Hra načtena.`, 4);
+  }
+
+  /** Changes the car to one from the garage (look and tuning). */
+  private useGarageCar(c: GarageCar) {
+    const car = this.car!;
+    car.setLook(c.color, c.type);
+    car.tuning = { ...stockTuning(), ...c.tuning };
+    car.applyTuning();
+    this.garageCarId = c.id;
+  }
+
+  private carKey() {
+    const c = this.car;
+    return c ? JSON.stringify([c.look, c.tuning]) : '';
+  }
+
+  /** The current game state as stored in the profile. */
+  private saveState() {
+    const a = this.arsenal, onFoot = this.mode !== 'car';
+    const e = this.insideStore;
+    const src = this.mode === 'car' ? this.car! : this.player!;
+    const pos = e ? { x: e.x + e.nx * 1.6, y: e.y, z: e.z + e.nz * 1.6, yaw: Math.atan2(e.nx, e.nz), inCar: false }
+      : { x: src.position.x, y: src.position.y, z: src.position.z, yaw: src.yaw, inCar: !onFoot };
+    return { money: Math.round(a.money), weapons: [...a.owned], ammo: { ...a.ammo }, health: Math.round(this.health), pos };
+  }
+
+  /** Saves the profile (and the tuning of the garage car you drive). */
+  async saveGame() {
+    this.saveClock = 0;
+    if (!this.account.profile || !this.player || !this.car || this.mode === 'loading' || this.fading) return;
+    const jobs: Promise<unknown>[] = [this.account.save({ ...this.saveState(), active_car: this.garageCarId })];
+    const key = this.carKey();
+    if (this.garageCarId && key !== this.lastSavedCar) {
+      this.lastSavedCar = key;
+      jobs.push(this.account.updateCar(this.garageCarId, { color: this.car.look.color, type: this.car.look.type, tuning: { ...this.car.tuning } }));
+    }
+    await Promise.all(jobs);
+  }
+
+  /** Save in a moment (after a purchase or tuning). */
+  saveSoon() {
+    this.saveClock = Math.max(this.saveClock, 18);
+  }
+
+  /** First login: create the profile from the current game. */
+  async createProfile(nickname: string): Promise<string | null> {
+    const err = await this.account.createProfile(nickname, { ...this.saveState(), health: Math.round(this.health) });
+    if (err) return err.includes('duplicate') ? 'Profil už existuje.' : err;
+    this.loadedSaveFor = this.account.profile!.id;
+    this.onAccountChange();
+    return null;
+  }
+
+  private async parkInGarage(): Promise<string> {
+    const car = this.car!;
+    const res = await this.account.addCar({ name: carTitle(car.look), type: car.look.type, color: car.look.color, tuning: { ...car.tuning } });
+    if (typeof res === 'string') return res;
+    this.garageCarId = res.id;
+    this.lastSavedCar = this.carKey();
+    await this.saveGame();
+    return `${res.name} je zaparkované v garáži. Teď je tvoje.`;
+  }
+
+  private takeOutCar(c: GarageCar): string {
+    if (!this.car) return '';
+    const lost = !this.garageCarId;
+    this.useGarageCar(c);
+    this.lastSavedCar = this.carKey();
+    this.saveSoon();
+    return `Vyjíždíš s: ${carTitle(c)}.${lost ? ' Neuložené auto jsi nechal odtáhnout.' : ''}`;
+  }
+
+  /** Phone: a car from your garage is brought to the nearest road. */
+  private deliverGarageCar(id: string): string {
+    const c = this.account.cars.find((x) => x.id === id);
+    if (!c || !this.car) return 'Auto nenalezeno.';
+    if (this.mode === 'car') return 'Nejdřív vystup z auta.';
+    if (this.insideStore) return 'Nejdřív vyjdi z obchodu.';
+    if (this.police?.wanted) return 'Teď ne – hledá tě policie.';
+    const before = { look: { ...this.car.look }, tuning: { ...this.car.tuning }, id: this.garageCarId };
+    this.useGarageCar(c);
+    const msg = this.callCar(false, true);
+    if (!msg.startsWith('Auto přijelo')) {
+      // Delivery failed: keep the car you had.
+      this.car.setLook(before.look.color, before.look.type);
+      this.car.tuning = before.tuning;
+      this.car.applyTuning();
+      this.garageCarId = before.id;
+      return msg;
+    }
+    this.saveSoon();
+    return `${carTitle(c)} přijelo kousek od tebe (je na mapě).`;
+  }
+
+  private otherPlayers(): THREE.Vector3[] {
+    return [...this.mp.players.values()].map((p) => p.position);
+  }
+
+  /** What other players see of us. */
+  private netState(): NetState | null {
+    const car = this.car, pl = this.player;
+    if (!car || !pl || this.insideStore || (this.mode !== 'foot' && this.mode !== 'car')) return null;
+    if (this.mode === 'car') {
+      const q = car.quaternion, t = car.tuning;
+      return { m: 'car', p: [car.position.x, car.position.y, car.position.z], q: [q.x, q.y, q.z, q.w], s: car.speed, h: this.health, a: false,
+        c: [car.look.type, car.look.color, t.rims, t.neon, t.spoiler, t.lowered] };
+    }
+    const q = pl.model.root.quaternion;
+    return { m: 'foot', p: [pl.position.x, pl.position.y, pl.position.z], q: [q.x, q.y, q.z, q.w], s: pl.speed, h: this.health, a: pl.model.aiming };
+  }
 
   private createPhone(): Phone {
     const lawyerInfo = () => (this.police?.wanted ? `smaže hledanost · ${formatKc(PHONE_PRICES.lawyer * this.police.wanted)}` : `smaže hledanost · ${formatKc(PHONE_PRICES.lawyer)} za hvězdu`);
@@ -597,7 +809,16 @@ export class Game {
           police: this.police?.units.map((u) => u.pos) ?? [], wanted: this.police?.wanted ?? 0, marks: this.mapMarks(),
         };
       },
-      drawMap: (c, st, range) => this.minimap?.drawRect(c, st.pos, st.yaw, range, st.car, st.police, st.wanted, st.marks),
+      drawMap: (c, st, range) => this.minimap?.drawRect(c, st.pos, st.yaw, range, st.car, st.police, st.wanted, st.marks, this.otherPlayers()),
+      garage: () => ({
+        loggedIn: !!this.account.profile, spaces: 5,
+        cars: this.account.cars.map((c) => ({ id: c.id, title: carTitle(c), color: c.color, active: c.id === this.garageCarId })),
+      }),
+      deliverCar: (id) => this.deliverGarageCar(id),
+      players: () => ({
+        loggedIn: !!this.account.profile, online: this.mp.online, me: this.account.profile?.nickname ?? '',
+        list: [...this.mp.players.values()].map((p) => ({ nick: p.nick, dist: p.position.distanceTo(this.focus), inCar: p.mode === 'car', health: p.health })),
+      }),
       view: this.canvas,
       tone: (f, sec, vol, delay) => this.sound.tone(f, sec, vol, delay),
       onToggle: (open) => {
@@ -632,7 +853,7 @@ export class Game {
   }
 
   /** Phone: brings your car to the nearest road around you (the tow truck also repairs it). */
-  private callCar(tow: boolean): string {
+  private callCar(tow: boolean, force = false): string {
     const car = this.car, player = this.player, graph = this.traffic?.graph;
     if (!car || !player || !graph) return 'Není signál…';
     if (this.mode === 'car') return 'Už sedíš v autě.';
@@ -640,7 +861,7 @@ export class Game {
     if (this.police?.wanted) return tow ? 'Odtahovka nepřijede, hledá tě policie.' : 'Teď ne – hledá tě policie.';
     if (tow) {
       if (this.arsenal.money < PHONE_PRICES.tow) return `Nemáš dost peněz (${formatKc(PHONE_PRICES.tow)}).`;
-    } else {
+    } else if (!force) {
       if (car.position.distanceTo(player.position) < 30 && !car.flipped) return 'Auto stojí kousek od tebe.';
       if (performance.now() - this.carCalledAt < 20000) return 'Auto už je na cestě, počkej chvíli.';
     }
@@ -854,6 +1075,9 @@ export class Game {
     this.pipeline.render(dt);
     this.menu?.update();
     this.phone.update();
+    this.homeGarage.update(timeUniform.value);
+    this.mp.update(dt, this.netState());
+    if (this.account.profile && (this.mode === 'foot' || this.mode === 'car') && (this.saveClock += dt) > 20) void this.saveGame();
     if (!this.paused) this.effects.update(dt, this.renderer.getDrawingBufferSize(this.tmpSize).y);
     this.hud.update(dt);
     this.hurtFlash = Math.max(0, this.hurtFlash - dt * 1.4);
@@ -862,7 +1086,7 @@ export class Game {
     if (this.minimap && (this.mode === 'car' || this.mode === 'foot' || this.mode === 'fly')) {
       const yaw = this.mode === 'fly' ? this.fly.yaw + Math.PI : this.chase?.viewYaw ?? 0;
       this.minimap.update(this.focus, yaw, this.mode === 'foot' ? this.car?.position ?? null : null,
-        this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0, this.mapMarks());
+        this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0, this.mapMarks(), this.otherPlayers());
       this.minimap.canvas.hidden = !!this.insideStore;
     }
     this.touch?.update(this.mode);
@@ -936,7 +1160,25 @@ export class Game {
     this.weapon.update(dt, aiming && (this.mouseFire || k.down('KeyE')), {
       camera: this.camera, muzzle: aiming ? player.model.muzzle() : player.position, playerFeet: player.position,
       phys: this.physics!, exclude: player.body, pedestrians: this.pedestrians, traffic: this.traffic, police: this.police,
+      players: [...this.mp.players.values()].map((p) => ({
+        pos: p.position, inCar: p.mode === 'car', hit: (dmg: number) => this.mp.hit(p.id, p.mode === 'car' ? dmg * 0.5 : dmg, 'shot'),
+      })),
     });
+    // Running over another player on foot.
+    if (driving && Math.abs(car.speed) > 5) {
+      const now = performance.now();
+      for (const p of this.mp.players.values()) {
+        if (p.mode !== 'foot' || (this.ramCooldown.get(p.id) ?? 0) > now) continue;
+        if (Math.hypot(p.position.x - car.position.x, p.position.z - car.position.z) < 2.4 && Math.abs(p.position.y - car.position.y) < 2.5) {
+          this.ramCooldown.set(p.id, now + 1200);
+          this.mp.hit(p.id, Math.abs(car.speed) * 3.5, 'car');
+        }
+      }
+    }
+    // Home garage: stop in the green ring.
+    if (driving && this.homeGarage.inRing(car.position)) {
+      if (Math.abs(car.speed) < 3) this.homeGarage.open();
+    } else this.homeGarage.leave();
 
     // Money on the ground, gun shops, smoke from a damaged car.
     const got = this.pickups.update(dt, driving ? car.position : player.position, driving ? 2.6 : 1.3, (x, z) => this.heights.sample(x, z));

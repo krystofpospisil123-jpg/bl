@@ -25,7 +25,8 @@ export class StartMenu {
   private label: HTMLElement;
   private body: HTMLElement;
   private tip: HTMLElement;
-  private shown: 'loading' | 'main' | 'settings' | 'keys' | 'about' | 'cheats' | null = 'loading';
+  private shown: 'loading' | 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'login' | null = 'loading';
+  private loginNote = '';
   private started = false;
   private tipIndex = Math.floor(Math.random() * TIPS.length);
 
@@ -45,6 +46,13 @@ export class StartMenu {
     this.tip = this.el.querySelector('.tip')!;
     this.tip.textContent = `Tip: ${TIPS[this.tipIndex]}`;
     document.body.append(this.el);
+    // Refresh the account line when the login state changes (e.g. after the magic link).
+    const prev = game.account.onChange;
+    game.account.onChange = () => {
+      prev?.();
+      if (this.game.account.loggedIn) this.loginNote = '';
+      if (this.shown === 'main' || this.shown === 'login') this.show(this.game.account.loggedIn ? 'main' : this.shown);
+    };
     // Phones have no Esc key: a "Pauza a cheaty" item in the touch menu opens this menu.
     const touchMenu = document.querySelector('.touch-menu');
     if (touchMenu) {
@@ -98,7 +106,19 @@ export class StartMenu {
     this.shown = null;
   }
 
-  private show(view: 'main' | 'settings' | 'keys' | 'about' | 'cheats') {
+  private accountHtml(): string {
+    const acc = this.game.account;
+    const esc = (t: string) => t.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+    if (!acc.ready) return '<p class="account">Ověřuji přihlášení…</p>';
+    if (!acc.loggedIn) return '<button data-go="login">Přihlásit se</button><p class="note">Uložení hry, vlastní garáž a hra s ostatními</p>';
+    if (!acc.profile) {
+      return `<h3>Vyber si přezdívku</h3><input class="field nick" type="text" maxlength="16" placeholder="přezdívka (2–16 znaků)" autocomplete="nickname" spellcheck="false" />
+        <button data-nick>Uložit přezdívku</button><p class="note ${this.loginNote.startsWith('!') ? 'err' : ''}">${esc(this.loginNote.replace(/^!/, '')) || esc(acc.email)}</p>`;
+    }
+    return `<p class="account">Hraješ jako <b>${esc(acc.profile.nickname)}</b> · <a data-logout>Odhlásit</a></p>`;
+  }
+
+  private show(view: 'main' | 'settings' | 'keys' | 'about' | 'cheats' | 'login') {
     this.shown = view;
     this.el.classList.add('ready');
     const back = '<button data-go="main" class="ghost">Zpět</button>';
@@ -108,7 +128,23 @@ export class StartMenu {
         <button data-go="settings">Nastavení</button>
         <button data-go="keys">Ovládání</button>
         <button data-go="about">O hře</button>
-        ${this.started ? '<button data-go="cheats">Cheaty</button>' : ''}`;
+        ${this.started ? '<button data-go="cheats">Cheaty</button>' : ''}
+        ${this.accountHtml()}`;
+    } else if (view === 'login') {
+      const n = this.loginNote;
+      this.body.innerHTML = `
+        <h3>Přihlášení</h3>
+        <p class="text small">Zadej e-mail, pošleme ti odkaz. Klikni na něj v tomhle prohlížeči a jsi přihlášený, žádné heslo.</p>
+        <input class="field email" type="email" placeholder="tvuj@email.cz" autocomplete="email" spellcheck="false" />
+        <button data-send class="primary">Poslat odkaz</button>
+        <p class="note ${n.startsWith('!') ? 'err' : n ? 'ok' : ''}">${n.replace(/^!/, '').replace(/[<>&]/g, '')}</p>
+        ${back}`;
+      const input = this.body.querySelector<HTMLInputElement>('input.email')!;
+      input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') void this.sendLink(input.value);
+      });
+      setTimeout(() => input.focus(), 50);
     } else if (view === 'cheats') {
       this.body.innerHTML = `
         <h3>Cheaty</h3>
@@ -150,6 +186,39 @@ export class StartMenu {
         zvuky se syntetizují v prohlížeči. Všechna jména obchodů jsou jen popisky bez log.</p>${back}`;
     }
     this.body.querySelectorAll<HTMLButtonElement>('button').forEach((b) => b.addEventListener('click', () => this.click(b)));
+    this.body.querySelector('[data-logout]')?.addEventListener('click', () => {
+      void this.game.saveGame().finally(() => this.game.account.signOut());
+    });
+    const nick = this.body.querySelector<HTMLInputElement>('input.nick');
+    nick?.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') void this.saveNick(nick.value);
+    });
+  }
+
+  private async sendLink(raw: string) {
+    const email = raw.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      this.loginNote = '!Tohle nevypadá jako e-mail.';
+      return this.show('login');
+    }
+    this.loginNote = 'Posílám…';
+    this.show('login');
+    const err = await this.game.account.sendLink(email);
+    this.loginNote = err ? `!${err}` : `Odkaz je na cestě na ${email}. Otevři ho v tomhle prohlížeči (mrkni i do spamu).`;
+    if (this.shown === 'login') this.show('login');
+  }
+
+  private async saveNick(raw: string) {
+    const nick = raw.trim();
+    if (nick.length < 2 || nick.length > 16) {
+      this.loginNote = '!Přezdívka musí mít 2 až 16 znaků.';
+      return this.show('main');
+    }
+    this.loginNote = '';
+    const err = await this.game.createProfile(nick);
+    this.loginNote = err ? `!${err}` : '';
+    this.show('main');
   }
 
   private click(b: HTMLButtonElement) {
@@ -164,6 +233,8 @@ export class StartMenu {
       return;
     }
     if (d.go) return this.show(d.go as 'main');
+    if (d.send !== undefined) return void this.sendLink(this.body.querySelector<HTMLInputElement>('input.email')?.value ?? '');
+    if (d.nick !== undefined) return void this.saveNick(this.body.querySelector<HTMLInputElement>('input.nick')?.value ?? '');
     if (d.q) this.game.pipeline.set(d.q as Quality, false);
     if (d.sound !== undefined) {
       settings.muted = !settings.muted;

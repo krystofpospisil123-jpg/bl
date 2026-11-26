@@ -55,9 +55,15 @@ export interface PhoneHost {
   /** Plays sine tones together (ringback, keypad, notifications). */
   tone: (freqs: number[], seconds: number, volume?: number, delay?: number) => void;
   onToggle: (open: boolean) => void;
+  /** Your garage (logged-in players). */
+  garage: () => { loggedIn: boolean; spaces: number; cars: { id: string; title: string; color: number; active: boolean }[] };
+  /** Has a garage car brought to the nearest road; returns the answer. */
+  deliverCar: (id: string) => string;
+  /** Other players online. */
+  players: () => { loggedIn: boolean; online: boolean; me: string; list: { nick: string; dist: number; inCar: boolean; health: number }[] };
 }
 
-type Screen = 'home' | 'phone' | 'call' | 'messages' | 'thread' | 'bank' | 'map' | 'camera' | 'gallery' | 'photo' | 'weather' | 'settings';
+type Screen = 'home' | 'garage' | 'players' | 'phone' | 'call' | 'messages' | 'thread' | 'bank' | 'map' | 'camera' | 'gallery' | 'photo' | 'weather' | 'settings';
 
 interface Message { text: string; time: Date; mine?: boolean }
 interface Thread { name: string; color: string; msgs: Message[]; unread: number; replies?: string[] }
@@ -85,10 +91,14 @@ const ICONS: Record<string, string> = {
   camera: '<path fill-rule="evenodd" d="M9 3 7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3zm3 4.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z"/><circle cx="12" cy="13" r="3.4"/>',
   gallery: '<path fill-rule="evenodd" d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm1 13h14l-4.5-6-3.5 4.5-2.5-3z"/><circle cx="8" cy="8.5" r="1.8"/>',
   weather: '<circle cx="9" cy="8" r="4.2"/><path d="M8 20a4 4 0 0 1-.6-7.95A6 6 0 0 1 18.6 12 4 4 0 0 1 18 20z" stroke="#fff3" stroke-width=".8"/>',
+  garage: '<path d="M12 2.5 1.5 9.5V22h21V9.5zM5 12h14v10h-2.2v-2.3H7.2V22H5zm2.2 2v1.4h9.6V14zm0 2.9v1.4h9.6v-1.4z"/>',
+  players: '<circle cx="9" cy="7.5" r="3.6"/><path d="M1.8 20.5c0-4.1 3.2-7.4 7.2-7.4s7.2 3.3 7.2 7.4z"/><circle cx="17.2" cy="8.6" r="2.9"/><path d="M15.7 13.4a6 6 0 0 1 6.6 6v1.1h-4.6c0-2.8-.7-5.2-2-7.1z"/>',
   settings: '<circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="2.9 2.75"/><circle cx="12" cy="12" r="5.6" fill="none" stroke="currentColor" stroke-width="2.6"/>',
 };
 
 const APPS: { id: Screen; name: string; bg: string; icon: string }[] = [
+  { id: 'garage', name: 'Garáž', bg: 'linear-gradient(160deg, #3fe08a, #15834a)', icon: 'garage' },
+  { id: 'players', name: 'Hráči', bg: 'linear-gradient(160deg, #ffb347, #e8590c)', icon: 'players' },
   { id: 'bank', name: 'Banka', bg: 'linear-gradient(160deg, #19c37d, #0b7a52)', icon: 'bank' },
   { id: 'gallery', name: 'Galerie', bg: 'linear-gradient(160deg, #ffd34e, #ff7a59 60%, #c44bd6)', icon: 'gallery' },
   { id: 'weather', name: 'Počasí', bg: 'linear-gradient(170deg, #5cb4ff, #2765d8)', icon: 'weather' },
@@ -269,6 +279,7 @@ export class Phone {
     if (this.banner.classList.contains('on') && now > this.bannerUntil) this.banner.classList.remove('on');
     if (this.call) this.updateCall(now);
     if (this.screen === 'map' && this.frame % 3 === 0) this.drawMap();
+    if (this.screen === 'players' && this.frame % 60 === 0) this.render();
     if (this.screen === 'camera') this.drawViewfinder();
   }
 
@@ -344,6 +355,13 @@ export class Phone {
       case 'setting': {
         const s = this.host.settings[+v];
         s?.change();
+        return this.render();
+      }
+      case 'deliver': {
+        const answer = this.host.deliverCar(v);
+        this.banner.innerHTML = `<b>Garáž</b><span>${esc(answer)}</span>`;
+        this.banner.classList.add('on');
+        this.bannerUntil = performance.now() + 4000;
         return this.render();
       }
       case 'wallpaper':
@@ -663,6 +681,8 @@ export class Phone {
           <div class="photo-bar"><button data-a="save">Uložit do počítače</button><button data-a="delete" class="danger">Smazat</button></div>`;
       }
       case 'weather': return this.weatherHtml();
+      case 'garage': return this.garageHtml();
+      case 'players': return this.playersHtml();
       case 'settings': return this.settingsHtml();
     }
   }
@@ -743,6 +763,29 @@ export class Phone {
       <p class="spent">Dnes utraceno <b>${kc(out)}</b></p><h3>Pohyby na účtu</h3>
       ${this.bank.length ? `<ul class="list tx">${this.bank.map((b) => `<li><div><i class="av" style="background:${b.amount > 0 ? '#1fa463' : '#5b6573'}">${b.amount > 0 ? '+' : '−'}</i>
         <span><b>${esc(b.label)}</b><small>${hhmm(b.time)}</small></span><b class="${b.amount > 0 ? 'plus' : ''}">${b.amount > 0 ? '+' : ''}${kc(b.amount)}</b></div></li>`).join('')}</ul>` : '<p class="empty">Zatím žádné pohyby</p>'}`;
+  }
+
+  private garageHtml() {
+    const g = this.host.garage();
+    if (!g.loggedIn) return `${this.header('Garáž')}<p class="empty">Vlastní garáž mají přihlášení hráči.<br>Přihlas se v menu (Esc).</p>`;
+    const rows = g.cars.map((c) => `<li><div><i class="av" style="background:#${c.color.toString(16).padStart(6, '0')}">🚗</i>
+      <span><b>${esc(c.title)}</b><small>${c.active ? 'tohle auto máš venku' : 'v garáži'}</small></span>
+      <button class="pill" data-a="deliver" data-v="${c.id}">Přistavit</button></div></li>`).join('');
+    return `${this.header('Garáž')}<div class="body"><p class="garage-sum">${g.cars.length} / ${g.spaces} míst obsazeno</p>
+      ${g.cars.length ? `<ul class="list">${rows}</ul>` : '<p class="empty">Garáž je prázdná.</p>'}
+      <p class="empty small">Auto zaparkuješ v zeleném kroužku u své garáže (D na mapě). Přistavení je zdarma.</p></div>`;
+  }
+
+  private playersHtml() {
+    const p = this.host.players();
+    if (!p.loggedIn) return `${this.header('Hráči')}<p class="empty">Multiplayer je jen pro přihlášené.<br>Přihlas se v menu (Esc).</p>`;
+    const list = [...p.list].sort((a, b) => a.dist - b.dist);
+    const dist = (d: number) => (d < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(1)} km`);
+    return `${this.header('Hráči')}<div class="body"><p class="garage-sum"><span class="dot${p.online ? ' on' : ''}"></span>${p.online ? `Online · ${list.length + 1} ve hře` : 'Připojuji…'}</p>
+      <ul class="list"><li><div><i class="av" style="background:#0a84ff">${esc(p.me[0] ?? '?')}</i><span><b>${esc(p.me)} (ty)</b><small>tady</small></span></div></li>
+      ${list.map((o) => `<li><div><i class="av" style="background:#34c759">${esc(o.nick[0] ?? '?')}</i><span><b>${esc(o.nick)}</b><small>${o.inCar ? 'v autě' : 'pěšky'} · zdraví ${Math.round(o.health)}</small></span><time>${dist(o.dist)}</time></div></li>`).join('')}</ul>
+      ${list.length ? '' : '<p class="empty small">Nikdo další zrovna nehraje.</p>'}
+      <p class="empty small">Ostatní hráči jsou na mapě zeleně. Můžete se střílet i srazit autem.</p></div>`;
   }
 
   private weatherHtml() {
