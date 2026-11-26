@@ -18,6 +18,10 @@ export interface Outfit {
   shortSleeves?: boolean;
   shorts?: boolean;
   hairStyle?: HairStyle;
+  /** Female body shape (bust, narrower waist, rounder hips). */
+  female?: boolean;
+  /** Lingerie / swimwear: only `top` (bra) and `legs` (briefs) are covered, the rest is skin. */
+  bare?: boolean;
   /** 0 broad shoulders .. 1 slim with wider hips. */
   build?: number;
   /** Overall height scale (1 = 1.78 m). */
@@ -27,7 +31,7 @@ export interface Outfit {
 export const DEFAULT_OUTFIT: Outfit = { skin: 0xe0b394, hair: 0x3a2a1e, top: 0x2f6d8f, legs: 0x2e3442, shoes: 0x1f1f1f, hairStyle: 'short' };
 
 /** Colour slots baked into the vertices. */
-const SKIN = 0, TOP = 1, LEGS = 2, HAIR = 3, SHOES = 4, SLEEVE = 5, SHIN = 6, FIXED = 7;
+const SKIN = 0, TOP = 1, LEGS = 2, HAIR = 3, SHOES = 4, SLEEVE = 5, SHIN = 6, FIXED = 7, BODY = 8, THIGH = 9;
 
 const HAIR_STYLES: HairStyle[] = ['short', 'long', 'bun', 'cap', 'ponytail'];
 
@@ -91,7 +95,7 @@ function merge(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   return g;
 }
 
-export type PartName = 'hips' | 'chest' | 'head' | 'armL' | 'armR' | 'foreL' | 'foreR' | 'thighL' | 'thighR' | 'shinL' | 'shinR';
+export type PartName = 'hips' | 'chest' | 'hipsF' | 'chestF' | 'head' | 'armL' | 'armR' | 'foreL' | 'foreR' | 'thighL' | 'thighR' | 'shinL' | 'shinR';
 
 let geos: (Record<PartName, THREE.BufferGeometry> & { hair: Record<string, THREE.BufferGeometry> }) | null = null;
 
@@ -99,13 +103,32 @@ function buildGeometries() {
   if (geos) return geos;
   // Chest: waist (pivot, y = 0.98 m) up to the shoulders; flattened front to back.
   const chest = merge([
-    lathe([[0.0, -0.01], [0.145, 0], [0.15, 0.08], [0.165, 0.2], [0.185, 0.32], [0.195, 0.41], [0.17, 0.465], [0.09, 0.5], [0.0, 0.505]], 0.64, TOP),
-    ball(0.068, 0.19, 0.425, 0, 1, 1, 1, TOP),
-    ball(0.068, -0.19, 0.425, 0, 1, 1, 1, TOP),
+    lathe([[0.0, -0.01], [0.145, 0], [0.15, 0.08], [0.165, 0.2], [0.185, 0.32], [0.195, 0.41], [0.17, 0.465], [0.09, 0.5], [0.0, 0.505]], 0.64, BODY),
+    ball(0.068, 0.19, 0.425, 0, 1, 1, 1, BODY),
+    ball(0.068, -0.19, 0.425, 0, 1, 1, 1, BODY),
     tag(new THREE.CylinderGeometry(0.052, 0.056, 0.12, 10).translate(0, 0.54, 0.0), SKIN),
     // Collar and a short V of skin at the neckline.
-    tag(new THREE.TorusGeometry(0.068, 0.014, 6, 14).rotateX(Math.PI / 2).scale(1, 1, 0.85).translate(0, 0.495, 0), TOP),
+    tag(new THREE.TorusGeometry(0.068, 0.014, 6, 14).rotateX(Math.PI / 2).scale(1, 1, 0.85).translate(0, 0.495, 0), BODY),
     tag(new THREE.ConeGeometry(0.035, 0.07, 3).rotateX(Math.PI).scale(1, 1, 0.3).translate(0, 0.455, 0.105), SKIN),
+  ]);
+  // Female chest: narrower waist, bust (the "top" slot = bra or blouse) with a band and straps.
+  const chestF = merge([
+    lathe([[0.0, -0.01], [0.125, 0], [0.122, 0.09], [0.14, 0.2], [0.158, 0.31], [0.165, 0.41], [0.148, 0.462], [0.08, 0.5], [0.0, 0.505]], 0.62, BODY),
+    ball(0.058, 0.165, 0.425, 0, 1, 1, 1, BODY),
+    ball(0.058, -0.165, 0.425, 0, 1, 1, 1, BODY),
+    tag(new THREE.CylinderGeometry(0.05, 0.053, 0.12, 10).translate(0, 0.54, 0), SKIN),
+    ball(0.074, 0.062, 0.315, 0.062, 1, 0.92, 0.9, TOP, undefined, 14),
+    ball(0.074, -0.062, 0.315, 0.062, 1, 0.92, 0.9, TOP, undefined, 14),
+    tag(new THREE.CylinderGeometry(0.152, 0.148, 0.04, 18, 1, true).scale(1, 1, 0.66).translate(0, 0.262, 0), TOP),
+    tag(new THREE.BoxGeometry(0.014, 0.17, 0.014).rotateX(0.35).translate(0.075, 0.42, 0.045), TOP),
+    tag(new THREE.BoxGeometry(0.014, 0.17, 0.014).rotateX(0.35).translate(-0.075, 0.42, 0.045), TOP),
+  ]);
+  // Female hips: wider and rounder, briefs / trousers in the "legs" slot.
+  const hipsF = merge([
+    lathe([[0.0, -0.15], [0.12, -0.15], [0.172, -0.095], [0.18, -0.035], [0.135, 0.02], [0.0, 0.02]], 0.74, LEGS),
+    ball(0.085, 0.066, -0.075, -0.05, 1, 1.05, 0.85, LEGS, undefined, 12),
+    ball(0.085, -0.066, -0.075, -0.05, 1, 1.05, 0.85, LEGS, undefined, 12),
+    tag(new THREE.CylinderGeometry(0.128, 0.13, 0.05, 16, 1, true).scale(1, 1, 0.7).translate(0, 0.0, 0), BODY),
   ]);
   // Hips with a belt.
   const hips = merge([
@@ -144,21 +167,21 @@ function buildGeometries() {
   };
   // Arms: upper arm (sleeve end covers the shoulder), forearm with hand, built per side
   // (thumb on the inner side).
-  const upper = () => merge([...limb(0.054, 0.046, 0.28, SLEEVE), tag(new THREE.CylinderGeometry(0.062, 0.058, 0.13, 10).translate(0, -0.05, 0), TOP)]);
+  const upper = () => merge([...limb(0.054, 0.046, 0.28, SLEEVE), tag(new THREE.CylinderGeometry(0.062, 0.058, 0.13, 10).translate(0, -0.05, 0), BODY)]);
   const fore = (side: number) => merge([
     ...limb(0.046, 0.036, 0.25, SLEEVE),
     box(0.075, 0.085, 0.034, 0, -0.29, 0, SKIN),
     box(0.07, 0.065, 0.03, 0, -0.355, 0.004, SKIN),
     tag(new THREE.BoxGeometry(0.022, 0.055, 0.024).rotateZ(side * 0.5).translate(-side * 0.043, -0.285, 0.012), SKIN),
   ]);
-  const thigh = () => merge([...limb(0.088, 0.066, 0.44, LEGS)]);
+  const thigh = () => merge([...limb(0.088, 0.066, 0.44, THIGH)]);
   const shin = () => merge([
     ...limb(0.064, 0.047, 0.42, SHIN),
     // Shoe with a light sole.
     ball(0.055, 0, -0.44, 0.045, 0.95, 0.75, 2.2, SHOES),
     box(0.1, 0.022, 0.25, 0, -0.475, 0.045, FIXED, 0xd8d6d0),
   ]);
-  geos = { chest, hips, head, armL: upper(), armR: upper(), foreL: fore(1), foreR: fore(-1), thighL: thigh(), thighR: thigh(), shinL: shin(), shinR: shin(), hair };
+  geos = { chest, hips, chestF, hipsF, head, armL: upper(), armR: upper(), foreL: fore(1), foreR: fore(-1), thighL: thigh(), thighR: thigh(), shinL: shin(), shinR: shin(), hair };
   return geos;
 }
 
@@ -173,22 +196,23 @@ export function humanMaterial(): THREE.MeshStandardMaterial {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
         attribute float slot; attribute vec3 fixedColor;
-        attribute vec3 iSkin; attribute vec3 iTop; attribute vec3 iLegs; attribute vec3 iHair; attribute vec3 iShoes; attribute vec2 iFlags;
+        attribute vec3 iSkin; attribute vec3 iTop; attribute vec3 iLegs; attribute vec3 iHair; attribute vec3 iShoes; attribute vec3 iFlags;
         varying vec3 vTint;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         vec3 sleeve = mix(iTop, iSkin, iFlags.x), shin = mix(iLegs, iSkin, iFlags.y);
-        vTint = slot < 0.5 ? iSkin : slot < 1.5 ? iTop : slot < 2.5 ? iLegs : slot < 3.5 ? iHair : slot < 4.5 ? iShoes : slot < 5.5 ? sleeve : slot < 6.5 ? shin : fixedColor;`);
+        vec3 bodyC = mix(iTop, iSkin, iFlags.z), thighC = mix(iLegs, iSkin, iFlags.z);
+        vTint = slot < 0.5 ? iSkin : slot < 1.5 ? iTop : slot < 2.5 ? iLegs : slot < 3.5 ? iHair : slot < 4.5 ? iShoes : slot < 5.5 ? sleeve : slot < 6.5 ? shin : slot < 7.5 ? fixedColor : slot < 8.5 ? bodyC : thighC;`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vTint;')
       .replace('vec4 diffuseColor = vec4( diffuse, opacity );', 'vec4 diffuseColor = vec4( diffuse * vTint, opacity );');
   };
-  material.customProgramCacheKey = () => 'human-rig-v1';
+  material.customProgramCacheKey = () => 'human-rig-v2';
   return material;
 }
 
 // ---------------------------------------------------------------- crowd
 
-const PARTS: PartName[] = ['hips', 'chest', 'head', 'armL', 'armR', 'foreL', 'foreR', 'thighL', 'thighR', 'shinL', 'shinR'];
+const PARTS: PartName[] = ['hips', 'chest', 'hipsF', 'chestF', 'head', 'armL', 'armR', 'foreL', 'foreR', 'thighL', 'thighR', 'shinL', 'shinR'];
 const COLOR_ATTRS = ['iSkin', 'iTop', 'iLegs', 'iHair', 'iShoes'] as const;
 
 /** A set of people drawn with one instanced mesh per body part. */
@@ -210,7 +234,7 @@ export class HumanCrowd {
       for (const [k, v] of Object.entries(geo.attributes)) own.setAttribute(k, v);
       own.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
       for (const a of COLOR_ATTRS) own.setAttribute(a, new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3));
-      own.setAttribute('iFlags', new THREE.InstancedBufferAttribute(new Float32Array(max * 2), 2));
+      own.setAttribute('iFlags', new THREE.InstancedBufferAttribute(new Float32Array(max * 3), 3));
       const mesh = new THREE.InstancedMesh(own, mat, max);
       mesh.castShadow = castShadow;
       mesh.frustumCulled = false;
@@ -243,7 +267,7 @@ export class HumanCrowd {
         attr.needsUpdate = true;
       });
       const f = geo.attributes.iFlags as THREE.InstancedBufferAttribute;
-      f.setXY(i, o.shortSleeves ? 1 : 0, o.shorts ? 1 : 0);
+      f.setXYZ(i, o.shortSleeves || o.bare ? 1 : 0, o.shorts || o.bare ? 1 : 0, o.bare ? 1 : 0);
       f.needsUpdate = true;
     }
   }
@@ -263,10 +287,14 @@ export class HumanCrowd {
     const base = root.clone().multiply(new THREE.Matrix4().makeScale(h, h, h));
     const pelvis = base.clone().multiply(at(0, 0.98 + p.y, 0)).multiply(rot(p.lean, p.twist, p.sway, 'YXZ'));
     // Slim build: narrower shoulders, wider hips.
-    put('hips', pelvis.clone().multiply(new THREE.Matrix4().makeScale(1 + build * 0.1, 1, 1)));
+    const hide0 = new THREE.Matrix4().makeScale(0, 0, 0);
+    const fem = !!o.female;
+    put(fem ? 'hipsF' : 'hips', pelvis.clone().multiply(new THREE.Matrix4().makeScale(1 + (fem ? 0 : build * 0.1), 1, 1)));
+    put(fem ? 'hips' : 'hipsF', hide0);
     const chest = pelvis.clone().multiply(rot(p.chestX, p.chestTwist, p.chestZ, 'YXZ'));
     const shoulderW = 1 - build * 0.12;
-    put('chest', chest.clone().multiply(new THREE.Matrix4().makeScale(shoulderW, 1, 1 - build * 0.05)));
+    put(fem ? 'chestF' : 'chest', fem ? chest : chest.clone().multiply(new THREE.Matrix4().makeScale(shoulderW, 1, 1 - build * 0.05)));
+    put(fem ? 'chest' : 'chestF', hide0);
     const head = chest.clone().multiply(at(0, 0.5, 0)).multiply(rot(p.headX, p.headY, p.headZ, 'YXZ'));
     put('head', head);
     this.headM[i].copy(head);

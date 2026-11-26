@@ -1,5 +1,5 @@
 // On-screen info: speedometer, controls help per mode, performance stats.
-import { DRINK_PRICE, TIP_PRICE } from '../game/Club.ts';
+import { TIP_PRICE } from '../game/Club.ts';
 import type { Game, Mode } from '../game/Game.ts';
 import { VIEWPOINTS } from '../game/viewpoints.ts';
 import { QUALITY_LABEL } from '../render/Pipeline.ts';
@@ -101,7 +101,7 @@ export class Hud {
       this.shownMode = g.mode;
       this.help.innerHTML = HELP[g.mode].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
     }
-    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '') || (g.canSteal && !g.touch ? 'F – ukrást auto' : '') || (g.mode === 'car' && g.car && !g.homeGarage.isOpen && g.homeGarage.near(g.car.position) ? 'Zastav v zeleném kruhu – tvoje garáž' : '') || (g.mode === 'car' && g.nearGarage ? 'Zastav v oranžovém kruhu – tuning' : '') || (g.clubAction === 'bar' && !g.touch ? `F – objednat drink (${DRINK_PRICE} Kč)` : '') || (g.clubAction === 'stage' && !g.touch ? `F – dát tanečnici spropitné (${TIP_PRICE} Kč)` : '') || (g.nearEntrance ? (g.touch ? `${g.nearEntrance.name} – tlačítko Vstoupit` : `F – vstoupit: ${g.nearEntrance.name}`) : '') || (g.nearBin ? (g.touch ? 'Popelnice – tlačítko Prohledat' : 'F – prohledat popelnici') : '');
+    const msg = g.notice || (g.mode === 'loading' ? g.loadingText : '') || (g.canEnterCar && !g.touch ? 'F – nastoupit do auta' : '') || (g.canSteal && !g.touch ? 'F – ukrást auto' : '') || (g.mode === 'car' && g.car && !g.homeGarage.isOpen && g.homeGarage.near(g.car.position) ? 'Zastav v zeleném kruhu – tvoje garáž' : '') || (g.mode === 'car' && g.nearGarage ? 'Zastav v oranžovém kruhu – tuning' : '') || (g.clubAction === 'bar' && !g.touch && !g.barMenu.isOpen ? 'F – bar: vybrat si drink' : '') || (g.clubAction === 'stage' && !g.touch ? `F – dát tanečnici spropitné (${TIP_PRICE} Kč)` : '') || (g.nearEntrance ? (g.touch ? `${g.nearEntrance.name} – tlačítko Vstoupit` : `F – vstoupit: ${g.nearEntrance.name}`) : '') || (g.nearBin ? (g.touch ? 'Popelnice – tlačítko Prohledat' : 'F – prohledat popelnici') : '');
     if (this.prompt.textContent !== msg) this.prompt.textContent = msg;
     this.prompt.hidden = !msg || !!g.menu?.visible;
     // Wanted stars (police chase), flashing while a police car sees you.

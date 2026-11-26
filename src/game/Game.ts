@@ -31,7 +31,8 @@ import { Effects } from '../fx/Effects.ts';
 import { Pickups } from './Pickups.ts';
 import { Shops } from './Shops.ts';
 import { Interior } from './Interior.ts';
-import { Club, DRINK_PRICE, TIP_PRICE } from './Club.ts';
+import { Club, TIP_PRICE } from './Club.ts';
+import { BarMenu, type Drink } from './BarMenu.ts';
 import { Garage } from './Garage.ts';
 import { stockTuning } from '../vehicle/Tuning.ts';
 import { StartMenu } from '../ui/StartMenu.ts';
@@ -84,6 +85,10 @@ export class Game {
   interior?: Interior;
   club?: Club;
   readonly garage = new Garage(this.arsenal);
+  readonly barMenu = new BarMenu(this.arsenal);
+  /** Alcohol: 0 sober .. ~1.3 very drunk; wears off slowly. */
+  drunk = 0;
+  private drunkShown = 0;
   /** Login and the saved game (Supabase); the game works offline without it. */
   readonly account = new Account();
   readonly mp = new Multiplayer();
@@ -167,6 +172,7 @@ export class Game {
       if (e.button === 0) this.mouseFire = false;
     });
     this.scene.add(this.effects.group);
+    this.barMenu.onOrder = (d) => this.drinkUp(d);
     this.homeGarage = new HomeGarage(this.account, {
       current: () => ({ type: this.car?.look.type ?? 'liftback', color: this.car?.look.color ?? 0, garageId: this.garageCarId }),
       park: () => this.parkInGarage(),
@@ -525,21 +531,54 @@ export class Game {
     return null;
   }
 
+  /** Ordered at the bar: the drinking animation, then the alcohol kicks in. */
+  private drinkUp(d: Drink): string {
+    this.player?.model.drink(d.color, d.glass);
+    this.sound.pickup();
+    this.say(`${d.name} – na zdraví!`, 3);
+    setTimeout(() => {
+      this.drunk = Math.min(1.4, this.drunk + d.strength);
+      this.health = Math.min(100, this.health + 5);
+      const msg = this.drunk > 1.05 ? 'Jsi úplně na mol!' : this.drunk > 0.7 ? 'Jsi pěkně opilý, svět se houpe' : this.drunk > 0.35 ? 'Trochu se ti točí hlava' : '';
+      if (msg && d.strength) this.say(msg, 3);
+      this.saveSoon();
+    }, 2600);
+    return '';
+  }
+
+  /** Drunk effects on the camera and the screen (every frame). */
+  private drunkEffects(dt: number) {
+    this.drunk = Math.max(0, this.drunk - dt * 0.0045);
+    if (this.player) this.player.model.drunk = this.drunk;
+    const d = this.drunk, t = timeUniform.value;
+    if (d > 0.02 && (this.mode === 'foot' || this.mode === 'car')) {
+      this.camera.rotateZ(Math.sin(t * 0.7) * 0.07 * d);
+      this.camera.rotateX(Math.sin(t * 0.53 + 1) * 0.025 * d);
+      this.camera.rotateY(Math.sin(t * 0.41) * 0.03 * d);
+    }
+    // Blur and a little colour shift (only touched when the level changes noticeably).
+    const shown = Math.round(d * 20) / 20;
+    if (shown !== this.drunkShown) {
+      this.drunkShown = shown;
+      this.canvas.style.filter = shown > 0.05 ? `blur(${(shown * 1.6).toFixed(2)}px) saturate(${(1 + shown * 0.5).toFixed(2)}) hue-rotate(${Math.round(shown * 12)}deg)` : '';
+    }
+  }
+
   private clubDo(a: 'bar' | 'stage') {
-    const price = a === 'bar' ? DRINK_PRICE : TIP_PRICE;
+    if (a === 'bar') {
+      if (this.player?.model.drinking) return;
+      this.barMenu.open();
+      return;
+    }
+    const price = TIP_PRICE;
     if (this.arsenal.money < price) {
       this.say(`Nemáš dost peněz (${formatKc(price)})`);
       return;
     }
     this.arsenal.money -= price;
-    if (a === 'bar') {
-      this.health = Math.min(100, this.health + 10);
-      this.say(['Na zdraví! Mojito za', 'Gin s tonikem za', 'Panák slivovice za', 'Cuba libre za'][Math.floor(Math.random() * 4)] + ` ${formatKc(price)}`, 3);
-    } else {
-      this.club!.tip(this.player!.position);
-      this.sound.pickup();
-      this.say(`Spropitné ${formatKc(price)} – tanečnice ti zamávala`, 3);
-    }
+    this.club!.tip(this.player!.position);
+    this.sound.pickup();
+    this.say(`Spropitné ${formatKc(price)} – tanečnice ti zamávala`, 3);
   }
 
   private enterClub(e: StoreEntrance & { y: number }) {
@@ -1103,6 +1142,7 @@ export class Game {
       this.mouse.take();
     }
 
+    this.drunkEffects(dt);
     const cam = this.camera.position;
     timeUniform.value += dt;
     this.env.update(this.camera, cam.y - this.heights.sample(cam.x, cam.z), timeUniform.value);
@@ -1140,7 +1180,7 @@ export class Game {
     const carInput = {
       throttle: driving ? Math.max(k.down('KeyW', 'ArrowUp') ? 1 : 0, k.stick.y > 0 ? Math.min(1, k.stick.y * 1.3) : 0) : 0,
       brake: driving ? Math.max(k.down('KeyS', 'ArrowDown') ? 1 : 0, k.stick.y < -0.2 ? Math.min(1, -k.stick.y * 1.3) : 0) : 0,
-      steer: driving ? THREE.MathUtils.clamp((k.down('KeyA', 'ArrowLeft') ? 1 : 0) - (k.down('KeyD', 'ArrowRight') ? 1 : 0) - k.stick.x, -1, 1) : 0,
+      steer: driving ? THREE.MathUtils.clamp((k.down('KeyA', 'ArrowLeft') ? 1 : 0) - (k.down('KeyD', 'ArrowRight') ? 1 : 0) - k.stick.x + Math.sin(timeUniform.value * 0.8) * 0.35 * Math.min(1.2, this.drunk), -1, 1) : 0,
       handbrake: driving ? k.down('Space') : true,
     };
     // On foot, WASD is relative to the camera direction.
@@ -1153,6 +1193,14 @@ export class Game {
       mz = Math.cos(yaw) * f + Math.sin(yaw) * r;
       const len = Math.hypot(mx, mz);
       if (len > 1) { mx /= len; mz /= len; }
+      // Drunk: the walk veers from side to side.
+      if (this.drunk > 0.05 && len > 0.1) {
+        const tt = timeUniform.value, w = Math.sin(tt * 1.15 + Math.sin(tt * 0.37) * 2) * Math.min(1.2, this.drunk) * 0.75;
+        const nx = mx - mz * w, nz = mz + mx * w, nl = Math.hypot(nx, nz) || 1;
+        const keep = Math.min(1, Math.hypot(mx, mz));
+        mx = (nx / nl) * keep;
+        mz = (nz / nl) * keep;
+      }
     }
     // Tased: lying on the ground, no control until they get up.
     this.stun = Math.max(0, this.stun - dt);
@@ -1254,6 +1302,7 @@ export class Game {
     if (inside && walking && this.interior!.near(player.position, this.interior!.counter, 1.4)) this.shops?.open(this.insideStore!.name);
     else this.shops?.close();
     if (inside && walking && this.interior!.near(player.position, this.interior!.exit, 1.0)) this.leaveStore();
+    if (!inClub || !this.club!.atBar(player.position)) this.barMenu.close();
     if (inClub) {
       this.club!.update(dt);
       if (walking && this.club!.near(player.position, this.club!.exit, 0.9)) this.leaveStore();

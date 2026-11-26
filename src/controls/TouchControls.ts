@@ -49,7 +49,7 @@ export class TouchControls {
     tap('Nastoupit', 'KeyF', ['foot'], () => this.extra.canEnterCar(), 'accent');
     tap('Ukrást auto', 'KeyF', ['foot'], () => this.extra.canSteal(), 'accent');
     tap('Vstoupit', 'KeyF', ['foot'], () => this.extra.nearEntrance() && !this.extra.canEnterCar() && !this.extra.canSteal(), 'accent');
-    tap('Drink', 'KeyF', ['foot'], () => this.extra.clubAction() === 'bar', 'accent');
+    tap('Bar', 'KeyF', ['foot'], () => this.extra.clubAction() === 'bar', 'accent');
     tap('Spropitné', 'KeyF', ['foot'], () => this.extra.clubAction() === 'stage', 'accent');
     tap('Prohledat', 'KeyF', ['foot'], () => this.extra.nearBin() && !this.extra.canEnterCar() && !this.extra.canSteal());
     tap('Zbraň', 'KeyQ', ['foot']);

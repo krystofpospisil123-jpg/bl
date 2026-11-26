@@ -12,7 +12,6 @@ import { HumanCrowd, dancePose, idlePose, sitPose, restPose, type Outfit } from 
 const ORIGIN = new THREE.Vector3(300, 1500, 0);
 const W = 20, D = 24, H = 5;
 const STAGE_H = 0.8;
-export const DRINK_PRICE = 80;
 export const TIP_PRICE = 100;
 
 function colored(g: THREE.BufferGeometry, color: number): THREE.BufferGeometry {
@@ -218,8 +217,9 @@ export class Club {
 
     // People.
     this.group.add(this.crowd.group);
+    // Dancers: lingerie (bra and briefs in one colour), heels.
     const dancer = (top: number, hair: number, skin: number): Outfit => ({
-      skin, hair, top, legs: top, shoes: 0x111111, shortSleeves: true, shorts: true, hairStyle: 'long', build: 1, height: 1.0,
+      skin, hair, top, legs: top, shoes: top === 0x1d1d24 ? 0xb3102e : 0x0c0c0c, female: true, bare: true, hairStyle: 'long', build: 1, height: 1.0,
     });
     const npc = (o: Outfit, n: Omit<Npc, 'i' | 't0'>) => {
       const i = this.npcs.length;
@@ -237,7 +237,7 @@ export class Club {
     // Guests: at the tables, on the sofas and at the bar.
     const guest = (k: number): Outfit => ({
       skin: [0xe8c0a0, 0xd6a684, 0xb88466, 0xf1d0b5][k % 4], hair: [0x3a2a1e, 0x1d1612, 0x8a6236][k % 3], top: [0x2f5a8a, 0x8a2f2f, 0x3f6f3a, 0x2b2b2b, 0xd8d4c8, 0x5a4a6a][k % 6],
-      legs: [0x2e3442, 0x1e1e22, 0x4a5a7a][k % 3], shoes: 0x1f1f1f, hairStyle: (['short', 'short', 'cap', 'long', 'bald'] as const)[k % 5], build: k % 4 === 3 ? 0.8 : 0.1,
+      legs: [0x2e3442, 0x1e1e22, 0x4a5a7a][k % 3], shoes: 0x1f1f1f, hairStyle: (['short', 'short', 'cap', 'long', 'bald'] as const)[k % 5], build: k % 5 === 3 ? 0.8 : 0.1, female: k % 5 === 3,
     });
     let k = 0;
     for (const [x, z, yaw] of [[-3.4 + 0.66, 3 + 0.45, -2.2], [3.4 + 0.66, 3 + 0.45, -2.6], [-3.6 + 0.66, 6.6 + 0.45, -2.4], [3.6 - 0.66, 6.6 + 0.45, 2.6], [-8.75, -1, Math.PI / 2], [-8.75, 2.4, Math.PI / 2], [6.7, -1 + 1.6 * 2, Math.PI / 2]]) {

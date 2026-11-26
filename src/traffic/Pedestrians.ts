@@ -26,7 +26,7 @@ export function randomOutfit(): Outfit {
   const summer = Math.random() < 0.3;
   return {
     skin: pick(SKINS), hair: pick(HAIRS), top: pick(TOPS), legs: pick(LEGS), shoes: pick(SHOES),
-    hairStyle: style, build: slim ? 0.75 + Math.random() * 0.25 : Math.random() * 0.25,
+    female: slim, hairStyle: style, build: slim ? 0.75 + Math.random() * 0.25 : Math.random() * 0.25,
     height: (slim ? 0.94 : 0.99) + Math.random() * 0.08, shortSleeves: summer || Math.random() < 0.15, shorts: summer && Math.random() < 0.6,
   };
 }

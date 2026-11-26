@@ -482,7 +482,10 @@ i během hry v pauze (Esc). Žádné přihlašování: přezdívku si nastavíš
 - **Velvet Club** (K na mapě, kousek od domácí garáže): neonový vchod na fasádě, uvnitř sál s hlavním
   kruhovým pódiem, molem a tyčemi, LED okraji, zrcadlovou koulí a reflektory, bar s barmanem,
   pohovky, stolky s hosty, DJ a vyhazovač. Tanečnice (v klubových kostýmech) tančí různé sestavy.
-  U baru F = drink (80 Kč, +10 zdraví), u pódia F = spropitné (100 Kč). V klubu hraje syntetizovaná
+  U baru F otevře nápojový lístek (pivo, prosecco, gin s tonikem, mojito, cuba libre, slivovice,
+  limonáda): postava se napije (animace se sklenicí), alkohol přidá opilost – kamera se houpe,
+  obraz se rozmaže, chůze i řízení ujíždí; za pár minut vyprchá. U pódia F = spropitné (100 Kč).
+  Tanečnice mají ženskou postavu a prádlo (podprsenka a kalhotky). V klubu hraje syntetizovaná
   hudba. Kód: `src/game/Club.ts`, vchod v `src/world/builders/signs.ts`.
 - **Postavy** (`src/character/HumanRig.ts`): procedurální model s lokty, koleny, dlaněmi, obličejem
   (oči, obočí, nos, ústa, uši) a účesy (krátké, dlouhé, drdol, culík, kšiltovka, holá hlava),
