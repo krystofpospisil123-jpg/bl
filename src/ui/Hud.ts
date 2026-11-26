@@ -65,7 +65,7 @@ export class Hud {
       <h1>Blansko: Open World <small>grafika a známá místa</small></h1>
       <div id="stats"></div>
       <details id="help" open><summary>Ovládání</summary><div class="keys"></div>
-        <div class="keys extra"><span>G</span><span>kvalita grafiky</span><span>N</span><span>skutečné / obecné názvy obchodů</span><span>T</span><span>provoz a chodci zap/vyp</span><span>O</span><span>stíny zap/vyp</span><span>M</span><span>velká mapa (nebo klik na minimapu)</span><span>Shift+M</span><span>2D mapa dat</span><span>U</span><span>zvuk zap/vyp</span><span>H</span><span>skrýt nápovědu</span></div>
+        <div class="keys extra"><span>G</span><span>kvalita grafiky</span><span>N</span><span>skutečné / obecné názvy obchodů</span><span>T</span><span>provoz a chodci zap/vyp</span><span>O</span><span>stíny zap/vyp</span><span>M</span><span>velká mapa a navigace (klik = cíl)</span><span>Shift+M</span><span>2D mapa dat</span><span>U</span><span>zvuk zap/vyp</span><span>H</span><span>skrýt nápovědu</span></div>
       </details>`;
     this.stats = el.querySelector('#stats')!;
     this.help = el.querySelector('.keys')!;

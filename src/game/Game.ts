@@ -39,6 +39,7 @@ import { stockTuning } from '../vehicle/Tuning.ts';
 import { StartMenu } from '../ui/StartMenu.ts';
 import type { StoreEntrance } from '../world/builders/signs.ts';
 import { Minimap, type MapMark } from '../ui/Minimap.ts';
+import { Navigation, nextTurn, routeLength } from '../ui/Navigation.ts';
 import { Phone } from '../ui/Phone.ts';
 import { assets } from '../assets/models.ts';
 import { Account, type GarageCar } from '../net/Account.ts';
@@ -121,6 +122,13 @@ export class Game {
   /** Smoke from the bonnet of a badly damaged car. */
   private carSmoke = this.effects.addSource(new THREE.Vector3(0, -1e4, 0), 0, false);
   minimap?: Minimap;
+  private nav?: Navigation;
+  private navClock = 0;
+  /** Purple light column standing at the GPS waypoint. */
+  private beacon = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.2, 1.2, 160, 20, 1, true).translate(0, 80, 0),
+    new THREE.MeshBasicMaterial({ color: 0xb45cff, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, toneMapped: false }),
+  );
   /** Cars the player left behind after stealing another one (static, with a collider). */
   private leftCars: { mesh: THREE.Object3D; collider: RAPIER.Collider }[] = [];
   private mouseFire = false;
@@ -298,7 +306,21 @@ export class Game {
       };
       this.bowling.onMessage = (t) => this.say(t, 5);
       this.scene.add(this.interior.group, this.club.group, this.bowling.group, this.bowling.world, this.pickups.group);
-      this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 110 : 180);
+      this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 104 : 165);
+      this.nav = new Navigation(graphs.drive);
+      for (const d of this.chunks.loadedData()) this.minimap.paintChunk(d);
+      this.chunks.onChunkData = (d) => this.minimap?.paintChunk(d);
+      this.minimap.onWaypoint = (p) => {
+        this.navClock = 99;
+        this.beacon.visible = !!p;
+        if (p) {
+          this.beacon.position.set(p.x, this.heights.sample(p.x, p.z), p.z);
+          this.sound.tone([880, 1320], 0.12, 0.05);
+        }
+      };
+      this.beacon.visible = false;
+      this.beacon.frustumCulled = false;
+      this.scene.add(this.beacon);
       this.scene.add(this.traffic.group, this.pedestrians.group, this.police.group, this.weapon.group);
       this.chase = new ChaseCamera(this.camera, this.mouse, (x, z) => this.heights.sample(x, z), (o, d, max) =>
         p.castRay(o, d, max, this.mode === 'car' ? this.car?.body : this.player?.body),
@@ -876,6 +898,35 @@ export class Game {
     return `${carTitle(c)} přijelo kousek od tebe (je na mapě).`;
   }
 
+  /** GPS: recompute the route now and then, show the next turn, detect arrival. */
+  private updateNavigation(dt: number) {
+    const mm = this.minimap, wp = mm?.waypoint;
+    if (!mm || !wp || !this.nav) return;
+    const p = this.focus;
+    const left = Math.hypot(wp.x - p.x, wp.z - p.z);
+    if (left < 18 && (this.mode === 'foot' || this.mode === 'car')) {
+      mm.setWaypoint(null);
+      this.say('Jsi v cíli 🏁', 3);
+      this.sound.tone([660, 990], 0.18, 0.06);
+      this.sound.tone([1320], 0.25, 0.05, 0.18);
+      return;
+    }
+    this.navClock += dt;
+    if (this.navClock < 1.2) return;
+    this.navClock = 0;
+    const r = this.nav.route(p.x, p.z, wp.x, wp.z, this.mode === 'car');
+    mm.route = r;
+    if (!r) {
+      mm.gps = 'Cesta nenalezena';
+      return;
+    }
+    const total = routeLength(r), turn = nextTurn(r);
+    const fmt = (d: number) => (d < 1000 ? `${Math.max(10, Math.round(d / 10) * 10)} m` : `${(d / 1000).toFixed(1).replace('.', ',')} km`);
+    mm.gps = turn.dir === 'arrive' || turn.dist > total - 25
+      ? `Cíl za ${fmt(total)}`
+      : `${turn.dir === 'left' ? '↰ vlevo' : '↱ vpravo'} za ${fmt(turn.dist)} · ${fmt(total)}`;
+  }
+
   private otherPlayers(): THREE.Vector3[] {
     return [...this.mp.players.values()].map((p) => p.position);
   }
@@ -930,6 +981,11 @@ export class Game {
           pos: this.focus, yaw: this.chase?.viewYaw ?? 0, car: this.mode === 'foot' ? this.car?.position ?? null : null,
           police: this.police?.units.map((u) => u.pos) ?? [], wanted: this.police?.wanted ?? 0, marks: this.mapMarks(),
         };
+      },
+      setWaypoint: (p) => this.minimap?.setWaypoint(p),
+      mapTap: (cv, x, y, range) => {
+        if (!this.minimap) return;
+        this.minimap.setWaypoint(Minimap.rectToWorld(cv, x, y, this.focus, range));
       },
       drawMap: (c, st, range) => this.minimap?.drawRect(c, st.pos, st.yaw, range, st.car, st.police, st.wanted, st.marks, this.otherPlayers()),
       garage: () => ({
@@ -1214,6 +1270,8 @@ export class Game {
       this.minimap.update(this.focus, yaw, this.mode === 'foot' ? this.car?.position ?? null : null,
         this.police?.units.map((u) => u.pos) ?? [], this.police?.wanted ?? 0, this.mapMarks(), this.otherPlayers());
       this.minimap.canvas.hidden = !!this.insideStore;
+      this.minimap.health = this.health;
+      this.updateNavigation(dt);
     }
     this.touch?.update(this.mode);
     this.input.endFrame();

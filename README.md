@@ -502,3 +502,12 @@ vracečky s barevnými koulemi, monitory se skóre, červený běhoun, šedý ko
 a dřevěnými židlemi, bar a hosté. Dráha 6 je hratelná (F u dráhy, 120 Kč): A/D posun, Q/E míření,
 podržet mezerník = síla, pustit = hod. Koule a kuželky jsou fyzikální tělesa (Rapier), skóre podle
 pravidel (10 kol, strike, spare, bonusy v 10. kole). Kód: `src/game/Bowling.ts`.
+
+## Mapa a navigace
+
+Minimapa vlevo dole je ve stylu GTA: tmavá mapa s budovami, vodou, parky a lesy (dokreslují se,
+jak se načítá město), šedé silnice, ikony míst, tvoje auto, policie, ostatní hráči a pruh zdraví.
+Velká mapa (M nebo klik na minimapu) se dá posouvat a přibližovat; klik do ní nastaví cíl
+(znovu klik na cíl ho zruší). Navigace najde nejkratší cestu po silnicích (v autě dodržuje
+jednosměrky), ukáže ji fialově, hlásí další odbočku a vzdálenost a v cíli stojí fialový světelný
+sloup. Cíl jde nastavit i v telefonu (Mapa: klepnutím, nebo tlačítkem ➤ u místa v okolí).

@@ -1,49 +1,74 @@
-// Round minimap: the road and footpath network drawn once into a large canvas, shown around
-// the player and rotated so the camera's view points up. Markers: player arrow, the player's
-// parked car, police cars (flashing red/blue) and a north mark.
+// GTA-style radar and pause map. The map is painted into two large canvases covering the
+// whole town: a ground layer (land, parks, forest, water, buildings – added chunk by chunk as
+// they load) and a road layer (drive and walk networks, drawn once). The radar is a rounded
+// rectangle that turns with the camera, tilted a little in 3D, with blips (shops, garages,
+// club, bowling, your car, police, other players), the GPS route in purple and a health bar.
+// The big map (M or a tap on the radar) is north-up, can be dragged and zoomed, and a click
+// sets a waypoint (click it again to remove it).
 import * as THREE from 'three';
-import type { RoadGraphs } from '../world/format.ts';
+import type { ChunkData, RoadGraphs } from '../world/format.ts';
 
-const BASE = 2048;
-/** Metres shown from the centre to the edge of the minimap. */
-const RANGE = 170;
-/** Range of the enlarged map (M or a tap on the minimap). */
-const BIG_RANGE = 650;
+const BASE = 3072;
+/** Metres from the player to the top edge of the radar. */
+const RANGE = 190;
 
 export interface MapMark {
   pos: THREE.Vector3;
   label: string;
   color: string;
-  /** Place name (shown in the phone's map app). */
+  /** Place name (shown in the phone's map app and the big map). */
   name?: string;
 }
 
+const C = {
+  land: '#2f3a3c', building: '#4a5557', park: '#33503a', forest: '#2c4630', water: '#3f86b8', farm: '#384437',
+  road: '#a3a9ad', roadMain: '#c9ccc6', walk: '#4d5859', route: '#b45cff', routeEdge: '#3a1468',
+};
+
 export class Minimap {
   readonly canvas = document.createElement('canvas');
-  private base: HTMLCanvasElement;
+  private ground: HTMLCanvasElement;
+  private roads: HTMLCanvasElement;
   private scale: number;
   private frame = 0;
-  /** Enlarged, north-up map in the middle of the screen. */
+  private painted = new Set<string>();
+  /** Big map open. */
   expanded = false;
+  private big = document.createElement('div');
+  private bigCanvas = document.createElement('canvas');
+  private bigInfo = document.createElement('div');
+  private bigCenter = new THREE.Vector2();
+  private bigRange = 650;
+  /** Last player position / marks, for the big map. */
+  private last: { player: THREE.Vector3; yaw: number; car: THREE.Vector3 | null; police: THREE.Vector3[]; marks: MapMark[]; players: THREE.Vector3[] } | null = null;
+  waypoint: { x: number; z: number } | null = null;
+  /** GPS route as flat [x, z, ...] (from the player to the waypoint). */
+  route: number[] | null = null;
+  /** Text over the radar (next turn, distance). */
+  gps = '';
+  health = 100;
+  onWaypoint?: (p: { x: number; z: number } | null) => void;
 
   constructor(graphs: RoadGraphs, private half: number, private size: number) {
     this.canvas.id = 'minimap';
-    this.resize();
-    this.canvas.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      this.toggle();
-    });
     this.scale = BASE / (2 * half);
-    this.base = document.createElement('canvas');
-    this.base.width = this.base.height = BASE;
-    const g = this.base.getContext('2d')!;
-    g.fillStyle = '#4c5a3f';
-    g.fillRect(0, 0, BASE, BASE);
+    const mk = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = BASE;
+      return c;
+    };
+    this.ground = mk();
+    this.roads = mk();
+    const g0 = this.ground.getContext('2d')!;
+    g0.fillStyle = C.land;
+    g0.fillRect(0, 0, BASE, BASE);
+    const g = this.roads.getContext('2d')!;
     g.lineCap = g.lineJoin = 'round';
-    const draw = (graph: RoadGraphs['drive'], color: string, width: (kind: string) => number) => {
+    const draw = (graph: RoadGraphs['drive'], color: string, width: (kind: string) => number, filter: (kind: string) => boolean = () => true) => {
       g.strokeStyle = color;
       for (const e of graph.edges) {
-        g.lineWidth = width(e.kind) * this.scale;
+        if (!filter(e.kind)) continue;
+        g.lineWidth = Math.max(1.2, width(e.kind) * this.scale);
         g.beginPath();
         for (let i = 0; i < e.pts.length; i += 3) {
           const x = (e.pts[i] + half) * this.scale, y = (e.pts[i + 2] + half) * this.scale;
@@ -53,24 +78,455 @@ export class Minimap {
         g.stroke();
       }
     };
-    draw(graphs.walk, '#8c8a7c', () => 2.5);
-    draw(graphs.drive, '#d9d6cc', (k) => (k === 'primary' || k === 'secondary' ? 11 : k === 'tertiary' ? 9 : k === 'service' ? 4 : 6.5));
-    document.body.append(this.canvas);
+    const w = (k: string) => (k === 'primary' || k === 'secondary' ? 12 : k === 'tertiary' ? 10 : k === 'service' ? 5 : 7.5);
+    draw(graphs.walk, C.walk, () => 2.4);
+    // Dark outline under the roads, then the roads, main roads brighter on top.
+    draw(graphs.drive, '#1e2628', (k) => w(k) + 4);
+    draw(graphs.drive, C.road, w);
+    draw(graphs.drive, C.roadMain, w, (k) => k === 'primary' || k === 'secondary');
+    this.resize();
+    // Tap / click on the radar opens the big map.
+    this.canvas.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.toggle(true);
+    });
+    this.buildBig();
+    document.body.append(this.canvas, this.big);
   }
 
-  toggle() {
-    this.expanded = !this.expanded;
-    this.canvas.classList.toggle('big', this.expanded);
-    this.resize();
+  /** Paints a loaded chunk's land use, water and buildings into the ground layer. */
+  paintChunk(data: ChunkData) {
+    const key = `${data.cx},${data.cz}`;
+    if (this.painted.has(key)) return;
+    this.painted.add(key);
+    const g = this.ground.getContext('2d')!;
+    const s = this.scale, h = this.half;
+    const poly = (rings: number[][], color: string) => {
+      g.fillStyle = color;
+      g.beginPath();
+      for (const r of rings) {
+        for (let i = 0; i < r.length; i += 2) {
+          const x = (r[i] + h) * s, y = (r[i + 1] + h) * s;
+          if (i === 0) g.moveTo(x, y);
+          else g.lineTo(x, y);
+        }
+        g.closePath();
+      }
+      g.fill('evenodd');
+    };
+    for (const a of data.areas) {
+      const col = a.kind === 'forest' || a.kind === 'scrub' ? C.forest : /park|grass|cemetery|sport|allotments|orchard/.test(a.kind) ? C.park : a.kind === 'farmland' ? C.farm : null;
+      if (col) poly(a.rings, col);
+    }
+    for (const wa of data.water) poly(wa.rings, C.water);
+    g.strokeStyle = C.water;
+    g.lineCap = 'round';
+    for (const w of data.waterways) {
+      g.lineWidth = Math.max(1.5, w.w * s);
+      g.beginPath();
+      for (let i = 0; i < w.pts.length; i += 2) {
+        const x = (w.pts[i] + h) * s, y = (w.pts[i + 1] + h) * s;
+        if (i === 0) g.moveTo(x, y);
+        else g.lineTo(x, y);
+      }
+      g.stroke();
+    }
+    for (const b of data.buildings) poly(b.rings, C.building);
+  }
+
+  toggle(open = !this.expanded) {
+    this.expanded = open;
+    this.big.hidden = !open;
+    if (open) {
+      document.exitPointerLock?.();
+      if (this.last) this.bigCenter.set(this.last.player.x, this.last.player.z);
+      this.drawBig();
+    }
   }
 
   private resize() {
-    const size = this.expanded ? Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.84) : this.size;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    this.canvas.width = this.canvas.height = Math.round(size * dpr);
-    this.canvas.style.width = this.canvas.style.height = `${size}px`;
+    const w = Math.round(this.size * 1.45), h = this.size;
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+    this.canvas.style.width = `${w}px`;
+    this.canvas.style.height = `${h}px`;
     this.frame = 0;
   }
+
+  /** Sets (or clears) the waypoint. */
+  setWaypoint(p: { x: number; z: number } | null) {
+    this.waypoint = p;
+    if (!p) {
+      this.route = null;
+      this.gps = '';
+    }
+    this.onWaypoint?.(p);
+    if (this.expanded) this.drawBig();
+  }
+
+  // ------------------------------------------------------------------ drawing helpers
+
+  /** Draws the map layers into `c` so that world point (cx, cz) lands at canvas (ox, oy), with `k` px per metre. */
+  private drawLayers(c: CanvasRenderingContext2D, cx: number, cz: number, k: number) {
+    const s = k / this.scale;
+    const x = -(cx + this.half) * this.scale * s, y = -(cz + this.half) * this.scale * s;
+    c.imageSmoothingEnabled = true;
+    c.drawImage(this.ground, x, y, BASE * s, BASE * s);
+    c.drawImage(this.roads, x, y, BASE * s, BASE * s);
+  }
+
+  private drawRoute(c: CanvasRenderingContext2D, cx: number, cz: number, k: number, width: number) {
+    const r = this.route;
+    if (!r || r.length < 4) return;
+    c.lineCap = c.lineJoin = 'round';
+    for (const [col, w] of [[C.routeEdge, width + 3], [C.route, width]] as const) {
+      c.strokeStyle = col;
+      c.lineWidth = w;
+      c.beginPath();
+      for (let i = 0; i < r.length; i += 2) {
+        const x = (r[i] - cx) * k, y = (r[i + 1] - cz) * k;
+        if (i === 0) c.moveTo(x, y);
+        else c.lineTo(x, y);
+      }
+      c.stroke();
+    }
+  }
+
+  private blip(c: CanvasRenderingContext2D, x: number, y: number, label: string, color: string, ui: number) {
+    c.save();
+    c.translate(x, y);
+    c.scale(ui, ui);
+    c.fillStyle = '#111';
+    c.beginPath();
+    c.arc(0, 0, 11, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = color;
+    c.beginPath();
+    c.arc(0, 0, 9, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#111';
+    c.font = 'bold 12px system-ui, sans-serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText(label, 0, 1);
+    c.restore();
+  }
+
+  private waypointBlip(c: CanvasRenderingContext2D, x: number, y: number, ui: number) {
+    c.save();
+    c.translate(x, y);
+    c.scale(ui, ui);
+    c.fillStyle = '#1a0a2e';
+    c.beginPath();
+    c.moveTo(0, 4);
+    c.arc(0, -10, 10, Math.PI * 0.8, Math.PI * 0.2);
+    c.closePath();
+    c.fill();
+    c.fillStyle = C.route;
+    c.beginPath();
+    c.moveTo(0, 1);
+    c.arc(0, -10, 8, Math.PI * 0.8, Math.PI * 0.2);
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath();
+    c.arc(0, -10, 3, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+
+  private arrow(c: CanvasRenderingContext2D, x: number, y: number, rot: number, ui: number) {
+    c.save();
+    c.translate(x, y);
+    c.rotate(rot);
+    c.scale(ui, ui);
+    c.fillStyle = '#f4f4f4';
+    c.strokeStyle = '#222';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(0, -12);
+    c.lineTo(8, 9);
+    c.lineTo(0, 4);
+    c.lineTo(-8, 9);
+    c.closePath();
+    c.fill();
+    c.stroke();
+    c.restore();
+  }
+
+  // ------------------------------------------------------------------ radar
+
+  update(
+    player: THREE.Vector3, viewYaw: number,
+    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, marks: MapMark[] = [], players: THREE.Vector3[] = [],
+  ) {
+    this.last = { player: player.clone(), yaw: viewYaw, car: car?.clone() ?? null, police, marks, players };
+    if (this.expanded && this.frame % 3 === 0) this.drawBig();
+    if (this.frame++ % 2) return;
+    const c = this.canvas.getContext('2d')!;
+    const W = this.canvas.width, H = this.canvas.height;
+    const ui = H / 170;
+    const barH = Math.round(9 * ui);
+    const mapH = H - barH - 3 * ui;
+    // Player sits a bit below the middle so you see more ahead (like GTA).
+    const px = W / 2, py = mapH * 0.62;
+    const k = (mapH * 0.62) / RANGE;
+    c.clearRect(0, 0, W, H);
+    c.save();
+    c.beginPath();
+    c.roundRect(0, 0, W, mapH, 6 * ui);
+    c.clip();
+    c.fillStyle = C.land;
+    c.fillRect(0, 0, W, mapH);
+    const heading = Math.atan2(Math.cos(viewYaw), Math.sin(viewYaw));
+    const rot = -Math.PI / 2 - heading;
+    c.save();
+    c.translate(px, py);
+    c.rotate(rot);
+    this.drawLayers(c, player.x, player.z, k);
+    this.drawRoute(c, player.x, player.z, k, 4.5 * ui);
+    c.restore();
+    // Blips are drawn upright; far ones stay at the edge of the radar.
+    const toScreen = (x: number, z: number, clamp: boolean, pad = 12 * ui) => {
+      const dx = (x - player.x) * k, dz = (z - player.z) * k;
+      let sx = px + dx * Math.cos(rot) - dz * Math.sin(rot), sy = py + dx * Math.sin(rot) + dz * Math.cos(rot);
+      if (clamp) {
+        sx = Math.max(pad, Math.min(W - pad, sx));
+        sy = Math.max(pad, Math.min(mapH - pad, sy));
+      }
+      return [sx, sy];
+    };
+    for (const m of marks) {
+      const [x, y] = toScreen(m.pos.x, m.pos.z, true);
+      this.blip(c, x, y, m.label, m.color, ui * 0.85);
+    }
+    if (car) {
+      const [x, y] = toScreen(car.x, car.z, true);
+      c.fillStyle = '#5fb7ff';
+      c.strokeStyle = '#111';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.roundRect(x - 6 * ui, y - 4 * ui, 12 * ui, 8 * ui, 2 * ui);
+      c.fill();
+      c.stroke();
+    }
+    const blink = Math.floor(performance.now() / 250) % 2 === 0;
+    for (const p of police) {
+      const [x, y] = toScreen(p.x, p.z, wanted > 0, 8 * ui);
+      c.fillStyle = wanted > 0 ? (blink ? '#ff3b3b' : '#3b6bff') : '#3b6bff';
+      c.beginPath();
+      c.arc(x, y, 5 * ui, 0, Math.PI * 2);
+      c.fill();
+    }
+    for (const p of players) {
+      const [x, y] = toScreen(p.x, p.z, true, 8 * ui);
+      c.fillStyle = '#4cd964';
+      c.strokeStyle = '#111';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(x, y, 6 * ui, 0, Math.PI * 2);
+      c.fill();
+      c.stroke();
+    }
+    if (this.waypoint) {
+      const [x, y] = toScreen(this.waypoint.x, this.waypoint.z, true, 14 * ui);
+      this.waypointBlip(c, x, y + 6 * ui, ui);
+    }
+    // North marker on the edge.
+    const [nx0, ny0] = toScreen(player.x, player.z - 1e4, false);
+    const ang = Math.atan2(ny0 - py, nx0 - px);
+    let nx = px + Math.cos(ang) * 1e4, ny = py + Math.sin(ang) * 1e4;
+    const t = Math.min(Math.abs((W / 2 - 11 * ui) / (Math.cos(ang) || 1e-6)), Math.abs((ang < 0 ? py - 11 * ui : mapH - py - 11 * ui) / (Math.sin(ang) || 1e-6)));
+    nx = px + Math.cos(ang) * t;
+    ny = py + Math.sin(ang) * t;
+    c.fillStyle = 'rgba(0,0,0,0.75)';
+    c.beginPath();
+    c.arc(nx, ny, 9 * ui, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#fff';
+    c.font = `bold ${Math.round(11 * ui)}px system-ui, sans-serif`;
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillText('S', nx, ny + 0.5 * ui);
+    this.arrow(c, px, py, 0, ui);
+    // GPS text at the top.
+    if (this.gps) {
+      c.font = `bold ${Math.round(12 * ui)}px system-ui, sans-serif`;
+      const tw = c.measureText(this.gps).width + 16 * ui;
+      c.fillStyle = 'rgba(20, 8, 36, 0.85)';
+      c.beginPath();
+      c.roundRect(W / 2 - tw / 2, 5 * ui, tw, 20 * ui, 5 * ui);
+      c.fill();
+      c.fillStyle = '#e9d5ff';
+      c.fillText(this.gps, W / 2, 15.5 * ui);
+    }
+    // Wanted: red flashing frame.
+    if (wanted > 0 && blink) {
+      c.strokeStyle = 'rgba(255, 60, 60, 0.9)';
+      c.lineWidth = 4 * ui;
+      c.strokeRect(0, 0, W, mapH);
+    }
+    c.restore();
+    // Health bar under the radar (green, red when low).
+    const hp = Math.max(0, Math.min(1, this.health / 100));
+    c.fillStyle = 'rgba(0,0,0,0.65)';
+    c.fillRect(0, H - barH, W, barH);
+    c.fillStyle = hp > 0.3 ? '#4fa95a' : '#d33b32';
+    c.fillRect(2 * ui, H - barH + 2 * ui, (W - 4 * ui) * hp, barH - 4 * ui);
+  }
+
+  // ------------------------------------------------------------------ big map
+
+  private buildBig() {
+    this.big.id = 'bigmap';
+    this.big.hidden = true;
+    const close = document.createElement('button');
+    close.className = 'close';
+    close.textContent = '✕';
+    close.title = 'Zavřít (M)';
+    close.addEventListener('click', () => this.toggle(false));
+    const zoom = document.createElement('div');
+    zoom.className = 'zoom';
+    zoom.innerHTML = '<button data-z="0.7">+</button><button data-z="1.4">−</button><button data-c>◎</button>';
+    zoom.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest('button');
+      if (!b) return;
+      if (b.dataset.z) this.bigRange = THREE.MathUtils.clamp(this.bigRange * Number(b.dataset.z), 120, 1600);
+      if (b.dataset.c !== undefined && this.last) this.bigCenter.set(this.last.player.x, this.last.player.z);
+      this.drawBig();
+    });
+    this.bigInfo.className = 'info';
+    const legend = document.createElement('div');
+    legend.className = 'legend';
+    legend.innerHTML = '<span><i style="background:#f1c232">Z</i>Zbraně</span><span><i style="background:#ff9a2e">G</i>Tuning</span><span><i style="background:#34d17a">D</i>Moje garáž</span><span><i style="background:#ff4fb8">K</i>Klub</span><span><i style="background:#ff8a2e">B</i>Bowling</span><span><i class="wp"></i>Cíl</span>';
+    this.big.append(this.bigCanvas, close, zoom, this.bigInfo, legend);
+    // Drag to pan, wheel / pinch to zoom, click (without dragging) to set the waypoint.
+    let down: { x: number; y: number; cx: number; cz: number; moved: boolean } | null = null;
+    const pts = new Map<number, { x: number; y: number }>();
+    let pinch = 0;
+    this.bigCanvas.addEventListener('pointerdown', (e) => {
+      this.bigCanvas.setPointerCapture(e.pointerId);
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        pinch = Math.hypot(a.x - b.x, a.y - b.y);
+      }
+      down = { x: e.clientX, y: e.clientY, cx: this.bigCenter.x, cz: this.bigCenter.y, moved: false };
+    });
+    this.bigCanvas.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch) this.bigRange = THREE.MathUtils.clamp(this.bigRange * (pinch / d), 120, 1600);
+        pinch = d;
+        if (down) down.moved = true;
+        this.drawBig();
+        return;
+      }
+      if (!down) return;
+      const dx = e.clientX - down.x, dy = e.clientY - down.y;
+      if (Math.hypot(dx, dy) > 6) down.moved = true;
+      if (down.moved) {
+        const mpp = this.bigRange / (Math.min(this.bigCanvas.clientWidth, this.bigCanvas.clientHeight) / 2);
+        this.bigCenter.set(down.cx - dx * mpp, down.cz - dy * mpp);
+        this.drawBig();
+      }
+    });
+    const up = (e: PointerEvent) => {
+      pts.delete(e.pointerId);
+      if (pts.size < 2) pinch = 0;
+      if (!down || pts.size) return;
+      if (!down.moved) {
+        const r = this.bigCanvas.getBoundingClientRect();
+        const mpp = this.bigRange / (Math.min(r.width, r.height) / 2);
+        const wx = this.bigCenter.x + (e.clientX - r.left - r.width / 2) * mpp;
+        const wz = this.bigCenter.y + (e.clientY - r.top - r.height / 2) * mpp;
+        const wp = this.waypoint;
+        // Clicking the waypoint again removes it.
+        if (wp && Math.hypot(wp.x - wx, wp.z - wz) < 14 * mpp) this.setWaypoint(null);
+        else this.setWaypoint({ x: wx, z: wz });
+      }
+      down = null;
+    };
+    this.bigCanvas.addEventListener('pointerup', up);
+    this.bigCanvas.addEventListener('pointercancel', (e) => {
+      pts.delete(e.pointerId);
+      down = null;
+    });
+    this.bigCanvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      this.bigRange = THREE.MathUtils.clamp(this.bigRange * (e.deltaY > 0 ? 1.15 : 0.87), 120, 1600);
+      this.drawBig();
+    }, { passive: false });
+    window.addEventListener('resize', () => this.expanded && this.drawBig());
+  }
+
+  private drawBig() {
+    const cv = this.bigCanvas;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = cv.clientWidth || window.innerWidth, h = cv.clientHeight || window.innerHeight;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
+    }
+    const c = cv.getContext('2d')!;
+    const W = cv.width, H = cv.height, ui = dpr;
+    const k = Math.min(W, H) / 2 / this.bigRange;
+    const cx = this.bigCenter.x, cz = this.bigCenter.y;
+    c.fillStyle = '#1c2426';
+    c.fillRect(0, 0, W, H);
+    c.save();
+    c.translate(W / 2, H / 2);
+    this.drawLayers(c, cx, cz, k);
+    this.drawRoute(c, cx, cz, k, 5 * ui);
+    const L = this.last;
+    const at = (x: number, z: number): [number, number] => [(x - cx) * k, (z - cz) * k];
+    if (L) {
+      for (const m of L.marks) {
+        const [x, y] = at(m.pos.x, m.pos.z);
+        this.blip(c, x, y, m.label, m.color, ui * 1.1);
+      }
+      if (L.car) {
+        const [x, y] = at(L.car.x, L.car.z);
+        c.fillStyle = '#5fb7ff';
+        c.strokeStyle = '#111';
+        c.lineWidth = 2;
+        c.beginPath();
+        c.roundRect(x - 7 * ui, y - 5 * ui, 14 * ui, 10 * ui, 2 * ui);
+        c.fill();
+        c.stroke();
+      }
+      for (const p of L.players) {
+        const [x, y] = at(p.x, p.z);
+        c.fillStyle = '#4cd964';
+        c.beginPath();
+        c.arc(x, y, 6 * ui, 0, Math.PI * 2);
+        c.fill();
+      }
+      const heading = Math.atan2(Math.cos(L.yaw), Math.sin(L.yaw));
+      const [x, y] = at(L.player.x, L.player.z);
+      this.arrow(c, x, y, heading + Math.PI / 2, ui * 1.2);
+    }
+    if (this.waypoint) {
+      const [x, y] = at(this.waypoint.x, this.waypoint.z);
+      this.waypointBlip(c, x, y, ui * 1.4);
+    }
+    c.restore();
+    // Scale bar.
+    const metres = this.bigRange > 700 ? 500 : this.bigRange > 300 ? 200 : 100;
+    c.fillStyle = 'rgba(0,0,0,0.6)';
+    c.fillRect(16 * ui, H - 40 * ui, metres * k + 20 * ui, 26 * ui);
+    c.fillStyle = '#fff';
+    c.fillRect(26 * ui, H - 22 * ui, metres * k, 3 * ui);
+    c.font = `${12 * ui}px system-ui, sans-serif`;
+    c.fillText(`${metres} m`, 26 * ui, H - 28 * ui);
+    this.bigInfo.textContent = this.waypoint ? (this.gps ? `Navigace: ${this.gps}` : 'Hledám cestu…') : 'Klikni do mapy a nastav cíl · táhni = posun · kolečko = přiblížení';
+  }
+
+  // ------------------------------------------------------------------ phone map
 
   /** North-up rectangular map for the phone's Mapa app; `range` = metres from centre to the shorter edge. */
   drawRect(canvas: HTMLCanvasElement, player: THREE.Vector3, viewYaw: number, range: number,
@@ -80,184 +536,55 @@ export class Minimap {
     const k = Math.min(W, H) / 2 / range;
     const ui = W / 260;
     c.save();
-    c.fillStyle = '#3c4733';
+    c.fillStyle = C.land;
     c.fillRect(0, 0, W, H);
     c.translate(W / 2, H / 2);
-    const s = k / this.scale;
-    c.drawImage(this.base, -(player.x + this.half) * this.scale * s, -(player.z + this.half) * this.scale * s, BASE * s, BASE * s);
-    const toMap = (p: THREE.Vector3) => [(p.x - player.x) * k, (p.z - player.z) * k];
-    const inside = (x: number, y: number, pad: number) => [Math.max(-W / 2 + pad, Math.min(W / 2 - pad, x)), Math.max(-H / 2 + pad, Math.min(H / 2 - pad, y))];
+    this.drawLayers(c, player.x, player.z, k);
+    this.drawRoute(c, player.x, player.z, k, 3.5 * ui);
+    const at = (p: { x: number; z: number }, pad: number): [number, number] => [
+      Math.max(-W / 2 + pad, Math.min(W / 2 - pad, (p.x - player.x) * k)), Math.max(-H / 2 + pad, Math.min(H / 2 - pad, (p.z - player.z) * k)),
+    ];
     for (const m of marks) {
-      const [x, y] = inside(...(toMap(m.pos) as [number, number]), 11 * ui);
-      c.fillStyle = m.color;
-      c.strokeStyle = '#000';
-      c.lineWidth = 1.5 * ui;
-      c.fillRect(x - 8 * ui, y - 8 * ui, 16 * ui, 16 * ui);
-      c.strokeRect(x - 8 * ui, y - 8 * ui, 16 * ui, 16 * ui);
-      c.fillStyle = '#111';
-      c.font = `bold ${12 * ui}px system-ui, sans-serif`;
-      c.textAlign = 'center';
-      c.textBaseline = 'middle';
-      c.fillText(m.label, x, y + ui);
+      const [x, y] = at(m.pos, 11 * ui);
+      this.blip(c, x, y, m.label, m.color, ui * 0.8);
     }
     if (car) {
-      const [x, y] = inside(...(toMap(car) as [number, number]), 8 * ui);
-      c.fillStyle = '#fff';
-      c.strokeStyle = '#222';
+      const [x, y] = at(car, 8 * ui);
+      c.fillStyle = '#5fb7ff';
+      c.strokeStyle = '#111';
       c.lineWidth = 2 * ui;
-      c.fillRect(x - 5 * ui, y - 5 * ui, 10 * ui, 10 * ui);
-      c.strokeRect(x - 5 * ui, y - 5 * ui, 10 * ui, 10 * ui);
+      c.beginPath();
+      c.roundRect(x - 6 * ui, y - 4 * ui, 12 * ui, 8 * ui, 2 * ui);
+      c.fill();
+      c.stroke();
     }
     const blink = Math.floor(performance.now() / 250) % 2 === 0;
     for (const p of police) {
-      const [x, y] = inside(...(toMap(p) as [number, number]), 7 * ui);
+      const [x, y] = at(p, 7 * ui);
       c.fillStyle = wanted > 0 && blink ? '#ff3b3b' : '#3b6bff';
       c.beginPath();
       c.arc(x, y, 5 * ui, 0, Math.PI * 2);
       c.fill();
     }
     for (const p of players) {
-      const [x, y] = inside(...(toMap(p) as [number, number]), 7 * ui);
+      const [x, y] = at(p, 7 * ui);
       c.fillStyle = '#4cd964';
-      c.strokeStyle = '#000';
-      c.lineWidth = 1.5 * ui;
       c.beginPath();
       c.arc(x, y, 6 * ui, 0, Math.PI * 2);
       c.fill();
-      c.stroke();
     }
-    // You are here: a blue dot with a view cone, like a phone map.
+    if (this.waypoint) {
+      const [x, y] = at(this.waypoint, 14 * ui);
+      this.waypointBlip(c, x, y, ui);
+    }
     const heading = Math.atan2(Math.cos(viewYaw), Math.sin(viewYaw));
-    const g = c.createRadialGradient(0, 0, 0, 0, 0, 34 * ui);
-    g.addColorStop(0, 'rgba(60, 150, 255, 0.55)');
-    g.addColorStop(1, 'rgba(60, 150, 255, 0)');
-    c.fillStyle = g;
-    c.beginPath();
-    c.moveTo(0, 0);
-    c.arc(0, 0, 34 * ui, heading - 0.55, heading + 0.55);
-    c.fill();
-    c.fillStyle = '#fff';
-    c.beginPath();
-    c.arc(0, 0, 8 * ui, 0, Math.PI * 2);
-    c.fill();
-    c.fillStyle = '#1a7cff';
-    c.beginPath();
-    c.arc(0, 0, 5.5 * ui, 0, Math.PI * 2);
-    c.fill();
+    this.arrow(c, 0, 0, heading + Math.PI / 2, ui);
     c.restore();
   }
 
-  update(
-    player: THREE.Vector3, viewYaw: number,
-    car: THREE.Vector3 | null, police: THREE.Vector3[], wanted: number, marks: MapMark[] = [], players: THREE.Vector3[] = [],
-  ) {
-    if (this.frame++ % 2) return; // every other frame is plenty
-    const c = this.canvas.getContext('2d')!;
-    const W = this.canvas.width, R = W / 2;
-    const k = (R / (this.expanded ? BIG_RANGE : RANGE)); // canvas px per metre
-    const ui = W / (this.expanded ? 420 : 180); // marker scale
-    c.save();
-    c.clearRect(0, 0, W, W);
-    c.beginPath();
-    c.arc(R, R, R - 2, 0, Math.PI * 2);
-    c.clip();
-    c.fillStyle = '#3c4733';
-    c.fillRect(0, 0, W, W);
-    // Rotate so the camera's forward direction (sin yaw, cos yaw) in map space points up.
-    // Small map: rotates with the camera. Big map: north up, the arrow turns instead.
-    const heading = Math.atan2(Math.cos(viewYaw), Math.sin(viewYaw));
-    const rot = this.expanded ? 0 : -Math.PI / 2 - heading;
-    const arrow = this.expanded ? heading + Math.PI / 2 : 0;
-    c.translate(R, R);
-    c.rotate(rot);
-    const toMap = (p: THREE.Vector3) => [(p.x - player.x) * k, (p.z - player.z) * k];
-    const s = k / this.scale;
-    c.drawImage(this.base, -(player.x + this.half) * this.scale * s, -(player.z + this.half) * this.scale * s, BASE * s, BASE * s);
-    if (car) {
-      const [x, y] = toMap(car);
-      c.fillStyle = '#ffffff';
-      c.fillRect(x - 5 * ui, y - 5 * ui, 10 * ui, 10 * ui);
-      c.strokeStyle = '#222';
-      c.lineWidth = 2;
-      c.strokeRect(x - 5 * ui, y - 5 * ui, 10 * ui, 10 * ui);
-    }
-    // Places (gun shops, garages): labelled squares; far ones stay at the rim.
-    for (const m of marks) {
-      let [x, y] = toMap(m.pos);
-      const d = Math.hypot(x, y), maxD = R - 12 * ui;
-      if (d > maxD) { x *= maxD / d; y *= maxD / d; }
-      c.save();
-      c.translate(x, y);
-      c.rotate(-rot);
-      c.scale(ui, ui);
-      c.fillStyle = m.color;
-      c.strokeStyle = '#000';
-      c.lineWidth = 2;
-      c.fillRect(-9, -9, 18, 18);
-      c.strokeRect(-9, -9, 18, 18);
-      c.fillStyle = '#111';
-      c.font = 'bold 14px system-ui, sans-serif';
-      c.textAlign = 'center';
-      c.textBaseline = 'middle';
-      c.fillText(m.label, 0, 1);
-      c.restore();
-    }
-    const blink = Math.floor(performance.now() / 250) % 2 === 0;
-    for (const p of police) {
-      let [x, y] = toMap(p);
-      const d = Math.hypot(x, y), maxD = R - 10;
-      if (d > maxD) { x *= maxD / d; y *= maxD / d; } // keep chasing cars at the edge
-      c.fillStyle = wanted > 0 ? (blink ? '#ff3b3b' : '#3b6bff') : '#3b6bff';
-      c.beginPath();
-      c.arc(x, y, 6 * ui, 0, Math.PI * 2);
-      c.fill();
-    }
-    // Other players: green dots (kept at the rim when far).
-    for (const p of players) {
-      let [x, y] = toMap(p);
-      const d = Math.hypot(x, y), maxD = R - 10;
-      if (d > maxD) { x *= maxD / d; y *= maxD / d; }
-      c.fillStyle = '#4cd964';
-      c.strokeStyle = '#000';
-      c.lineWidth = 2;
-      c.beginPath();
-      c.arc(x, y, 6 * ui, 0, Math.PI * 2);
-      c.fill();
-      c.stroke();
-    }
-    // North mark ("S" = sever) on the rim.
-    const nAngle = rot; // map north (-z) direction after the rotation
-    c.restore();
-    c.save();
-    c.translate(R, R);
-    const north = [Math.cos(-Math.PI / 2 + nAngle) * (R - 16), Math.sin(-Math.PI / 2 + nAngle) * (R - 16)];
-    c.fillStyle = '#fff';
-    c.font = `bold ${Math.round(W / 11)}px system-ui, sans-serif`;
-    c.textAlign = 'center';
-    c.textBaseline = 'middle';
-    c.fillText('S', north[0], north[1]);
-    // Player arrow (points the way the camera looks).
-    c.save();
-    c.rotate(arrow);
-    c.scale(ui, ui);
-    c.fillStyle = '#ffd23a';
-    c.strokeStyle = '#000';
-    c.lineWidth = 2;
-    c.beginPath();
-    c.moveTo(0, -11);
-    c.lineTo(8, 9);
-    c.lineTo(0, 4);
-    c.lineTo(-8, 9);
-    c.closePath();
-    c.fill();
-    c.stroke();
-    c.restore();
-    // Rim
-    c.beginPath();
-    c.arc(0, 0, R - 2, 0, Math.PI * 2);
-    c.strokeStyle = wanted > 0 && blink ? '#ff5050' : 'rgba(255,255,255,0.7)';
-    c.lineWidth = 3;
-    c.stroke();
-    c.restore();
+  /** Phone map: canvas pixel -> world point (for setting a waypoint by tapping). */
+  static rectToWorld(canvas: HTMLCanvasElement, px: number, py: number, player: THREE.Vector3, range: number) {
+    const k = Math.min(canvas.clientWidth, canvas.clientHeight) / 2 / range;
+    return { x: player.x + (px - canvas.clientWidth / 2) / k, z: player.z + (py - canvas.clientHeight / 2) / k };
   }
 }

@@ -59,6 +59,9 @@ export interface PhoneHost {
   garage: () => { spaces: number; cars: { id: string; title: string; color: number; active: boolean }[] };
   /** Has a garage car brought to the nearest road; returns the answer. */
   deliverCar: (id: string) => string;
+  /** GPS: set or clear the waypoint; tap on the phone map converts to world coordinates. */
+  setWaypoint: (p: { x: number; z: number } | null) => void;
+  mapTap: (canvas: HTMLCanvasElement, x: number, y: number, range: number) => void;
   /** Other players online. */
   players: () => { multiplayer: boolean; online: boolean; me: string; list: { nick: string; dist: number; inCar: boolean; health: number }[] };
 }
@@ -186,6 +189,13 @@ export class Phone {
     document.body.append(this.el, this.toast);
     // All taps inside the screen go through data-* attributes.
     this.view.addEventListener('click', (e) => this.onClick(e));
+    // Tap on the phone map: set the GPS waypoint there.
+    this.view.addEventListener('pointerup', (e) => {
+      const cv = (e.target as HTMLElement).closest<HTMLCanvasElement>('canvas.map');
+      if (!cv) return;
+      const r = cv.getBoundingClientRect();
+      this.host.mapTap(cv, e.clientX - r.left, e.clientY - r.top, MAP_RANGES[this.mapRange]);
+    });
     this.banner.addEventListener('click', () => {
       this.banner.classList.remove('on');
       const t = this.threads[0];
@@ -339,6 +349,14 @@ export class Phone {
         return;
       }
       case 'reply': return this.reply(v);
+      case 'nav': {
+        const [x, z] = v.split(',').map(Number);
+        this.host.setWaypoint({ x, z });
+        this.banner.innerHTML = '<b>Mapa</b><span>Navigace nastavena – sleduj fialovou trasu.</span>';
+        this.banner.classList.add('on');
+        this.bannerUntil = performance.now() + 3000;
+        return;
+      }
       case 'zoom':
         this.mapRange = Math.max(0, Math.min(MAP_RANGES.length - 1, this.mapRange + +v));
         return this.render();
@@ -562,7 +580,7 @@ export class Phone {
       const dx = p.x - state.pos.x, dz = p.z - state.pos.z;
       const dist = Math.hypot(dx, dz);
       const dir = dirs[Math.round(((Math.atan2(dx, -dz) / (Math.PI * 2)) * 8 + 8)) % 8];
-      return { dist, html: `<li><i style="background:${color}">${esc(label)}</i><span>${esc(name)}</span><b>${dist < 1000 ? `${Math.round(dist / 10) * 10} m` : `${(dist / 1000).toFixed(1)} km`} ${dir}</b></li>` };
+      return { dist, html: `<li><i style="background:${color}">${esc(label)}</i><span>${esc(name)}</span><b>${dist < 1000 ? `${Math.round(dist / 10) * 10} m` : `${(dist / 1000).toFixed(1)} km`} ${dir}</b><button class="go" data-a="nav" data-v="${p.x.toFixed(1)},${p.z.toFixed(1)}" title="Navigovat">➤</button></li>` };
     };
     const rows = state.marks.map((m) => item(m.color, m.label, m.name ?? '', m.pos));
     rows.sort((a, b) => a.dist - b.dist);
@@ -665,7 +683,7 @@ export class Phone {
       case 'bank': return this.bankHtml();
       case 'map':
         return `${this.header('Mapa')}<div class="mapwrap"><canvas class="map"></canvas><div class="zoom"><button data-a="zoom" data-v="-1">+</button><button data-a="zoom" data-v="1">−</button></div><span class="scale">${MAP_RANGES[this.mapRange] * 2 >= 1000 ? `${(MAP_RANGES[this.mapRange] * 2) / 1000} km` : `${MAP_RANGES[this.mapRange] * 2} m`}</span></div>` +
-          '<h3>V okolí</h3><ul class="places"></ul>';
+          '<p class="maphint">Klepni do mapy = cíl navigace</p><h3>V okolí</h3><ul class="places"></ul>';
       case 'camera':
         return `<div class="cam"><canvas class="vf"></canvas><div class="grid"></div><div class="flash"></div>
           <div class="cam-bar"><button data-a="app" data-v="gallery" class="thumb"><img class="last" ${this.photos[0] ? `src="${this.photos[0].url}"` : 'hidden'} alt=""></button>

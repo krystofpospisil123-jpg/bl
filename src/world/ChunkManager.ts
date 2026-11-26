@@ -188,6 +188,14 @@ export class ChunkManager {
   }
 
   /** Litter bins within `radius` of a point (searchable for money). */
+  /** Called with each chunk's data when it loads (the minimap paints it). */
+  onChunkData?: (data: import('./format.ts').ChunkData) => void;
+
+  /** Every chunk loaded so far (for painting the map after it is created). */
+  loadedData(): import('./format.ts').ChunkData[] {
+    return [...this.states.values()].flatMap((s) => (s.data ? [s.data.data] : []));
+  }
+
   /** A car drove through (x, z): knocks over traffic signs there. Returns how many fell. */
   knockSigns(x: number, z: number, radius: number, dx: number, dz: number): number {
     let n = 0;
@@ -238,6 +246,7 @@ export class ChunkManager {
         if (this.states.get(`${st.cx},${st.cz}`) !== st) return; // unloaded meanwhile
         st.data = data;
         this.heights.setChunk(st.cx, st.cz, data.heights);
+        this.onChunkData?.(data.data);
       },
       (err) => {
         st.loading = false;
