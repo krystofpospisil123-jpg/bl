@@ -347,6 +347,15 @@ export class Game {
     canvas.addEventListener('webglcontextrestored', () => location.reload());
   }
 
+  /** Where the town is streamed around: the door outside while in an interior. */
+  get streamFocus(): THREE.Vector3 {
+    const e = this.insideStore;
+    if (e && this.mode !== 'fly') return this.tmpFocus.set(e.x, e.y, e.z);
+    return this.focus;
+  }
+
+  private tmpFocus = new THREE.Vector3();
+
   /** Position the world streams around. */
   get focus(): THREE.Vector3 {
     if (this.mode === 'car' && this.car) return this.car.position;
@@ -1223,13 +1232,18 @@ export class Game {
     if (this.notice && performance.now() > this.noticeUntil) this.notice = '';
     this.handleKeys();
 
-    const focus = this.focus;
+    // Inside a store, the club or the bowling the town streams around the door outside: the
+    // halls stand on chunk borders, and following the player there would rebuild colliders and
+    // pause physics every time they crossed one (the character stuttered).
+    const focus = this.streamFocus;
     this.chunks.update(focus);
 
     if (this.physics) {
       // Colliders follow the player; the parked car keeps its own ground while nearby.
-      const ready = this.physics.updateStreaming(focus.x, focus.z, (cx, cz) => this.chunks.physicsSource(cx, cz));
-      if (!this.car && ready && this.mode === 'loading') this.spawn();
+      const streamed = this.physics.updateStreaming(focus.x, focus.z, (cx, cz) => this.chunks.physicsSource(cx, cz));
+      // Interior halls have their own permanent colliders.
+      const ready = streamed || !!this.insideStore;
+      if (!this.car && streamed && this.mode === 'loading') this.spawn();
       if (this.car && this.player && !this.paused) this.simulate(dt, ready);
     }
 
