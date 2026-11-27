@@ -1,3 +1,4 @@
+import type { Overview } from '../world/WorldData.ts';
 // Atmospheric sky with clouds, image-based lighting from that sky, fog, and a sun with a
 // camera-following shadow map. Also builds the coarse distant terrain.
 import * as THREE from 'three';
@@ -123,25 +124,25 @@ function scaleSky(sky: Sky) {
  * Coarse terrain for the whole area (20 m grid) plus an apron beyond the edges, drawn
  * slightly below the detailed chunks so it only shows where chunks are not loaded.
  */
-export function buildOverviewMesh(m: Manifest, o: { heights: Float32Array; size: number; step: number }, material: THREE.Material): THREE.Mesh {
-  const n = o.size;
-  const H = m.halfExtent;
+export function buildOverviewMesh(m: Manifest, o: Overview, material: THREE.Material): THREE.Mesh {
+  const W = o.width, Hn = o.height;
   const apron = 4000;
-  const ring = n + 2;
-  const pos = new Float32Array(ring * ring * 3);
-  const col = new Float32Array(ring * ring * 3);
+  const rw = W + 2, rh = Hn + 2;
+  const pos = new Float32Array(rw * rh * 3);
+  const col = new Float32Array(rw * rh * 3);
   const c = new THREE.Color();
   const { min, max } = m.elevation;
-  const at = (i: number, j: number) => o.heights[Math.min(n - 1, Math.max(0, j)) * n + Math.min(n - 1, Math.max(0, i))];
-  for (let j = 0; j < ring; j++)
-    for (let i = 0; i < ring; i++) {
+  const at = (i: number, j: number) => o.heights[Math.min(Hn - 1, Math.max(0, j)) * W + Math.min(W - 1, Math.max(0, i))];
+  const maxX = o.minX + (W - 1) * o.step, maxZ = o.minZ + (Hn - 1) * o.step;
+  for (let j = 0; j < rh; j++)
+    for (let i = 0; i < rw; i++) {
       const gi = i - 1, gj = j - 1;
-      const edgeX = gi < 0 ? -apron : gi >= n ? apron : 0;
-      const edgeZ = gj < 0 ? -apron : gj >= n ? apron : 0;
-      const x = edgeX ? Math.sign(edgeX) * (H + apron) : -H + gi * o.step;
-      const z = edgeZ ? Math.sign(edgeZ) * (H + apron) : -H + gj * o.step;
+      const edgeX = gi < 0 ? -1 : gi >= W ? 1 : 0;
+      const edgeZ = gj < 0 ? -1 : gj >= Hn ? 1 : 0;
+      const x = edgeX < 0 ? o.minX - apron : edgeX > 0 ? maxX + apron : o.minX + gi * o.step;
+      const z = edgeZ < 0 ? o.minZ - apron : edgeZ > 0 ? maxZ + apron : o.minZ + gj * o.step;
       const h = at(gi, gj);
-      const k = (j * ring + i) * 3;
+      const k = (j * rw + i) * 3;
       pos[k] = x;
       pos[k + 1] = (edgeX || edgeZ ? h + 25 : h) - 1.5;
       pos[k + 2] = z;
@@ -150,9 +151,9 @@ export function buildOverviewMesh(m: Manifest, o: { heights: Float32Array; size:
       col.set([c.r, c.g, c.b], k);
     }
   const idx: number[] = [];
-  for (let j = 0; j < ring - 1; j++)
-    for (let i = 0; i < ring - 1; i++) {
-      const a = j * ring + i, b = a + 1, cc = a + ring, d = cc + 1;
+  for (let j = 0; j < rh - 1; j++)
+    for (let i = 0; i < rw - 1; i++) {
+      const a = j * rw + i, b = a + 1, cc = a + rw, d = cc + 1;
       idx.push(a, cc, b, b, cc, d);
     }
   const g = new THREE.BufferGeometry();

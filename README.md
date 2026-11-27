@@ -11,7 +11,7 @@ Potřebuješ Node.js 22 nebo novější.
 
 ```bash
 npm install
-npm run data      # stáhne OSM + DMR 5G a vygeneruje dlaždice do public/data (~1 min)
+npm run data      # stáhne OSM, ZABAGED, DMR 5G, ortofoto a vygeneruje dlaždice do public/data (~10 min)
 npm run dev       # http://localhost:5173  (2D mapa dat: http://localhost:5173/#mapa)
 ```
 
@@ -38,9 +38,10 @@ Hra startuje pěšky vedle auta na náměstí Republiky.
 
 | Příkaz | Co dělá |
 | --- | --- |
-| `npm run data:osm` | Stáhne OSM přes Overpass API do `data/raw/osm.json` |
+| `npm run data:osm` | Stáhne OSM přes Overpass API do `data/raw/osm.json` (jen čtverec Blanska) |
+| `npm run data:zabaged` | Stáhne okolí z ČÚZK ZABAGED + RÚIAN (budovy s počtem podlaží, silnice, ulice s názvy, vodstvo, lesy, pole, obce) do `data/raw/zabaged.json` |
 | `npm run data:ortho` | Stáhne ortofoto ČÚZK (0,5 m) pro barvy střech a podklad terénu |
-| `npm run data:dem` | Stáhne DMR 5G z ČÚZK ImageServeru do `data/raw/dem.tif` a převzorkuje do lokální mřížky |
+| `npm run data:dem` | Stáhne DMR 5G z ČÚZK ImageServeru po dlaždicích (`data/raw/dem_*.tif`) a převzorkuje do lokální mřížky |
 | `npm run data:build` | Rozřeže vše na dlaždice do `public/data/` |
 | `npm run build` | Typecheck + produkční build do `dist/` |
 | `npm run build:single` | Jeden samostatný HTML soubor s daty uvnitř (`dist-single/blansko.html`, asi 12 MB): jde otevřít i bez serveru nebo offline |
@@ -86,8 +87,16 @@ src/
 ## Formát světa
 
 - **Souřadnice:** metry, X = východ, Y = nahoru, Z = jih. Počátek je na 49.3628 N, 16.6448 E
-  (u zámku, náměstí je asi 200 m jižně a nádraží 1,1 km jižně). Hratelná oblast je 3 × 3 km (−1500 až 1500 m).
-- **Dlaždice:** 12 × 12 dlaždic po 250 m. Každá má `chunks/c_X_Z.json` (budovy, silnice, koleje,
+  (u zámku, náměstí je asi 200 m jižně a nádraží 1,1 km jižně). Hratelná oblast je obdélník 11 × 12,25 km
+  (x od −1500 do 9500 m, z od −9000 do 3250 m; `bounds` v manifestu): Blansko, na východě **Jedovnice**
+  (~8 km), na severu **Kuničky** (~8 km) a mezi nimi Moravský kras (Vilémovice, Ostrov u Macochy, Sloup,
+  Šošůvka, Rudice, Petrovice, Žďár, Ráječko…).
+- **Dva zdroje dat:** původní čtverec 3 × 3 km kolem centra Blanska je z OpenStreetMap, zbytek z ČÚZK
+  ZABAGED (budovy, silnice II./III. třídy, ulice s názvy, místní a lesní cesty, potoky, rybníky, lesy, pole,
+  louky, zahrady) a RÚIAN (počet podlaží a druh budovy: rodinný/bytový dům, garáž). Silnice, které
+  hranici čtverce přecházejí, se na ní napojí (ZABAGED se přichytí k nejbližšímu OSM přechodu), takže
+  silniční síť je jeden celek a GPS naviguje z Blanska do Jedovnic i Kuniček.
+- **Dlaždice:** 44 × 49 dlaždic po 250 m (2156). Každá má `chunks/c_X_Z.json` (budovy, silnice, koleje,
   vodní toky a plochy, landuse, stromy, POI) a `chunks/c_X_Z.png` s výškami: 126 × 126
   vzorků po 2 m se sdílenými okraji, bezeztrátové PNG s 16bitovou hodnotou v kanálech R (vyšší bajt)
   a G (nižší bajt), výška = `heightBase + v * 0.01`.

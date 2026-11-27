@@ -40,7 +40,7 @@ function isWalkable(t: Record<string, string>): boolean {
 function build(
   ways: GraphWay[],
   elevation: (x: number, y: number) => number,
-  limit: number,
+  inside: (p: [number, number]) => boolean,
   maxStep: number,
   attrs: (w: GraphWay) => Omit<GraphEdge, 'a' | 'b' | 'pts' | 'len'>,
 ): RoadGraph {
@@ -51,7 +51,7 @@ function build(
   const nodes: number[] = [];
   const edges: GraphEdge[] = [];
   const r1 = (v: number) => Math.round(v * 10) / 10;
-  const inside = (p: [number, number]) => Math.abs(p[0]) < limit && Math.abs(p[1]) < limit;
+
 
   const nodeOf = (w: GraphWay, i: number) => {
     const osm = w.nodes[i];
@@ -121,8 +121,8 @@ function keepLargestComponent(g: RoadGraph): RoadGraph {
   return { nodes, edges };
 }
 
-export function buildRoadGraphs(ways: GraphWay[], elevation: (x: number, y: number) => number, limit: number) {
-  const drive = build(ways.filter((w) => isDrivable(w.tags)), elevation, limit, 8, (w) => {
+export function buildRoadGraphs(ways: GraphWay[], elevation: (x: number, y: number) => number, inside: (p: [number, number]) => boolean) {
+  const drive = build(ways.filter((w) => isDrivable(w.tags)), elevation, inside, 8, (w) => {
     const t = w.tags;
     const oneway = t.oneway === 'yes' || t.oneway === '1' || t.junction === 'roundabout' || t.highway.endsWith('_link') && t.oneway !== 'no';
     const lanes = parseInt(t.lanes ?? '', 10);
@@ -134,7 +134,7 @@ export function buildRoadGraphs(ways: GraphWay[], elevation: (x: number, y: numb
       speed: Math.round((parseInt(t.maxspeed ?? '', 10) || SPEED_KMH[t.highway] || 30) / 3.6 * 10) / 10,
     };
   });
-  const walk = build(ways.filter((w) => isWalkable(w.tags)), elevation, limit, 6, (w) => ({
+  const walk = build(ways.filter((w) => isWalkable(w.tags)), elevation, inside, 6, (w) => ({
     kind: w.tags.highway,
     lanes: 0,
     speed: 0,

@@ -11,6 +11,9 @@ export interface LoadedChunk {
   n: number;
 }
 
+/** Coarse heightmap of the whole area (row 0 = minZ edge). */
+export interface Overview { heights: Float32Array; width: number; height: number; step: number; minX: number; minZ: number }
+
 export class WorldData {
   private cache = new Map<string, Promise<LoadedChunk>>();
 
@@ -39,19 +42,20 @@ export class WorldData {
     return out;
   }
 
-  async loadOverview(): Promise<{ heights: Float32Array; size: number; step: number }> {
-    const { file, size, step } = this.manifest.overview;
-    return { heights: await this.fetchHeights(file), size, step };
+  async loadOverview(): Promise<Overview> {
+    const { file, width, height, step } = this.manifest.overview;
+    const b = this.manifest.bounds;
+    return { heights: await this.fetchHeights(file), width, height, step, minX: b.minX, minZ: b.minZ };
   }
 
   /** Whole-area orthophoto used under the ground cover (null if the data has none). */
-  async loadGroundPhoto(): Promise<{ bitmap: ImageBitmap; step: number; half: number } | null> {
+  async loadGroundPhoto(): Promise<{ bitmap: ImageBitmap; step: number; minX: number; minZ: number } | null> {
     const g = this.manifest.groundPhoto;
     if (!g) return null;
     const res = await this.get(g.file);
     if (!res.ok) return null;
     const bitmap = await createImageBitmap(await res.blob());
-    return { bitmap, step: g.step, half: this.manifest.halfExtent };
+    return { bitmap, step: g.step, minX: this.manifest.bounds.minX, minZ: this.manifest.bounds.minZ };
   }
 
   /** Decodes an image from the world data (no colour conversion, so masks stay exact). */
@@ -80,16 +84,19 @@ export class WorldData {
     return res.json();
   }
 
+  private chunkIndex?: Map<number, ChunkInfo>;
+
   chunkInfo(cx: number, cz: number): ChunkInfo | undefined {
-    const n = this.manifest.chunksPerSide;
-    if (cx < 0 || cz < 0 || cx >= n || cz >= n) return undefined;
-    return this.manifest.chunks[cz * n + cx];
+    const m = this.manifest;
+    if (cx < 0 || cz < 0 || cx >= m.chunksX || cz >= m.chunksZ) return undefined;
+    if (!this.chunkIndex) this.chunkIndex = new Map(m.chunks.map((c) => [c.cz * 10000 + c.cx, c]));
+    return this.chunkIndex.get(cz * 10000 + cx);
   }
 
   /** Chunk coordinates containing world position (x, z). */
   chunkCoordsAt(x: number, z: number): [number, number] {
-    const { halfExtent, chunkSize } = this.manifest;
-    return [Math.floor((x + halfExtent) / chunkSize), Math.floor((z + halfExtent) / chunkSize)];
+    const { bounds, chunkSize } = this.manifest;
+    return [Math.floor((x - bounds.minX) / chunkSize), Math.floor((z - bounds.minZ) / chunkSize)];
   }
 
   loadChunk(cx: number, cz: number): Promise<LoadedChunk> {

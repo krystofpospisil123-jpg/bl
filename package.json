@@ -9,9 +9,10 @@
     "data:osm": "tsx scripts/fetch-osm.ts",
     "data:dem": "tsx scripts/fetch-dem.ts",
     "data:build": "tsx scripts/build-chunks.ts",
-    "data": "npm run data:osm && npm run data:dem && npm run data:ortho && npm run data:build",
+    "data": "npm run data:osm && npm run data:zabaged && npm run data:dem && npm run data:ortho && npx tsx scripts/fetch-ortho.ts --coarse && npm run data:build",
     "build:single": "npm run build && tsx scripts/build-single.ts && tsx scripts/build-single.ts --fragment",
-    "data:ortho": "tsx scripts/fetch-ortho.ts"
+    "data:ortho": "tsx scripts/fetch-ortho.ts",
+    "data:zabaged": "tsx scripts/fetch-zabaged.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

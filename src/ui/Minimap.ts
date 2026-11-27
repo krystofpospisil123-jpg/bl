@@ -8,7 +8,8 @@
 import * as THREE from 'three';
 import type { ChunkData, RoadGraphs } from '../world/format.ts';
 
-const BASE = 3072;
+/** Longest side of the painted map canvases (px). */
+const BASE = 4096;
 /** Metres from the player to the top edge of the radar. */
 const RANGE = 190;
 
@@ -49,19 +50,30 @@ export class Minimap {
   health = 100;
   onWaypoint?: (p: { x: number; z: number } | null) => void;
 
-  constructor(graphs: RoadGraphs, private half: number, private size: number) {
+  private ox: number;
+  private oz: number;
+  private cw: number;
+  private ch: number;
+
+  constructor(graphs: RoadGraphs, bounds: { minX: number; maxX: number; minZ: number; maxZ: number }, private size: number) {
     this.canvas.id = 'minimap';
-    this.scale = BASE / (2 * half);
+    const bw = bounds.maxX - bounds.minX, bh = bounds.maxZ - bounds.minZ;
+    this.scale = Math.min(1, BASE / Math.max(bw, bh));
+    this.ox = bounds.minX;
+    this.oz = bounds.minZ;
+    this.cw = Math.round(bw * this.scale);
+    this.ch = Math.round(bh * this.scale);
     const mk = () => {
       const c = document.createElement('canvas');
-      c.width = c.height = BASE;
+      c.width = this.cw;
+      c.height = this.ch;
       return c;
     };
     this.ground = mk();
     this.roads = mk();
     const g0 = this.ground.getContext('2d')!;
     g0.fillStyle = C.land;
-    g0.fillRect(0, 0, BASE, BASE);
+    g0.fillRect(0, 0, this.cw, this.ch);
     const g = this.roads.getContext('2d')!;
     g.lineCap = g.lineJoin = 'round';
     const draw = (graph: RoadGraphs['drive'], color: string, width: (kind: string) => number, filter: (kind: string) => boolean = () => true) => {
@@ -71,7 +83,7 @@ export class Minimap {
         g.lineWidth = Math.max(1.2, width(e.kind) * this.scale);
         g.beginPath();
         for (let i = 0; i < e.pts.length; i += 3) {
-          const x = (e.pts[i] + half) * this.scale, y = (e.pts[i + 2] + half) * this.scale;
+          const x = (e.pts[i] - this.ox) * this.scale, y = (e.pts[i + 2] - this.oz) * this.scale;
           if (i === 0) g.moveTo(x, y);
           else g.lineTo(x, y);
         }
@@ -100,13 +112,13 @@ export class Minimap {
     if (this.painted.has(key)) return;
     this.painted.add(key);
     const g = this.ground.getContext('2d')!;
-    const s = this.scale, h = this.half;
+    const s = this.scale, ox = this.ox, oz = this.oz;
     const poly = (rings: number[][], color: string) => {
       g.fillStyle = color;
       g.beginPath();
       for (const r of rings) {
         for (let i = 0; i < r.length; i += 2) {
-          const x = (r[i] + h) * s, y = (r[i + 1] + h) * s;
+          const x = (r[i] - ox) * s, y = (r[i + 1] - oz) * s;
           if (i === 0) g.moveTo(x, y);
           else g.lineTo(x, y);
         }
@@ -125,7 +137,7 @@ export class Minimap {
       g.lineWidth = Math.max(1.5, w.w * s);
       g.beginPath();
       for (let i = 0; i < w.pts.length; i += 2) {
-        const x = (w.pts[i] + h) * s, y = (w.pts[i + 1] + h) * s;
+        const x = (w.pts[i] - ox) * s, y = (w.pts[i + 1] - oz) * s;
         if (i === 0) g.moveTo(x, y);
         else g.lineTo(x, y);
       }
@@ -170,10 +182,10 @@ export class Minimap {
   /** Draws the map layers into `c` so that world point (cx, cz) lands at canvas (ox, oy), with `k` px per metre. */
   private drawLayers(c: CanvasRenderingContext2D, cx: number, cz: number, k: number) {
     const s = k / this.scale;
-    const x = -(cx + this.half) * this.scale * s, y = -(cz + this.half) * this.scale * s;
+    const x = -(cx - this.ox) * this.scale * s, y = -(cz - this.oz) * this.scale * s;
     c.imageSmoothingEnabled = true;
-    c.drawImage(this.ground, x, y, BASE * s, BASE * s);
-    c.drawImage(this.roads, x, y, BASE * s, BASE * s);
+    c.drawImage(this.ground, x, y, this.cw * s, this.ch * s);
+    c.drawImage(this.roads, x, y, this.cw * s, this.ch * s);
   }
 
   private drawRoute(c: CanvasRenderingContext2D, cx: number, cz: number, k: number, width: number) {

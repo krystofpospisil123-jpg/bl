@@ -10,8 +10,19 @@ export const OUT_DIR = path.join(ROOT, 'public/data');
 /** World origin: between Náměstí Republiky, the château and the railway station. */
 export const ORIGIN = { lat: 49.3628, lon: 16.6448 };
 
-/** Half-size of the playable area in metres (3 x 3 km). */
-export const HALF_EXTENT = 1500;
+/**
+ * Playable area in local map metres (x east, y north): Blansko in the west, Jedovnice ~8 km to
+ * the east, Kuničky ~8 km to the north, the Moravian Karst in between. Edges lie on the chunk grid.
+ */
+export const BOUNDS = { minX: -1500, maxX: 9500, minY: -3250, maxY: 9000 };
+
+/**
+ * The original 3 x 3 km around the centre of Blansko, mapped from OpenStreetMap. Outside it the
+ * map comes from ČÚZK ZABAGED (scripts/fetch-zabaged.ts).
+ */
+export const OSM_HALF = 1500;
+/** @deprecated the area is a rectangle now (BOUNDS); kept for the OSM download. */
+export const HALF_EXTENT = OSM_HALF;
 
 /** Chunk edge length in metres. */
 export const CHUNK_SIZE = 250;
@@ -23,7 +34,7 @@ export const HEIGHT_STEP = 2;
 export const FETCH_MARGIN = 150;
 
 // Local transverse Mercator centred on the origin: x = east, y = north, in metres.
-// Over 3 km the scale error is negligible (< 0.01 %).
+// Over 10 km the scale error stays below 0.1 %.
 export const LOCAL_PROJ = `+proj=tmerc +lat_0=${ORIGIN.lat} +lon_0=${ORIGIN.lon} +k=1 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs`;
 
 // S-JTSK / Krovak East North (EPSG:5514), used by ČÚZK services.
@@ -63,4 +74,29 @@ export function fetchBBox(): { s: number; w: number; n: number; e: number } {
   const lons = corners.map((c) => c[0]);
   const lats = corners.map((c) => c[1]);
   return { s: Math.min(...lats), w: Math.min(...lons), n: Math.max(...lats), e: Math.max(...lons) };
+}
+
+/** WGS84 bounding box (south, west, north, east) of a local rectangle plus margin. */
+export function boundsBBox(b = BOUNDS, margin = FETCH_MARGIN): { s: number; w: number; n: number; e: number } {
+  const corners = [
+    localToLonLat(b.minX - margin, b.minY - margin),
+    localToLonLat(b.maxX + margin, b.minY - margin),
+    localToLonLat(b.maxX + margin, b.maxY + margin),
+    localToLonLat(b.minX - margin, b.maxY + margin),
+  ];
+  const lons = corners.map((c) => c[0]);
+  const lats = corners.map((c) => c[1]);
+  return { s: Math.min(...lats), w: Math.min(...lons), n: Math.max(...lats), e: Math.max(...lons) };
+}
+
+/** S-JTSK extent of a local rectangle plus margin. */
+export function boundsSJTSK(b = BOUNDS, margin = FETCH_MARGIN): { xmin: number; ymin: number; xmax: number; ymax: number } {
+  const pts = [
+    [b.minX - margin, b.minY - margin], [b.maxX + margin, b.minY - margin],
+    [b.maxX + margin, b.maxY + margin], [b.minX - margin, b.maxY + margin],
+  ].map(([x, y]) => localToSJTSK(x, y));
+  return {
+    xmin: Math.floor(Math.min(...pts.map((p) => p[0]))), xmax: Math.ceil(Math.max(...pts.map((p) => p[0]))),
+    ymin: Math.floor(Math.min(...pts.map((p) => p[1]))), ymax: Math.ceil(Math.max(...pts.map((p) => p[1]))),
+  };
 }

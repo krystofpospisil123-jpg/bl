@@ -31,8 +31,9 @@ export class PhysicsWorld {
   private constructor(private m: Manifest) {
     this.world = new RAPIER.World({ x: 0, y: -9.81, z: 0 });
     // Invisible walls along the edges of the generated area.
-    const H = m.halfExtent, y = (m.elevation.min + m.elevation.max) / 2, hh = (m.elevation.max - m.elevation.min) / 2 + 200;
-    for (const [x, z, hx, hz] of [[H + 1, 0, 1, H + 2], [-H - 1, 0, 1, H + 2], [0, H + 1, H + 2, 1], [0, -H - 1, H + 2, 1]]) {
+    const b = m.bounds, y = (m.elevation.min + m.elevation.max) / 2, hh = (m.elevation.max - m.elevation.min) / 2 + 200;
+    const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2, wx = (b.maxX - b.minX) / 2 + 2, wz = (b.maxZ - b.minZ) / 2 + 2;
+    for (const [x, z, hx, hz] of [[b.maxX + 1, cz, 1, wz], [b.minX - 1, cz, 1, wz], [cx, b.maxZ + 1, wx, 1], [cx, b.minZ - 1, wx, 1]]) {
       this.world.createCollider(RAPIER.ColliderDesc.cuboid(hx, hh, hz).setTranslation(x, y, z));
     }
   }
@@ -42,13 +43,17 @@ export class PhysicsWorld {
    * `source` returns null while a chunk's data or meshes are not ready yet.
    */
   updateStreaming(fx: number, fz: number, source: (cx: number, cz: number) => PhysicsChunkSource | null): boolean {
-    const { halfExtent: H, chunkSize: S, chunksPerSide: N } = this.m;
+    const { chunkSize: S, chunksX, chunksZ } = this.m;
+    const { minX: X0, minZ: Z0 } = this.m.bounds;
     let focusReady = false;
     let built = 0; // limit collider builds per frame to keep frames short
     const wanted = new Set<string>();
-    for (let cz = 0; cz < N; cz++)
-      for (let cx = 0; cx < N; cx++) {
-        const minX = -H + cx * S, minZ = -H + cz * S;
+    const r = this.radius;
+    const cxa = Math.max(0, Math.floor((fx - r - X0) / S)), cxb = Math.min(chunksX - 1, Math.floor((fx + r - X0) / S));
+    const cza = Math.max(0, Math.floor((fz - r - Z0) / S)), czb = Math.min(chunksZ - 1, Math.floor((fz + r - Z0) / S));
+    for (let cz = cza; cz <= czb; cz++)
+      for (let cx = cxa; cx <= cxb; cx++) {
+        const minX = X0 + cx * S, minZ = Z0 + cz * S;
         const dx = Math.max(minX - fx, 0, fx - (minX + S)), dz = Math.max(minZ - fz, 0, fz - (minZ + S));
         if (Math.hypot(dx, dz) > this.radius) continue;
         const key = `${cx},${cz}`;

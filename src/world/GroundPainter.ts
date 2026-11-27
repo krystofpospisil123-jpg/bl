@@ -14,18 +14,18 @@ export class GroundPainter {
   private pending = new Map<number, Done>();
   private latestByKey = new Map<string, number>();
   /** Whole-area orthophoto (north-up) and its metres per pixel / half extent. */
-  private photo?: { bitmap: ImageBitmap; step: number; half: number };
+  private photo?: { bitmap: ImageBitmap; step: number; minX: number; minZ: number };
 
-  setPhoto(bitmap: ImageBitmap, step: number, half: number) {
-    this.photo = { bitmap, step, half };
+  setPhoto(bitmap: ImageBitmap, step: number, minX: number, minZ: number) {
+    this.photo = { bitmap, step, minX, minZ };
   }
 
   /** Crops the photo patch for a chunk with a 2-pixel margin for seamless filtering. */
   private async photoPatch(minX: number, minZ: number, chunkSize: number): Promise<{ img?: ImageBitmap; margin: number }> {
     if (!this.photo) return { margin: 0 };
-    const { bitmap, step, half } = this.photo;
+    const { bitmap, step } = this.photo;
     const m = 2;
-    const sx = Math.round((minX + half) / step) - m, sy = Math.round((minZ + half) / step) - m;
+    const sx = Math.round((minX - this.photo.minX) / step) - m, sy = Math.round((minZ - this.photo.minZ) / step) - m;
     const sw = Math.round(chunkSize / step) + 2 * m;
     try {
       return { img: await createImageBitmap(bitmap, sx, sy, sw, sw), margin: m * step };

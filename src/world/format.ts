@@ -12,11 +12,12 @@ export interface Manifest {
   name: string;
   generated: string;
   origin: { lat: number; lon: number };
-  /** Playable area: [-halfExtent, halfExtent] on both X and Z. */
-  halfExtent: number;
+  /** Playable area in world coordinates (a rectangle; the origin is in Blansko, not the centre). */
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   chunkSize: number;
-  /** Chunks per side; chunk (cx, cz) covers x in [-half + cx*size, ...), z likewise. */
-  chunksPerSide: number;
+  /** Chunk grid: chunk (cx, cz) covers x in [minX + cx*size, ...), z in [minZ + cz*size, ...). */
+  chunksX: number;
+  chunksZ: number;
   /** Heightmap spacing in metres; each chunk heightmap has (chunkSize/heightStep + 1)^2 samples. */
   heightStep: number;
   /**
@@ -27,10 +28,10 @@ export interface Manifest {
   heightScale: number;
   elevation: { min: number; max: number };
   /** Coarse heightmap of the whole area (same PNG encoding), for distant terrain. */
-  overview: { file: string; size: number; step: number };
+  overview: { file: string; width: number; height: number; step: number };
   chunks: ChunkInfo[];
   /** Blurred orthophoto of the whole area (north-up JPEG), drawn under the ground cover. */
-  groundPhoto?: { file: string; size: number; step: number };
+  groundPhoto?: { file: string; width: number; height: number; step: number };
   /** Road graphs for traffic and pedestrians (see RoadGraphs). */
   graphFile: string;
   pois: Poi[];

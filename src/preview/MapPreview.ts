@@ -58,9 +58,9 @@ export class MapPreview {
   }
 
   private fit() {
-    const h = this.world.manifest.halfExtent;
-    this.center = { x: 0, z: 0 };
-    this.scale = Math.min(this.canvas.width, this.canvas.height) / (2 * h * 1.05);
+    const b = this.world.manifest.bounds;
+    this.center = { x: (b.minX + b.maxX) / 2, z: (b.minZ + b.maxZ) / 2 };
+    this.scale = Math.min(this.canvas.width / (b.maxX - b.minX), this.canvas.height / (b.maxZ - b.minZ)) / 1.05;
     this.draw();
   }
 
@@ -68,25 +68,26 @@ export class MapPreview {
   private buildHillshade() {
     const m = this.world.manifest;
     const per = m.chunkSize / m.heightStep;
-    const size = per * m.chunksPerSide + 1;
-    const elev = new Float32Array(size * size);
+    const size = per * m.chunksX + 1, rows = per * m.chunksZ + 1;
+    const elev = new Float32Array(size * rows);
     for (const c of this.chunks) {
       for (let j = 0; j < c.n; j++)
         for (let i = 0; i < c.n; i++) elev[(c.info.cz * per + j) * size + c.info.cx * per + i] = c.heights[j * c.n + i];
     }
     const cvs = document.createElement('canvas');
-    cvs.width = cvs.height = size;
+    cvs.width = size;
+    cvs.height = rows;
     const g = cvs.getContext('2d')!;
-    const img = g.createImageData(size, size);
+    const img = g.createImageData(size, rows);
     const { min, max } = m.elevation;
     const s = m.heightStep;
     // Light from the north-west, 45° altitude.
     const lx = -0.5, ly = -0.5, lz = Math.SQRT1_2;
-    for (let j = 0; j < size; j++) {
+    for (let j = 0; j < rows; j++) {
       for (let i = 0; i < size; i++) {
         const e = elev[j * size + i];
         const ex = elev[j * size + Math.min(size - 1, i + 1)] - elev[j * size + Math.max(0, i - 1)];
-        const ez = elev[Math.min(size - 1, j + 1) * size + i] - elev[Math.max(0, j - 1) * size + i];
+        const ez = elev[Math.min(rows - 1, j + 1) * size + i] - elev[Math.max(0, j - 1) * size + i];
         const nx = -ex / (2 * s), ny = -ez / (2 * s), nz = 1;
         const len = Math.hypot(nx, ny, nz);
         const shade = Math.max(0, (nx * lx + ny * ly + nz * lz) / len);
@@ -112,14 +113,14 @@ export class MapPreview {
     const sc = this.scale;
     ctx.setTransform(sc, 0, 0, sc, canvas.width / 2 - this.center.x * sc, canvas.height / 2 - this.center.z * sc);
     const px = 1 / sc; // one screen pixel in metres
-    const H = m.halfExtent;
+    const B = m.bounds;
 
     if (this.layers.hillshade && this.shade) {
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(this.shade, -H - m.heightStep / 2, -H - m.heightStep / 2, 2 * H + m.heightStep, 2 * H + m.heightStep);
+      ctx.drawImage(this.shade, B.minX - m.heightStep / 2, B.minZ - m.heightStep / 2, B.maxX - B.minX + m.heightStep, B.maxZ - B.minZ + m.heightStep);
     } else {
       ctx.fillStyle = '#d8d4c8';
-      ctx.fillRect(-H, -H, 2 * H, 2 * H);
+      ctx.fillRect(B.minX, B.minZ, B.maxX - B.minX, B.maxZ - B.minZ);
     }
 
     const alpha = this.layers.hillshade ? 0.55 : 1;
@@ -206,14 +207,19 @@ export class MapPreview {
       ctx.lineWidth = px;
       ctx.font = `${11 * px}px sans-serif`;
       ctx.fillStyle = 'rgba(200,0,0,0.8)';
-      for (let i = 0; i <= m.chunksPerSide; i++) {
-        const v = -H + i * m.chunkSize;
+      for (let i = 0; i <= m.chunksX; i++) {
+        const v = B.minX + i * m.chunkSize;
         ctx.beginPath();
-        ctx.moveTo(v, -H); ctx.lineTo(v, H);
-        ctx.moveTo(-H, v); ctx.lineTo(H, v);
+        ctx.moveTo(v, B.minZ); ctx.lineTo(v, B.maxZ);
         ctx.stroke();
       }
-      for (const c of m.chunks) ctx.fillText(`${c.cx},${c.cz}`, -H + c.cx * m.chunkSize + 4 * px, -H + c.cz * m.chunkSize + 13 * px);
+      for (let i = 0; i <= m.chunksZ; i++) {
+        const v = B.minZ + i * m.chunkSize;
+        ctx.beginPath();
+        ctx.moveTo(B.minX, v); ctx.lineTo(B.maxX, v);
+        ctx.stroke();
+      }
+      for (const c of m.chunks) ctx.fillText(`${c.cx},${c.cz}`, B.minX + c.cx * m.chunkSize + 4 * px, B.minZ + c.cz * m.chunkSize + 13 * px);
     }
     if (this.layers.pois) {
       ctx.font = `bold ${12 * px}px sans-serif`;
@@ -249,8 +255,8 @@ export class MapPreview {
     const [cx, cz] = this.world.chunkCoordsAt(x, z);
     const c = this.chunks.find((k) => k.info.cx === cx && k.info.cz === cz);
     if (!c) return undefined;
-    const fx = (x + m.halfExtent - cx * m.chunkSize) / m.heightStep;
-    const fz = (z + m.halfExtent - cz * m.chunkSize) / m.heightStep;
+    const fx = (x - m.bounds.minX - cx * m.chunkSize) / m.heightStep;
+    const fz = (z - m.bounds.minZ - cz * m.chunkSize) / m.heightStep;
     const i = Math.min(c.n - 2, Math.floor(fx)), j = Math.min(c.n - 2, Math.floor(fz));
     const tx = fx - i, tz = fz - j, h = c.heights, n = c.n;
     return (h[j * n + i] * (1 - tx) + h[j * n + i + 1] * tx) * (1 - tz) + (h[(j + 1) * n + i] * (1 - tx) + h[(j + 1) * n + i + 1] * tx) * tz;

@@ -119,20 +119,25 @@ export class ChunkManager {
   update(viewer: THREE.Vector3) {
     if (this.paused) return;
     const m = this.world.manifest;
-    const H = m.halfExtent, S = m.chunkSize, N = m.chunksPerSide;
+    const { minX: X0, minZ: Z0 } = m.bounds, S = m.chunkSize;
+    const reach = this.viewDistance + HYSTERESIS;
+    const rectDist = (minX: number, minZ: number) => Math.hypot(Math.max(minX - viewer.x, 0, viewer.x - (minX + S)), Math.max(minZ - viewer.z, 0, viewer.z - (minZ + S)));
+    // Far chunks go first (only the area around the viewer is scanned below).
+    for (const [key, st] of this.states) if (rectDist(st.rect.minX, st.rect.minZ) > reach) this.unload(key, st);
+    const cxa = Math.max(0, Math.floor((viewer.x - reach - X0) / S)), cxb = Math.min(m.chunksX - 1, Math.floor((viewer.x + reach - X0) / S));
+    const cza = Math.max(0, Math.floor((viewer.z - reach - Z0) / S)), czb = Math.min(m.chunksZ - 1, Math.floor((viewer.z + reach - Z0) / S));
     // 1. Decide which chunks are wanted and at which LOD.
-    for (let cz = 0; cz < N; cz++) {
-      for (let cx = 0; cx < N; cx++) {
-        const minX = -H + cx * S, minZ = -H + cz * S;
-        const dx = Math.max(minX - viewer.x, 0, viewer.x - (minX + S));
-        const dz = Math.max(minZ - viewer.z, 0, viewer.z - (minZ + S));
-        const d = Math.hypot(dx, dz);
+    for (let cz = cza; cz <= czb; cz++) {
+      for (let cx = cxa; cx <= cxb; cx++) {
+        const minX = X0 + cx * S, minZ = Z0 + cz * S;
+        const d = rectDist(minX, minZ);
         const key = `${cx},${cz}`;
         let st = this.states.get(key);
         if (d > this.viewDistance + (st ? HYSTERESIS : 0)) {
           if (st) this.unload(key, st);
           continue;
         }
+        if (!this.world.chunkInfo(cx, cz)) continue;
         if (!st) {
           st = { cx, cz, rect: { minX, minZ, maxX: minX + S, maxZ: minZ + S }, loading: false, lod: -1, wantLod: 0, collisionMeshes: [], propBoxes: [], lamps: [], texShown: 0, texRequested: 0, retryAt: 0, disposables: [] };
           this.states.set(key, st);

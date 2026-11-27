@@ -1,5 +1,5 @@
 // Converts the raw OSM + DEM downloads into the game's chunked world format.
-// Input:  data/raw/osm.json, data/raw/dem_local.{json,bin}
+// Input:  data/raw/osm.json (Blansko), data/raw/zabaged.json (the rest), data/raw/dem_local.{json,bin}
 // Output: public/data/manifest.json, public/data/overview.png, public/data/chunks/*
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -8,7 +8,7 @@ import { buildRoadGraphs, type GraphWay } from './lib/roadGraph.ts';
 import { generateSigns } from './lib/signs.ts';
 import { loadOrtho, roofColour } from './lib/ortho.ts';
 import jpeg from 'jpeg-js';
-import { RAW_DIR, OUT_DIR, ORIGIN, HALF_EXTENT, CHUNK_SIZE, HEIGHT_STEP, lonLatToLocal } from './lib/config.ts';
+import { RAW_DIR, OUT_DIR, ORIGIN, BOUNDS, OSM_HALF, CHUNK_SIZE, HEIGHT_STEP, lonLatToLocal } from './lib/config.ts';
 import {
   type Ring, type Vec2, type Rect,
   assembleRings, centroid, cleanRing, clipRingToRect, distPointSegmentSq, hash01, orient,
@@ -31,9 +31,14 @@ interface OsmElement {
   tags?: Record<string, string>;
   geometry?: (OsmGeomPoint | null)[];
   members?: { type: string; role: string; geometry?: (OsmGeomPoint | null)[] }[];
+  /** From ZABAGED (outside the OSM square) rather than OpenStreetMap. */
+  zbg?: boolean;
+  /** Pre-clipped line in map coordinates (replaces `geometry` for lines). */
+  local?: Vec2[];
 }
 
-const CHUNKS = Math.round((2 * HALF_EXTENT) / CHUNK_SIZE);
+const CX = Math.round((BOUNDS.maxX - BOUNDS.minX) / CHUNK_SIZE);
+const CZ = Math.round((BOUNDS.maxY - BOUNDS.minY) / CHUNK_SIZE);
 const SAMPLES_PER_CHUNK = CHUNK_SIZE / HEIGHT_STEP; // intervals
 
 /** Local map coordinates (x east, y north). Converted to the game's z = -y only on output. */
@@ -44,16 +49,16 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
 // DEM
 
 let dem: Float32Array;
-let demSize = 0;
+let demW = 0, demH = 0;
 
 /** Bilinear terrain elevation at map coordinates (clamped to the area). */
 function elevation(x: number, y: number): number {
-  const fx = Math.max(0, Math.min(demSize - 1.0001, (x + HALF_EXTENT) / HEIGHT_STEP));
-  const fy = Math.max(0, Math.min(demSize - 1.0001, (HALF_EXTENT - y) / HEIGHT_STEP));
+  const fx = Math.max(0, Math.min(demW - 1.0001, (x - BOUNDS.minX) / HEIGHT_STEP));
+  const fy = Math.max(0, Math.min(demH - 1.0001, (BOUNDS.maxY - y) / HEIGHT_STEP));
   const x0 = Math.floor(fx), y0 = Math.floor(fy);
   const tx = fx - x0, ty = fy - y0;
-  const i = y0 * demSize + x0;
-  return (dem[i] * (1 - tx) + dem[i + 1] * tx) * (1 - ty) + (dem[i + demSize] * (1 - tx) + dem[i + demSize + 1] * tx) * ty;
+  const i = y0 * demW + x0;
+  return (dem[i] * (1 - tx) + dem[i + 1] * tx) * (1 - ty) + (dem[i + demW] * (1 - tx) + dem[i + demW + 1] * tx) * ty;
 }
 
 // ---------------------------------------------------------------------------
@@ -143,27 +148,96 @@ function buildingHeight(t: Record<string, string>, area: number, id: number): { 
 // ---------------------------------------------------------------------------
 // Chunk helpers
 
-interface ChunkAcc extends ChunkData { rect: Rect }
+/** `osm`: the chunk lies in the OSM square (its features come from OSM, elsewhere from ZABAGED). */
+interface ChunkAcc extends ChunkData { rect: Rect; osm: boolean }
 
 const chunks: ChunkAcc[][] = [];
-for (let cz = 0; cz < CHUNKS; cz++) {
+for (let cz = 0; cz < CZ; cz++) {
   chunks.push([]);
-  for (let cx = 0; cx < CHUNKS; cx++) {
+  for (let cx = 0; cx < CX; cx++) {
     // Map-space rect (y north). Chunk row cz = 0 is the northernmost.
-    const minX = -HALF_EXTENT + cx * CHUNK_SIZE;
-    const maxY = HALF_EXTENT - cz * CHUNK_SIZE;
+    const minX = BOUNDS.minX + cx * CHUNK_SIZE;
+    const maxY = BOUNDS.maxY - cz * CHUNK_SIZE;
     chunks[cz].push({
       v: FORMAT_VERSION, cx, cz, buildings: [], roads: [], rails: [], waterways: [], water: [], areas: [], trees: [], pois: [],
       rect: { minX, maxX: minX + CHUNK_SIZE, minY: maxY - CHUNK_SIZE, maxY },
+      osm: inOsm([minX + CHUNK_SIZE / 2, maxY - CHUNK_SIZE / 2]),
     });
   }
 }
 
 function chunkAt(x: number, y: number): ChunkAcc | null {
-  const cx = Math.floor((x + HALF_EXTENT) / CHUNK_SIZE);
-  const cz = Math.floor((HALF_EXTENT - y) / CHUNK_SIZE);
-  if (cx < 0 || cz < 0 || cx >= CHUNKS || cz >= CHUNKS) return null;
+  const cx = Math.floor((x - BOUNDS.minX) / CHUNK_SIZE);
+  const cz = Math.floor((BOUNDS.maxY - y) / CHUNK_SIZE);
+  if (cx < 0 || cz < 0 || cx >= CX || cz >= CZ) return null;
   return chunks[cz][cx];
+}
+
+/** Does a feature of this source belong in this chunk? (OSM inside the square, ZABAGED outside.) */
+const fits = (c: ChunkAcc, zbg?: boolean) => c.osm === !zbg;
+
+// ---------------------------------------------------------------------------
+// Joining the two sources at the edge of the OSM square
+
+function inOsm(p: Vec2): boolean {
+  return Math.abs(p[0]) < OSM_HALF && Math.abs(p[1]) < OSM_HALF;
+}
+const SQ_EDGES: [Vec2, Vec2][] = (() => {
+  const H = OSM_HALF;
+  return [[[-H, -H], [H, -H]], [[H, -H], [H, H]], [[H, H], [-H, H]], [[-H, H], [-H, -H]]];
+})();
+interface Crossing { p: Vec2; id: number; drive: boolean }
+let nextJunction = 9e10;
+const NON_DRIVE = new Set(['footway', 'path', 'track', 'steps', 'cycleway', 'pedestrian', 'bridleway', 'service']);
+
+/**
+ * Cuts a line to the part inside (OSM) or outside (ZABAGED) the square. Where it crosses the edge
+ * a junction node is made; ZABAGED roads snap their crossing to the nearest OSM road crossing
+ * (within 35 m, same kind of road) so the two networks join.
+ */
+function clipLine(line: Vec2[], nodes: number[] | undefined, keepOsm: boolean, drive: boolean, record: Crossing[] | null, snapTo: Crossing[] | null): { line: Vec2[]; nodes?: number[] }[] {
+  const has = !!nodes && nodes.length === line.length;
+  const keep = (p: Vec2) => inOsm(p) === keepOsm;
+  const parts: { line: Vec2[]; nodes: number[] }[] = [];
+  let cur: { line: Vec2[]; nodes: number[] } | null = keep(line[0]) ? { line: [line[0]], nodes: [has ? nodes![0] : 0] } : null;
+  const cross = (p: Vec2): { p: Vec2; id: number } => {
+    if (snapTo) {
+      let best: Crossing | null = null, bd = 35;
+      for (const c of snapTo) {
+        if (c.drive !== drive) continue;
+        const d = Math.hypot(c.p[0] - p[0], c.p[1] - p[1]);
+        if (d < bd) { bd = d; best = c; }
+      }
+      if (best) return best;
+    }
+    const c = { p, id: nextJunction++, drive };
+    record?.push(c);
+    return c;
+  };
+  for (let i = 0; i + 1 < line.length; i++) {
+    const a = line[i], b = line[i + 1];
+    const ts: number[] = [];
+    for (const [c, d] of SQ_EDGES) {
+      const t = segCross(a, b, c, d);
+      if (t !== null && t > 1e-9 && t < 1 - 1e-9) ts.push(t);
+    }
+    ts.sort((x, y) => x - y);
+    for (const t of ts) {
+      const x = cross([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+      if (cur) {
+        cur.line.push(x.p);
+        cur.nodes.push(x.id);
+        parts.push(cur);
+        cur = null;
+      } else cur = { line: [x.p], nodes: [x.id] };
+    }
+    if (cur) {
+      cur.line.push(b);
+      cur.nodes.push(has ? nodes![i + 1] : 0);
+    } else if (keep(b)) cur = { line: [b], nodes: [has ? nodes![i + 1] : 0] };
+  }
+  if (cur) parts.push(cur);
+  return parts.filter((p) => p.line.length >= 2).map((p) => ({ line: p.line, nodes: has ? p.nodes : undefined }));
 }
 
 /** Map ring -> flat game-space array [x, z, ...]. */
@@ -191,10 +265,10 @@ function addPolyline(
   };
   for (let i = 0; i + 1 < pts.length; i++) {
     const a = pts[i], b = pts[i + 1];
-    const cx0 = Math.max(0, Math.floor((Math.min(a[0], b[0]) - margin + HALF_EXTENT) / CHUNK_SIZE));
-    const cx1 = Math.min(CHUNKS - 1, Math.floor((Math.max(a[0], b[0]) + margin + HALF_EXTENT) / CHUNK_SIZE));
-    const cz0 = Math.max(0, Math.floor((HALF_EXTENT - Math.max(a[1], b[1]) - margin) / CHUNK_SIZE));
-    const cz1 = Math.min(CHUNKS - 1, Math.floor((HALF_EXTENT - Math.min(a[1], b[1]) + margin) / CHUNK_SIZE));
+    const cx0 = Math.max(0, Math.floor((Math.min(a[0], b[0]) - margin - BOUNDS.minX) / CHUNK_SIZE));
+    const cx1 = Math.min(CX - 1, Math.floor((Math.max(a[0], b[0]) + margin - BOUNDS.minX) / CHUNK_SIZE));
+    const cz0 = Math.max(0, Math.floor((BOUNDS.maxY - Math.max(a[1], b[1]) - margin) / CHUNK_SIZE));
+    const cz1 = Math.min(CZ - 1, Math.floor((BOUNDS.maxY - Math.min(a[1], b[1]) + margin) / CHUNK_SIZE));
     for (let cz = cz0; cz <= cz1; cz++) {
       for (let cx = cx0; cx <= cx1; cx++) {
         const c = chunks[cz][cx];
@@ -277,10 +351,10 @@ function bridgeElevations(line: Vec2[]): number[] {
 /** Clips a polygon (outer + holes) into every chunk it overlaps. */
 function addPolygon(rings: Ring[], each: (c: ChunkAcc, clipped: Ring[]) => void) {
   const b = ringBounds(rings[0]);
-  const cx0 = Math.max(0, Math.floor((b.minX + HALF_EXTENT) / CHUNK_SIZE));
-  const cx1 = Math.min(CHUNKS - 1, Math.floor((b.maxX + HALF_EXTENT) / CHUNK_SIZE));
-  const cz0 = Math.max(0, Math.floor((HALF_EXTENT - b.maxY) / CHUNK_SIZE));
-  const cz1 = Math.min(CHUNKS - 1, Math.floor((HALF_EXTENT - b.minY) / CHUNK_SIZE));
+  const cx0 = Math.max(0, Math.floor((b.minX - BOUNDS.minX) / CHUNK_SIZE));
+  const cx1 = Math.min(CX - 1, Math.floor((b.maxX - BOUNDS.minX) / CHUNK_SIZE));
+  const cz0 = Math.max(0, Math.floor((BOUNDS.maxY - b.maxY) / CHUNK_SIZE));
+  const cz1 = Math.min(CZ - 1, Math.floor((BOUNDS.maxY - b.minY) / CHUNK_SIZE));
   for (let cz = cz0; cz <= cz1; cz++) {
     for (let cx = cx0; cx <= cx1; cx++) {
       const c = chunks[cz][cx];
@@ -377,15 +451,50 @@ const TREE_RULES: Record<string, { spacing: number; keep: number; conifer: numbe
 
 async function main() {
   const demMeta = JSON.parse(await fs.readFile(path.join(RAW_DIR, 'dem_local.json'), 'utf8'));
-  if (demMeta.step !== HEIGHT_STEP || demMeta.halfExtent !== HALF_EXTENT) throw new Error('DEM grid does not match config; rerun data:dem');
+  const db = demMeta.bounds ?? {};
+  if (demMeta.step !== HEIGHT_STEP || db.minX !== BOUNDS.minX || db.maxX !== BOUNDS.maxX || db.minY !== BOUNDS.minY || db.maxY !== BOUNDS.maxY) {
+    throw new Error('DEM grid does not match config; rerun data:dem');
+  }
   const demBuf = await fs.readFile(path.join(RAW_DIR, 'dem_local.bin'));
   dem = new Float32Array(demBuf.buffer, demBuf.byteOffset, demBuf.byteLength / 4);
-  demSize = demMeta.size;
+  demW = demMeta.width;
+  demH = demMeta.height;
 
   const ortho = await loadOrtho();
-  const osm: { elements: OsmElement[] } = JSON.parse(await fs.readFile(path.join(RAW_DIR, 'osm.json'), 'utf8'));
+  const osmRaw: { elements: OsmElement[] } = JSON.parse(await fs.readFile(path.join(RAW_DIR, 'osm.json'), 'utf8'));
+  let zbgElements: OsmElement[] = [];
+  try {
+    zbgElements = JSON.parse(await fs.readFile(path.join(RAW_DIR, 'zabaged.json'), 'utf8')).elements;
+  } catch {
+    console.warn('No data/raw/zabaged.json (npm run data:zabaged): only the OSM square will have features');
+  }
+  for (const el of zbgElements) el.zbg = true;
+  // Lines are cut at the edge of the OSM square: OSM keeps the inside, ZABAGED the outside,
+  // and roads crossing the edge are joined. OSM first, so ZABAGED can snap to its crossings.
+  const crossings: Crossing[] = [];
+  const elements: OsmElement[] = [];
+  let partId = 9.5e10;
+  for (const el of [...osmRaw.elements, ...zbgElements]) {
+    const t = el.tags ?? {};
+    const isLine = el.type === 'way' && !!el.geometry && !t.building && t.area !== 'yes' &&
+      (!!t.highway || !!t.railway || (!!t.waterway && !!WATERWAY_WIDTH[t.waterway]));
+    if (!isLine) {
+      elements.push(el);
+      continue;
+    }
+    const pts = el.geometry!.filter((p): p is OsmGeomPoint => !!p);
+    const line = pts.map(toMap);
+    if (line.length < 2) continue;
+    const nodes = el.nodes && el.nodes.length === line.length ? el.nodes : undefined;
+    const drive = !!t.highway && !NON_DRIVE.has(t.highway);
+    const isRoad = !!t.highway;
+    const parts = clipLine(line, nodes, !el.zbg, drive, isRoad && !el.zbg ? crossings : null, isRoad && el.zbg ? crossings : null);
+    parts.forEach((part, k) => elements.push({ ...el, id: k ? partId++ : el.id, local: part.line, nodes: part.nodes, geometry: el.geometry }));
+  }
+  const osm = { elements };
+  console.log(`Sources: ${osmRaw.elements.length} OSM + ${zbgElements.length} ZABAGED elements, ${crossings.length} road crossings at the square's edge`);
   const obstacles = new ObstacleIndex();
-  const treeAreas: { kind: string; rings: Ring[] }[] = [];
+  const treeAreas: { kind: string; rings: Ring[]; zbg?: boolean }[] = [];
   const treeRows: Vec2[][] = [];
   const allPois: Poi[] = [];
   const graphWays: GraphWay[] = [];
@@ -397,7 +506,7 @@ async function main() {
     const t = el.tags ?? {};
     if (el.type !== 'way' || !el.geometry || t.bridge || t.tunnel) continue;
     const clear = t.railway === 'rail' ? 10 : t.waterway === 'river' || t.waterway === 'stream' || t.waterway === 'canal' ? 5 : 0;
-    if (clear) clearanceLines.push({ line: el.geometry.filter((p): p is OsmGeomPoint => !!p).map(toMap), clear });
+    if (clear) clearanceLines.push({ line: el.local ?? el.geometry.filter((p): p is OsmGeomPoint => !!p).map(toMap), clear });
   }
 
   for (const el of osm.elements) {
@@ -407,7 +516,7 @@ async function main() {
     if (el.type === 'node') {
       const [x, y] = lonLatToLocal(el.lon!, el.lat!);
       const c = chunkAt(x, y);
-      if (!c) continue;
+      if (!c || !fits(c, el.zbg)) continue;
       if (t.natural === 'tree') {
         const conifer = t.leaf_type === 'needleleaved' ? 1 : 0;
         c.trees.push(r1(x), r1(-y), r1(8 + 8 * hash01(el.id)), conifer);
@@ -423,7 +532,7 @@ async function main() {
       continue;
     }
 
-    let line = (el.geometry ?? []).filter((p): p is OsmGeomPoint => !!p).map(toMap);
+    let line = el.local ?? (el.geometry ?? []).filter((p): p is OsmGeomPoint => !!p).map(toMap);
 
     // --- Buildings
     if (t.building && t.building !== 'no') {
@@ -433,7 +542,7 @@ async function main() {
         if (area < 4) continue;
         const [cxm, cym] = centroid(outer);
         const c = chunkAt(cxm, cym);
-        if (!c) continue;
+        if (!c || !fits(c, el.zbg)) continue;
         let gMin = Infinity, gSum = 0;
         for (const [x, y] of outer) {
           const g = elevation(x, y);
@@ -511,7 +620,7 @@ async function main() {
     // --- Water polygons (checked before waterway lines: waterway=riverbank is an area)
     if (t.natural === 'water' || t.waterway === 'riverbank' || t.water || t.landuse === 'basin' || t.landuse === 'reservoir') {
       for (const rings of polygonsOf(el)) {
-        addPolygon(rings, (c, clipped) => c.water.push({ id: el.id, kind: t.water ?? 'water', rings: clipped.map(flatRing) }));
+        addPolygon(rings, (c, clipped) => { if (fits(c, el.zbg)) c.water.push({ id: el.id, kind: t.water ?? 'water', rings: clipped.map(flatRing) }); });
         obstacles.addPolygon(rings);
         stats.water++;
       }
@@ -542,28 +651,28 @@ async function main() {
     const kind = areaKind(t) ?? (t.highway === 'pedestrian' && t.area === 'yes' ? 'plaza' : null);
     if (kind) {
       for (const rings of polygonsOf(el)) {
-        addPolygon(rings, (c, clipped) => c.areas.push({ id: el.id, kind, rings: clipped.map(flatRing) } as Area));
-        if (TREE_RULES[kind]) treeAreas.push({ kind, rings });
+        addPolygon(rings, (c, clipped) => { if (fits(c, el.zbg)) c.areas.push({ id: el.id, kind, rings: clipped.map(flatRing) } as Area); });
+        if (TREE_RULES[kind]) treeAreas.push({ kind, rings, zbg: el.zbg });
         stats.areas++;
       }
     }
   }
 
   // --- Procedural trees inside wooded areas (deterministic jittered grid).
-  for (const { kind, rings } of treeAreas) {
+  for (const { kind, rings, zbg } of treeAreas) {
     const rule = TREE_RULES[kind];
     const b = ringBounds(rings[0]);
     const s = rule.spacing;
-    const x0 = Math.max(-HALF_EXTENT, Math.floor(b.minX / s) * s), x1 = Math.min(HALF_EXTENT, b.maxX);
-    const y0 = Math.max(-HALF_EXTENT, Math.floor(b.minY / s) * s), y1 = Math.min(HALF_EXTENT, b.maxY);
+    const x0 = Math.max(BOUNDS.minX, Math.floor(b.minX / s) * s), x1 = Math.min(BOUNDS.maxX, b.maxX);
+    const y0 = Math.max(BOUNDS.minY, Math.floor(b.minY / s) * s), y1 = Math.min(BOUNDS.maxY, b.maxY);
     for (let gx = x0; gx <= x1; gx += s) {
       for (let gy = y0; gy <= y1; gy += s) {
         const ix = Math.round(gx / s), iy = Math.round(gy / s);
         if (hash01(ix, iy, 1) > rule.keep) continue;
         const p: Vec2 = [gx + (hash01(ix, iy, 2) - 0.5) * s * 0.9, gy + (hash01(ix, iy, 3) - 0.5) * s * 0.9];
-        if (!pointInPolygon(p, rings) || obstacles.blocked(p)) continue;
         const c = chunkAt(p[0], p[1]);
-        if (!c) continue;
+        if (!c || !fits(c, zbg)) continue;
+        if (!pointInPolygon(p, rings) || obstacles.blocked(p)) continue;
         const conifer = hash01(ix, iy, 4) < rule.conifer ? 1 : 0;
         const h = rule.hMin + (rule.hMax - rule.hMin) * hash01(ix, iy, 5);
         c.trees.push(r1(p[0]), r1(-p[1]), r1(h), conifer);
@@ -578,8 +687,8 @@ async function main() {
     const key = (x: number, y: number) => `${Math.floor(x / cell)},${Math.floor(y / cell)}`;
     for (const row of chunks) for (const c of row) for (let i = 0; i < c.trees.length; i += 4) occupied.add(key(c.trees[i], -c.trees[i + 1]));
     let added = 0;
-    for (let gx = -HALF_EXTENT + cell / 2; gx < HALF_EXTENT; gx += cell) {
-      for (let gy = -HALF_EXTENT + cell / 2; gy < HALF_EXTENT; gy += cell) {
+    for (let gx = BOUNDS.minX + cell / 2; gx < BOUNDS.maxX; gx += cell) {
+      for (let gy = BOUNDS.minY + cell / 2; gy < BOUNDS.maxY; gy += cell) {
         if (occupied.has(key(gx, gy))) continue;
         // Average a 3 x 3 m patch: canopies are dark, clearly green and fairly uniform.
         let r = 0, g = 0, b = 0, n = 0;
@@ -693,20 +802,22 @@ async function main() {
     name: 'Blansko: Open World',
     generated: new Date().toISOString(),
     origin: ORIGIN,
-    halfExtent: HALF_EXTENT,
+    bounds: { minX: BOUNDS.minX, maxX: BOUNDS.maxX, minZ: -BOUNDS.maxY, maxZ: -BOUNDS.minY },
     chunkSize: CHUNK_SIZE,
-    chunksPerSide: CHUNKS,
+    chunksX: CX,
+    chunksZ: CZ,
     heightStep: HEIGHT_STEP,
     heightBase,
     heightScale,
     elevation: { min: r1(eMin), max: r1(eMax) },
-    overview: { file: 'overview.png', size: 0, step: 0 },
+    overview: { file: 'overview.png', width: 0, height: 0, step: 0 },
     chunks: [],
     graphFile: 'roads.json',
     pois: allPois.filter((p) => p.name),
     attribution: [
       '© přispěvatelé OpenStreetMap (ODbL), openstreetmap.org/copyright',
       'Výškopis: DMR 5G © ČÚZK (CC BY 4.0)',
+      'Mapa okolí: ZABAGED® © ČÚZK (CC BY 4.0)',
     ],
   };
 
@@ -742,9 +853,9 @@ async function main() {
     for (const c of row) {
       const heights = new Uint16Array(n * n);
       const col0 = c.cx * SAMPLES_PER_CHUNK, row0 = c.cz * SAMPLES_PER_CHUNK;
-      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) heights[j * n + i] = enc(dem[(row0 + j) * demSize + col0 + i]);
+      for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) heights[j * n + i] = enc(dem[(row0 + j) * demW + col0 + i]);
       const base = `chunks/c_${c.cx}_${c.cz}`;
-      const { rect: _rect, ...data } = c;
+      const { rect: _rect, osm: _osm, ...data } = c;
       const json = JSON.stringify(data);
       await fs.writeFile(path.join(OUT_DIR, base + '.json'), json);
       const png = encodeUint16Png(heights, n, n);
@@ -757,47 +868,51 @@ async function main() {
     }
   }
 
-  // --- Overview heightmap (every 10th sample -> 20 m grid).
-  const stride = 10;
-  const ovSize = Math.floor((demSize - 1) / stride) + 1;
-  const ov = new Uint16Array(ovSize * ovSize);
-  for (let j = 0; j < ovSize; j++) for (let i = 0; i < ovSize; i++) ov[j * ovSize + i] = enc(dem[j * stride * demSize + i * stride]);
+  // --- Overview heightmap (every 20th sample -> 40 m grid).
+  const stride = 20;
+  const ovW = Math.floor((demW - 1) / stride) + 1, ovH = Math.floor((demH - 1) / stride) + 1;
+  const ov = new Uint16Array(ovW * ovH);
+  for (let j = 0; j < ovH; j++) for (let i = 0; i < ovW; i++) ov[j * ovW + i] = enc(dem[j * stride * demW + i * stride]);
   await fs.rm(path.join(OUT_DIR, 'overview.bin'), { force: true });
-  await fs.writeFile(path.join(OUT_DIR, 'overview.png'), encodeUint16Png(ov, ovSize, ovSize));
-  manifest.overview = { file: 'overview.png', size: ovSize, step: HEIGHT_STEP * stride };
+  await fs.writeFile(path.join(OUT_DIR, 'overview.png'), encodeUint16Png(ov, ovW, ovH));
+  manifest.overview = { file: 'overview.png', width: ovW, height: ovH, step: HEIGHT_STEP * stride };
 
   // --- Orthophoto ground colours (2.5 m grid, north-up) used under the painted ground cover.
   if (ortho) {
-    const step = 2.5, size = Math.round((2 * HALF_EXTENT) / step);
-    const img = Buffer.alloc(size * size * 4);
-    for (let j = 0; j < size; j++)
-      for (let i = 0; i < size; i++) {
+    // At most 4096 px on a side (3 m per pixel for the enlarged area).
+    const ext = Math.max(BOUNDS.maxX - BOUNDS.minX, BOUNDS.maxY - BOUNDS.minY);
+    const step = Math.max(2.5, Math.ceil((ext / 4096) * 4) / 4);
+    const pw = Math.round((BOUNDS.maxX - BOUNDS.minX) / step), ph = Math.round((BOUNDS.maxY - BOUNDS.minY) / step);
+    const img = Buffer.alloc(pw * ph * 4);
+    for (let j = 0; j < ph; j++)
+      for (let i = 0; i < pw; i++) {
         // Average a 3x3 neighbourhood so cars and small details blur away.
         let r = 0, g = 0, b = 0, n = 0;
         for (let dy = -1; dy <= 1; dy++)
           for (let dx = -1; dx <= 1; dx++) {
-            const c = ortho.sample(-HALF_EXTENT + (i + 0.5 + dx * 0.33) * step, HALF_EXTENT - (j + 0.5 + dy * 0.33) * step);
+            const c = ortho.sample(BOUNDS.minX + (i + 0.5 + dx * 0.33) * step, BOUNDS.maxY - (j + 0.5 + dy * 0.33) * step);
             if (c) { r += c[0]; g += c[1]; b += c[2]; n++; }
           }
-        const k = (j * size + i) * 4;
+        const k = (j * pw + i) * 4;
         img[k] = n ? r / n : 110; img[k + 1] = n ? g / n : 140; img[k + 2] = n ? b / n : 80; img[k + 3] = 255;
       }
-    const jpg = jpeg.encode({ data: img, width: size, height: size }, 82).data;
+    const jpg = jpeg.encode({ data: img, width: pw, height: ph }, 82).data;
     await fs.writeFile(path.join(OUT_DIR, 'ground.jpg'), jpg);
-    manifest.groundPhoto = { file: 'ground.jpg', size, step };
+    manifest.groundPhoto = { file: 'ground.jpg', width: pw, height: ph, step };
     manifest.attribution.push('Ortofoto © ČÚZK (CC BY 4.0)');
-    console.log(`Ground photo ${size}x${size} px, ${(jpg.length / 1e3).toFixed(0)} kB`);
+    console.log(`Ground photo ${pw}x${ph} px, ${(jpg.length / 1e3).toFixed(0)} kB`);
   }
 
   // --- Road graphs for traffic and pedestrians.
-  const graphs = buildRoadGraphs(graphWays, elevation, HALF_EXTENT - 5);
+  const graphs = buildRoadGraphs(graphWays, elevation, (p) =>
+    p[0] > BOUNDS.minX + 5 && p[0] < BOUNDS.maxX - 5 && p[1] > BOUNDS.minY + 5 && p[1] < BOUNDS.maxY - 5);
   await fs.writeFile(path.join(OUT_DIR, 'roads.json'), JSON.stringify(graphs));
   console.log(`Road graphs: drive ${graphs.drive.nodes.length / 3} nodes / ${graphs.drive.edges.length} edges, ` +
     `walk ${graphs.walk.nodes.length / 3} nodes / ${graphs.walk.edges.length} edges`);
 
   await fs.writeFile(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 1));
   console.log('Features:', stats);
-  console.log(`Wrote ${CHUNKS * CHUNKS} chunks (${(bytes / 1e6).toFixed(1)} MB uncompressed) to ${path.relative(process.cwd(), OUT_DIR)}`);
+  console.log(`Wrote ${CX * CZ} chunks (${(bytes / 1e6).toFixed(1)} MB uncompressed) to ${path.relative(process.cwd(), OUT_DIR)}`);
 }
 
 main().catch((err) => {

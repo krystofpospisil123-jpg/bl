@@ -234,7 +234,7 @@ export class Game {
       console.error('Modely aut a postav se nenačetly, používám jednoduché tvary', err);
     }).finally(() => (this.modelsReady = true));
     Promise.all([world.loadGroundPhoto().catch(() => null), models]).then(([photo]) => {
-      if (photo) this.chunks.painter.setPhoto(photo.bitmap, photo.step, photo.half);
+      if (photo) this.chunks.painter.setPhoto(photo.bitmap, photo.step, photo.minX, photo.minZ);
       this.chunks.paused = false;
     });
     world.loadOverview().then((o) => {
@@ -317,7 +317,7 @@ export class Game {
       this.dealer.money = () => this.arsenal.money;
       this.dealer.onBuy = (o, color, test) => this.buyCar(o, color, test);
       this.scene.add(this.interior.group, this.club.group, this.bowling.group, this.bowling.world, this.dealer.group, this.privat.group, this.pickups.group);
-      this.minimap = new Minimap(graphs, world.manifest.halfExtent, this.touch ? 104 : 165);
+      this.minimap = new Minimap(graphs, world.manifest.bounds, this.touch ? 104 : 165);
       this.nav = new Navigation(graphs.drive);
       for (const d of this.chunks.loadedData()) this.minimap.paintChunk(d);
       this.chunks.onChunkData = (d) => this.minimap?.paintChunk(d);
